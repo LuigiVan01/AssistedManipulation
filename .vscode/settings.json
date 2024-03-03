@@ -1,0 +1,6 @@
+{
+    // Extension configuration.
+    "cmake.configureOnOpen": false,
+    "C_Cpp.autoAddFileAssociations": false,
+    "editor.rulers": [80,120]
+}

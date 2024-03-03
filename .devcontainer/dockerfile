@@ -1,0 +1,3 @@
+FROM ros:latest
+
+CMD tail -f /dev/null
