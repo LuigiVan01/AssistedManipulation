@@ -15,7 +15,14 @@
             "label": "Compile",
             "type": "shell",
             "windows": { "command": "./scripts/compile.bat" },
+            "linux": { "command": "./scripts/compile.bash" },
             "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": []
+        },
+        {
+            "label": "Visualiser",
+            "type": "shell",
+            "linux": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64"},
             "problemMatcher": []
         }
     ]

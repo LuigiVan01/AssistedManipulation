@@ -7,7 +7,9 @@
             "cppStandard": "c++20",
             "defines": [],
             "includePath": [
-                "${workspaceFolder}/src/**"
+                "${workspaceFolder}/src/**",
+                "${workspaceFolder}/lib/raisimlib/raisim/linux/include",
+                "${workspaceFolder}/lib/eigen/include/eigen3/**"
             ]
         },
         {
@@ -16,7 +18,9 @@
             "cppStandard": "c++20",
             "defines": [],
             "includePath": [
-                "${workspaceFolder}/src/**"
+                "${workspaceFolder}/src/**",
+                "${workspaceFolder}/lib/raisimlib/raisim/linux/include",
+                "${workspaceFolder}/lib/eigen/include/eigen3/**"
             ]
         }
     ],
