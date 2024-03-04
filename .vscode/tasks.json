@@ -17,6 +17,13 @@
             "windows": { "command": "./scripts/compile.bat" },
             "linux": { "command": "./scripts/compile.bash" },
             "options": { "cwd": "${workspaceFolder}" },
+            "args": [ "${config:user_build_target}" ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean",
+            "type": "shell",
+            "linux": { "command": "rm -rf ${workspaceFolder}/build "},
             "problemMatcher": []
         },
         {

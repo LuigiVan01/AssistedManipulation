@@ -29,3 +29,13 @@ VSCode must be started by running `code .` in the prompt. This sets the numerous
 environment variables used by the visual studio build tools, that prevent it
 from being used free standing. See [Configure VS Code for Microsoft
 C++](https://code.visualstudio.com/docs/cpp/config-msvc#_prerequisites).
+
+## Building
+
+#### Linux
+
+Different programs can be built using the [compile.bash](scripts/compile.bash)
+script that takes the source directory as an argument. The VSCode task `Compile`
+uses this script to build the directory specified by `user_build_target` located
+in the workspace settings file [`.vscode/settings.json`](.vscode/settings.json).
+Change this variable to build different programs.

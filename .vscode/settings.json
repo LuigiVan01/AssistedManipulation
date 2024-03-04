@@ -1,4 +1,8 @@
 {
+    // Change this to point to a project to build and debug. This setting is
+    // used in the Compile task to set the source folder.
+    "user_build_target": "${workspaceFolder}/src",
+
     // Extension configuration.
     "cmake.configureOnOpen": false,
     "C_Cpp.autoAddFileAssociations": false,

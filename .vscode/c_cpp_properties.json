@@ -9,7 +9,8 @@
             "includePath": [
                 "${workspaceFolder}/src/**",
                 "${workspaceFolder}/lib/raisimlib/raisim/linux/include",
-                "${workspaceFolder}/lib/eigen/include/eigen3/**"
+                "${workspaceFolder}/lib/eigen/include/eigen3/**",
+                "${workspaceFolder}/lib/yaml-cpp/include/**"
             ]
         },
         {
@@ -20,7 +21,8 @@
             "includePath": [
                 "${workspaceFolder}/src/**",
                 "${workspaceFolder}/lib/raisimlib/raisim/linux/include",
-                "${workspaceFolder}/lib/eigen/include/eigen3/**"
+                "${workspaceFolder}/lib/eigen/include/eigen3/**",
+                "${workspaceFolder}/lib/yaml-cpp/include/**"
             ]
         }
     ],

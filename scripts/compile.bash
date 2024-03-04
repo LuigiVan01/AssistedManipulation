@@ -1,6 +1,20 @@
-WORKSPACE=`pwd`
-export CMAKE_PREFIX_PATH="$WORKSPACE/lib/eigen;$WORKSPACE/lib/raisimlib/raisim/linux"
+set -e
 
+if [ $# -ne 1 ]; then
+    echo "The source directory is required."
+    exit 1
+fi
+
+WORKSPACE=`pwd`
+SOURCE=$1
+
+# Add library directories to cmake path.
+CMAKE_PREFIX_PATH+="$WORKSPACE/lib/eigen;"
+CMAKE_PREFIX_PATH+="$WORKSPACE/lib/yaml-cpp;"
+CMAKE_PREFIX_PATH+="$WORKSPACE/lib/raisimlib/raisim/linux"
+export CMAKE_PREFIX_PATH
+
+# Add raisim linker directories to path.
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WORKSPACE/raisim/linux/lib
 export PYTHONPATH=$PYTHONPATH:$WORKSPACE/raisim/linux/lib
 

@@ -1,4 +1,6 @@
-rm -rf bin lib
+set -e
+
+# rm -rf bin lib
 mkdir -p bin lib
 
 ROOT=`pwd`
@@ -8,11 +10,19 @@ wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip -O eigen.
 unzip eigen.zip
 rm eigen.zip
 mv eigen-3.4.0 eigen
-cd eigen && mkdir build && cd build
+cd eigen && mkdir -p build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX="$ROOT/lib/eigen"
-make install
-cd $ROOT
-rm -rf eigen
+mkdir -p "$ROOT/lib/eigen"
+make && make install
+cd $ROOT && rm -rf eigen
+
+# Download and make yaml-cpp.
+git clone https://github.com/jbeder/yaml-cpp.git
+cd yaml-cpp && mkdir -p build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX="$ROOT/lib/yaml-cpp"
+mkdir -p "$ROOT/lib/yaml-cpp"
+make && make install
+cd $ROOT && rm -rf yaml-cpp
 
 # cd lib
 git clone https://github.com/raisimTech/raisimlib
