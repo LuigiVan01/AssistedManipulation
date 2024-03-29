@@ -1,5 +1,10 @@
+# Folders
 lib
 build
+tools
+CMakeFiles
+
+# Other files
 activation.raisim
 
 # Prerequisites
@@ -34,3 +39,7 @@ activation.raisim
 *.exe
 *.out
 *.app
+
+CMakeCache.txt
+vcpkg-configuration.json
+vcpkg.json

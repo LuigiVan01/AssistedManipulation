@@ -19,7 +19,7 @@ Licenses are free for academic use.
 
 Compiling windows C++ applications requires the microsoft visual studio compiler
 (mvsc) that is available as part of the [build tools for visual
-studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019).
+studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
 This should be installed on your local machine. Use the default selection that
 includes cmake, the microsoft visual studio compiler (MVSC) and Windows SDK.
 
