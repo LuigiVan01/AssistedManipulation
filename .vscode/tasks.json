@@ -6,7 +6,7 @@
         {
             "label": "Configure",
             "type": "shell",
-            "windows": { "command": "./scripts/configure.bat" },
+            "windows": { "command": "call scripts/configure.bat" },
             "linux": { "command": "./scripts/configure.bash" },
             "options": { "cwd": "${workspaceFolder}" },
             "problemMatcher": []
@@ -14,7 +14,7 @@
         {
             "label": "Compile",
             "type": "shell",
-            "windows": { "command": "scripts/compile.bat" },
+            "windows": { "command": "call scripts/compile.bat"},
             "linux": { "command": "./scripts/compile.bash" },
             "options": { "cwd": "${workspaceFolder}" },
             "args": [ "${config:user_build_target}" ],
@@ -24,12 +24,14 @@
             "label": "Clean",
             "type": "shell",
             "linux": { "command": "rm -rf ${workspaceFolder}/build "},
+            "windows": {"command": "rd /S /Q build"},
             "problemMatcher": []
         },
         {
             "label": "Visualiser",
             "type": "shell",
             "linux": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64"},
+            "windows": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64"},
             "problemMatcher": []
         }
     ]
