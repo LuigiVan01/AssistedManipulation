@@ -10,7 +10,7 @@ set PATH=%VCPKG_ROOT%;%PATH%
 :: Create build files.
 mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" ../src || goto :error
+cmake -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" %1 || goto :error
 
 :: Compile the application.
 cmake --build .

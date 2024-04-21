@@ -25,5 +25,5 @@ make && make install
 cd $ROOT && rm -rf yaml-cpp
 
 # cd lib
-git clone https://github.com/raisimTech/raisimlib
-git clone https://github.com/ethz-asl/sampling_based_control
+# git clone https://github.com/raisimTech/raisimlib
+# git clone https://github.com/ethz-asl/sampling_based_control

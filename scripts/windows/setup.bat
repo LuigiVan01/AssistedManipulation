@@ -6,7 +6,7 @@
 git clone https://github.com/microsoft/vcpkg.git
 powershell Move-Item vcpkg tools/vcpkg/
 cd tools/vcpkg
-bootstrap-vcpkg.bat
+call bootstrap-vcpkg.bat
 cd ../..
 
 :: Set the root location for vcpkg
@@ -14,7 +14,7 @@ set VCPKG_ROOT="%cd%\tools\vcpkg"
 set PATH=%VCPKG_ROOT%;%PATH%
 
 :: Install dependancies.
-vcpkg install eigen3
+vcpkg install eigen3 yaml-cpp
 
 cd lib
 git clone https://github.com/raisimTech/raisimlib

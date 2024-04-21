@@ -1,7 +1,7 @@
 {
     // Change this to point to a project to build and debug. This setting is
     // used in the Compile task to set the source folder.
-    "user_build_target": "${workspaceFolder}/src",
+    "user_build_target": "${workspaceFolder}/lib/sampling_based_control/mppi",
 
     // Set to command prompt for windows.
     "terminal.integrated.defaultProfile.windows": "Command Prompt",
@@ -9,5 +9,5 @@
     // Extension configuration.
     "cmake.configureOnOpen": false,
     "C_Cpp.autoAddFileAssociations": false,
-    "editor.rulers": [80,120]
+    "editor.rulers": [80, 120]
 }

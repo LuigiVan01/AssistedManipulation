@@ -22,6 +22,6 @@ cmake \
     -DCMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH \
     -DCMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH=y \
     -B build \
-    -S src
+    -S $SOURCE
 
 cmake --build build

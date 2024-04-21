@@ -6,19 +6,32 @@
         {
             "label": "Configure",
             "type": "shell",
-            "windows": { "command": "call scripts/configure.bat" },
-            "linux": { "command": "./scripts/configure.bash" },
+            "windows": { "command": "call scripts/windows/setup.bat" },
+            "linux": { "command": "./scripts/linux/setup.bash" },
             "options": { "cwd": "${workspaceFolder}" },
             "problemMatcher": []
         },
         {
             "label": "Compile",
             "type": "shell",
-            "windows": { "command": "call scripts/compile.bat"},
-            "linux": { "command": "./scripts/compile.bash" },
+            "windows": {
+                "command": "call scripts/windows/compile.bat",
+                "problemMatcher": "$nvcc"
+            },
+            "linux": {
+                "command": "./scripts/linux/compile.bash",
+                "problemMatcher": "$gcc"
+            },
             "options": { "cwd": "${workspaceFolder}" },
             "args": [ "${config:user_build_target}" ],
-            "problemMatcher": []
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
         },
         {
             "label": "Clean",
