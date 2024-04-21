@@ -6,6 +6,11 @@
 // Windows WSL Reference.
 // https://github.com/microsoft/wslg/blob/main/samples/container/Containers.md
 
+// For GPU support, add these to runArgs
+//     "--device /dev/dri/renderD128",
+//     "--device /dev/dri/card0",
+//     "--device=/dev/dxg",
+
 {
 	"name": "ROS",
 	"build": {
@@ -17,13 +22,8 @@
 		"seccomp=unconfined",
 		"--privileged",
 		"--network=host",
-
-		// WSL GPU support
-		// "--device /dev/dri/renderD128",
-		// "--device /dev/dri/card0",
-		// "--device=/dev/dxg"
-
-		// "--name=assistedmanipulation"
+		"--name",
+		"assistedmanipulation"
 	],
 	"mounts": [
 		// Linux
@@ -34,7 +34,6 @@
 		"source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
 		"source=/mnt/wslg,target=/mnt/wslg,type=bind,consistency=cached"
 	],
-	
 	// Linux
 	// "initializeCommand": "xhost local:root",
 	"containerEnv": {
@@ -43,8 +42,12 @@
 		"XDG_RUNTIME_DIR": "${localEnv:$XDG_RUNTIME_DIR}",
 		"PULSE_SERVER": "${localEnv:PULSE_SERVER}"
 	},
-	"workspaceMount": "source=${localWorkspaceFolder},target=/root/${localWorkspaceFolderBasename},type=bind,consistency=cached",
-	"workspaceFolder": "/root/${localWorkspaceFolderBasename}",
+	"postStartCommand": "echo 127.0.0.1 `hostname` >> /etc/hosts",
+	"appPort": [
+		8080
+	],
+	"workspaceMount": "source=${localWorkspaceFolder},target=/root/assistedmanipulation,type=bind,consistency=cached",
+	"workspaceFolder": "/root/assistedmanipulation",
 	"customizations": {
 		"vscode": {
 			"extensions": [

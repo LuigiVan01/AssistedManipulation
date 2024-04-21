@@ -1,5 +1,12 @@
 FROM osrf/ros:noetic-desktop
 
-RUN apt update && apt install -y x11-apps iputils-ping git
+RUN apt update && \
+    apt install -y \
+    x11-apps \
+    iputils-ping \
+    git \
+    libyaml-cpp-dev \
+    libglfw3-dev
 
 RUN echo source /opt/ros/noetic/setup.bash >> ~/.bashrc
+    # echo 127.0.0.1 `hostname` >> /etc/hosts

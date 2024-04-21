@@ -3,6 +3,7 @@ lib
 build
 tools
 CMakeFiles
+catkin
 
 # Other files
 activation.raisim
