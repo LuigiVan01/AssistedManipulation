@@ -14,10 +14,10 @@
 		"seccomp=unconfined",
 		"--privileged",
 		"--network=host",
+		"--name",
         // "--device /dev/dri/renderD128", // GPU support
         // "--device /dev/dri/card0",
         // "--device=/dev/dxg",
-		"--name",
 		"assistedmanipulation"
 	],
 	"mounts": [

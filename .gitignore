@@ -3,7 +3,7 @@ lib
 build
 tools
 CMakeFiles
-catkin
+reference_paper_example
 
 # Other files
 activation.raisim

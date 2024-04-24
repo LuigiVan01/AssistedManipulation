@@ -5,6 +5,7 @@
     "tasks": [
         {
             "label": "Setup",
+            "detail": "Setup a new development environment.",
             "type": "shell",
             "windows": { "command": "call scripts/windows/setup.bat" },
             "linux": { "command": "./scripts/linux/setup.bash" },
@@ -13,6 +14,7 @@
         },
         {
             "label": "Compile",
+            "detail": "Compile user_build_target defined in .vscode/settings.json.",
             "type": "shell",
             "windows": {
                 "command": "call scripts/windows/compile.bat",
@@ -35,20 +37,23 @@
         },
         {
             "label": "Clean",
+            "detail": "Remove the build files and directory.",
             "type": "shell",
             "linux": { "command": "rm -rf ${workspaceFolder}/build "},
             "windows": {"command": "rd /S /Q build"},
             "problemMatcher": []
         },
         {
-            "label": "Visualiser",
+            "label": "Start Raisim",
+            "detail": "Start the raisim server and visualiser. Must be run outside of the development container.",
             "type": "shell",
             "linux": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64"},
-            "windows": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64"},
+            "windows": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/win32/RaiSimUnity"},
             "problemMatcher": []
         },
         {
             "label": "ROS Core",
+            "detail": "Start the roscore instance.",
             "type": "process",
             "command": "roscore",
             "problemMatcher": []

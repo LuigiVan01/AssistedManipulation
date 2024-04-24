@@ -6,7 +6,8 @@ RUN apt update && \
     iputils-ping \
     git \
     libyaml-cpp-dev \
-    libglfw3-dev
+    libglfw3-dev \
+    python3-catkin-tools
 
 RUN echo source /opt/ros/noetic/setup.bash >> ~/.bashrc
     # echo 127.0.0.1 `hostname` >> /etc/hosts
