@@ -1,19 +1,10 @@
 @echo off
 
-:: Initialise the MSVC environment. Sets path for cmake, cl.
-call "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvarsx86_amd64" || goto :error
+:: Initialise the MSVC environment.
+call "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64" || goto :error
 
-:: Register vcpkg on path.
-set VCPKG_ROOT="%cd%\tools\vcpkg"
-set PATH=%VCPKG_ROOT%;%PATH%
-
-:: Create build files.
-mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" %1 || goto :error
-
-:: Compile the application.
-cmake --build .
+cmake --build . || goto :error
 
 :: Success!
 echo Success!

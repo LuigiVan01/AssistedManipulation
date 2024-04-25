@@ -8,7 +8,7 @@
             "name": "Debug Windows",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/assistedmanipulation.exe",
+            "program": "${workspaceFolder}/build/bin/Debug/assistedmanipulation.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

@@ -17,10 +17,10 @@
             "name": "Win32",
             "intelliSenseMode": "msvc-x64",
             "cppStandard": "c++20",
-            "defines": [],
+            "defines": ["WIN32"],
             "includePath": [
                 "${workspaceFolder}/src/**",
-                "${workspaceFolder}/lib/raisimlib/raisim/linux/include",
+                "${workspaceFolder}/lib/raisimlib/raisim/win32/include",
                 "${workspaceFolder}/tools/vcpkg/packages/eigen3_x64-windows/include/eigen3/**",
                 "${workspaceFolder}/tools/vcpkg/packages/yaml-cpp/include/**"
             ]

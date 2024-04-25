@@ -1,7 +1,7 @@
 # Folders
 lib
 build
-tools
+vcpkg
 CMakeFiles
 reference_paper_example
 
