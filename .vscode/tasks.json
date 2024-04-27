@@ -34,7 +34,7 @@
             "detail": "Compile the most recently configured build.",
             "type": "shell",
             "windows": {
-                "command": "call scripts/windows/compile.bat",
+                "command": "call scripts/windows/compile.bat ${config:user_build_release}",
                 "problemMatcher": "$nvcc"
             },
             "linux": {

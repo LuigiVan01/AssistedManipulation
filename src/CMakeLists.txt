@@ -20,14 +20,12 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS})
 add_executable(assistedmanipulation main.cpp)
 target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+target_link_libraries(assistedmanipulation PUBLIC raisim::raisim)
+
 # Additional logic depending on the operating system.
 if (UNIX)
-    target_link_libraries(assistedmanipulation PUBLIC raisim::raisim pthread)
+    target_link_libraries(assistedmanipulation PUBLIC pthread)
 elseif (WIN32)
-    target_link_libraries(assistedmanipulation PUBLIC raisim::raisim Ws2_32)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
-
-    target_compile_options(assistedmanipulation PRIVATE /MT "/wd5045")
-    # target_link_options(assistedmanipulation PRIVATE /INCREMENTAL:NO /NODEFAULTLIB:MSVCRT)
+    target_compile_options(assistedmanipulation PUBLIC /wd5045 /wd4711 /wd4710)
+    target_link_libraries(assistedmanipulation PUBLIC Ws2_32)
 endif ()
-

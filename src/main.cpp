@@ -1,70 +1,68 @@
 // This file is part of RaiSim. You must obtain a valid license from RaiSim Tech
 // Inc. prior to usage.
-#include <iostream>
-
+#include <cstdlib>
 #include "raisim/RaisimServer.hpp"
 #include "raisim/World.hpp"
 
-int main(int argc, char* argv[]) {
-  std::cout <<"HERE" << std::endl;
+int main(int argc, char* argv[])
+{
+    raisim::World::setActivationKey(std::getenv("RAISIM_ACTIVATION"));
+    std::cout << argv[0] << std::endl;
+    auto binaryPath = raisim::Path::setFromArgv(argv[1]);
 
-  auto binaryPath = raisim::Path::setFromArgv(argv[0]);
+    raisim::World world;
+    world.setTimeStep(0.002);
 
-  raisim::World world;
-  world.setTimeStep(0.005);
+    /// create objects
+    raisim::TerrainProperties terrainProperties;
+    terrainProperties.frequency = 0.2;
+    terrainProperties.zScale = 3.0;
+    terrainProperties.xSize = 20.0;
+    terrainProperties.ySize = 20.0;
+    terrainProperties.xSamples = 50;
+    terrainProperties.ySamples = 50;
+    terrainProperties.fractalOctaves = 3;
+    terrainProperties.fractalLacunarity = 2.0;
+    terrainProperties.fractalGain = 0.25;
 
-  /// create objects
-  auto ground = world.addGround();
-  ground->setName("ground");
-  ground->setAppearance("grid");
-  std::vector<raisim::Box*> cubes;
-  std::vector<raisim::Sphere*> spheres;
-  std::vector<raisim::Capsule*> capsules;
-  std::vector<raisim::Cylinder*> cylinders;
+    auto hm = world.addHeightMap(0.0, 0.0, terrainProperties);
+    hm->setAppearance("soil1");
+    auto cube = world.addBox(1,1,1,1);
+    cube->setPosition(3,0,3);
+    cube->setAppearance("blue");
+    auto cylinder = world.addCylinder(1, 1, 1);
+    cylinder->setPosition(3,3,3);
+    cylinder->setAppearance("yellow");
+    auto capsule = world.addCapsule(1, 1, 1);
+    capsule->setPosition(-3,3,3);
+    auto sphere = world.addSphere(1, 1);
+    sphere->setPosition(-3,0,3);
 
-  static const int N = 6;
+    /// launch raisim server
+    raisim::RaisimServer server(&world);
+    server.launchServer();
+    int counter=0;
+    auto line = server.addVisualPolyLine("ray");
+    line->color = {1,0,0,1};
+    line->points.push_back({0,0,5});
+    line->points.push_back({0,0,0});
+    line->width = 0.05;
+    auto visSphere = server.addVisualSphere("viz_sphere", 0.3, 1,0,0,1);
 
-  for (size_t i = 0; i < N; i++) {
-    for (size_t j = 0; j < N; j++) {
-      for (size_t k = 0; k < N; k++) {
-        std::string number =
-            std::to_string(i) + std::to_string(j) + std::to_string(k);
-        raisim::SingleBodyObject* ob = nullptr;
-        switch ((i + j + k) % 4) {
-          case 0:
-            cubes.push_back(world.addBox(1, 1, 1, 1));
-            ob = cubes.back();
-            ob->setAppearance("blue");
-            break;
-          case 1:
-            spheres.push_back(world.addSphere(0.5, 1));
-            ob = spheres.back();
-            ob->setAppearance("red");
-            break;
-          case 2:
-            capsules.push_back(world.addCapsule(0.5, 0.5, 1));
-            ob = capsules.back();
-            ob->setAppearance("green");
-            break;
-          case 3:
-            cylinders.push_back(world.addCylinder(0.5, 0.5, 1));
-            ob = cylinders.back();
-            ob->setAppearance("0.5, 0.5, 0.8, 1.0");
-            break;
+    while (1) {
+        RS_TIMED_LOOP(int(world.getTimeStep()*1e6))
+        server.integrateWorldThreadSafe();
+        double angle = counter/1000.;
+        double magnitude = (counter%3000)*0.1;
+        Eigen::Vector3d direction = {cos(angle)*magnitude, sin(angle)*magnitude, -100};
+        direction /= direction.norm();
+        auto& col = world.rayTest({0,0,5}, direction, 50., true);
+        if(col.size() > 0) {
+        line->points[1] = col[0].getPosition();
+        visSphere->setPosition(col[0].getPosition()[0], col[0].getPosition()[1], col[0].getPosition()[2]);
         }
-        ob->setPosition(-N + 2. * i, -N + 2. * j, 1. + 1.5 * k);
-      }
+        counter++;
     }
-  }
 
-  /// launch raisim server
-  raisim::RaisimServer server(&world);
-  server.launchServer();
-
-  while (1) {
-    RS_TIMED_LOOP(int(world.getTimeStep()*1e6))
-    server.integrateWorldThreadSafe();
-  }
-
-  server.killServer();
+    server.killServer();
 }

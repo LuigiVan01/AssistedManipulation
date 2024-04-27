@@ -2,6 +2,7 @@
     // Change this to point to a project to build and debug. This setting is
     // used in the Compile task to set the source folder.
     "user_build_target": "${workspaceFolder}/src",
+    "user_build_release": false,
 
     // Set to command prompt for windows.
     "terminal.integrated.defaultProfile.windows": "Command Prompt",

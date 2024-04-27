@@ -9,12 +9,20 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/Debug/assistedmanipulation.exe",
-            "args": [],
+            "args": [ "C:/Users/GabrielBlomberg/Desktop/assistedmanipulation/lib/raisimlib" ],
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "${localEnv:PATH};${workspaceFolder}/lib/raisimlib/raisim/win32/bin"
+                },
+                {
+                    "name": "RAISIM_ACTIVATION",
+                    "value": "${workspaceFolder}\\activation.raisim"
+                }
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
             "console": "integratedTerminal",
-            "externalConsole": false,
             "preLaunchTask": "Compile"
         },
         {
@@ -25,8 +33,7 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
+            "console": "integratedTerminal",
             "MIMode": "gdb",
             "preLaunchTask": "Compile",
             "setupCommands": [

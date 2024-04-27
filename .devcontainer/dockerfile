@@ -7,7 +7,9 @@ RUN apt update && \
     git \
     libyaml-cpp-dev \
     libglfw3-dev \
-    python3-catkin-tools
+    python3-catkin-tools \
+    ros-noetic-libfranka \
+    ros-noetic-franka-ros
 
 RUN echo source /opt/ros/noetic/setup.bash >> ~/.bashrc
     # echo 127.0.0.1 `hostname` >> /etc/hosts
