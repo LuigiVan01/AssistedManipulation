@@ -11,7 +11,15 @@ if %1==true (
 )
 
 cd build
-cmake --build . -v --config %DEBUG% || goto :error
+cmake --build . --config %DEBUG% || goto :error
+
+if %1==true (
+    copy bin\Release\assistedmanipulation.exe ..\bin\assistedmanipulation.exe /y
+) else (
+    copy bin\Debug\assistedmanipulation.exe ..\bin\assistedmanipulation.exe /y
+)
+
+xcopy "..\src\application\model" "..\bin" /S /Q /Y
 
 :: Success!
 echo Success!

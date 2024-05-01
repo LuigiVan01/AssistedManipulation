@@ -19,4 +19,4 @@ vcpkg install eigen3 yaml-cpp
 
 cd lib
 git clone https://github.com/raisimTech/raisimlib
-@REM git clone https://github.com/ethz-asl/sampling_based_control
+git clone https://github.com/ethz-asl/sampling_based_control

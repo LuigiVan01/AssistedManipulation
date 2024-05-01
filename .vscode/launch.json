@@ -8,8 +8,8 @@
             "name": "Debug Windows",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/Debug/assistedmanipulation.exe",
-            "args": [ "C:/Users/GabrielBlomberg/Desktop/assistedmanipulation/lib/raisimlib" ],
+            "program": "${workspaceFolder}/bin/assistedmanipulation.exe",
+            "args": [],
             "environment": [
                 {
                     "name": "PATH",
@@ -21,7 +21,7 @@
                 }
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/bin",
             "console": "integratedTerminal",
             "preLaunchTask": "Compile"
         },

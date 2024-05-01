@@ -68,6 +68,13 @@
             "problemMatcher": []
         },
         {
+            "label": "Build Robot Model",
+            "detail": "Build the robot model. Must be run in a ROS environment.",
+            "type": "shell",
+            "linux": { "command": "${workspaceFolder}/scripts/linux/build_robot_model.bash"},
+            "problemMatcher": []
+        },
+        {
             "label": "ROS Core",
             "detail": "Start the roscore instance.",
             "type": "process",
