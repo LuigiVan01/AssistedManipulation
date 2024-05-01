@@ -35,7 +35,7 @@
             "type": "shell",
             "windows": {
                 "command": "call scripts/windows/compile.bat ${config:user_build_release}",
-                "problemMatcher": "$nvcc"
+                "problemMatcher": "$msCompile"
             },
             "linux": {
                 "command": "./scripts/linux/compile.bash",

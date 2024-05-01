@@ -5,6 +5,7 @@
 
 #include "raisim/RaisimServer.hpp"
 #include "raisim/World.hpp"
+#include "controller/controller.hpp"
 
 int main(int argc, char* argv[])
 {
