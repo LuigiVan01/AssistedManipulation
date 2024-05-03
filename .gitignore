@@ -5,6 +5,8 @@ build
 vcpkg
 CMakeFiles
 reference_paper_example
+src\application\model\mppi_manipulation_resources
+src\application\model\mppi_panda_resources
 
 # Other files
 activation.raisim

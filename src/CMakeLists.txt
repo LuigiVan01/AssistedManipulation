@@ -26,6 +26,14 @@ target_link_libraries(assistedmanipulation PUBLIC raisim::raisim)
 if (UNIX)
     target_link_libraries(assistedmanipulation PUBLIC pthread)
 elseif (WIN32)
-    target_compile_options(assistedmanipulation PUBLIC /wd5045 /wd4711 /wd4710)
+    target_compile_options(
+        assistedmanipulation
+        PUBLIC
+        /wd5045 # Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+        /wd4711
+        /wd4710 # 'function': function not inlined
+        /wd5031 # #pragma warning(pop): likely mismatch, popping warning state pushed in different file 
+        /wd4464 # 'bytes' bytes padding added after construct 'member_name'
+    )
     target_link_libraries(assistedmanipulation PUBLIC Ws2_32)
 endif ()

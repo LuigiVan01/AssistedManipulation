@@ -10,11 +10,6 @@
 namespace controller {
 
 /**
- * @brief A vector of booleans.
- */
-using VectorXb = Eigen::Array<bool, Dynamic, 1> ArrayXb;
-
-/**
  * @brief The clock used to keep track of time.
  */
 using Clock = std::chrono::high_resolution_clock;
@@ -45,12 +40,39 @@ struct Configuration
     /// The number of rollouts to perform on each time.
     std::size_t rollouts;
 
+    /// The number of best control trajectory rollouts to keep to warmstart the
+    // next control trajectory sampling phase (before rolling out).
+    std::size_t rollouts_cached;
+
     /// The time increment passed to the dynamics simulation when performing
     /// rollouts in seconds.
     double step_size;
 
     /// The duration of time of each rollout in seconds.
     double horison;
+
+    /// The factor by which the optimal policy is updated.
+    double gradient_step;
+
+    /// The gradient is clipped to [-gradient_minmax, gradient_minmax].
+    double gradient_minmax;
+
+    /// Cost to likelihood mapping scaling.
+    double cost_scale;
+
+    /// Discount factor of cost calculation.
+    double cost_discount_factor;
+
+    /// Variance matrix of 
+    Eigen::MatrixXd sample_variance;
+
+    /// True to use the last control when a trajectory finishes, or false to use
+    // the default value.
+    bool control_default_last;
+
+    /// If not control_default_last, the control to return when the trajectory
+    // finishes.
+    Eigen::VectorXd control_default_value;
 };
 
 /**
@@ -154,6 +176,11 @@ public:
  * The generated trajectory should be linearly interpolated with respect to
  * time.
  * 
+ * Data is stored in a column major fashion since that is the default in Eigen.
+ * That is each number in a column is stored contiguously. Hence each control
+ * vector and state vector are stored column wise. Time increases with the
+ * column index.
+ * 
  * @tparam DynamicsType The dynamics type.
  * @tparam CostType The cost type.
  */
@@ -202,23 +229,111 @@ public:
         const Configuration &configuration
     );
 
-    const Eigen::MatrixXd &optimal(
-        const State &state,
-        Time time
-    );
+    /**
+     * @brief Update the trajectory from a state and a time.
+     * 
+     * @param state The current state of the dynamics.
+     * @param time The current time.
+     */
+    void update(const State &state, Time time);
+
+    /**
+     * @brief Get the times of each incremental update in the trajectory.
+     * @returns The times of each trajectory step.
+     */
+    inline const Eigen::VectorXd &times() const {
+        return m_times;
+    }
+
+    /**
+     * @brief Get the control trajectory of a rollout.
+     * 
+     * @param rollout The rollout to get the control trajectory of.
+     * @return The control trajectory of the rollout.
+     */
+    inline auto controls(std::size_t rollout) const {
+        return m_controls.block(
+            m_configuration.rollouts,
+            ControlDoF,
+            0,
+            rollout * ControlDoF
+        );
+    };
+
+    /**
+     * @brief Get the system state evolution of a rollout.
+     * 
+     * Each state corresponds to the time returned by time().
+     * 
+     * @param rollout The rollout to get the states of.
+     * @returns The state evolution of the rollout.
+     */
+    inline auto states(std::size_t rollout) const {
+        return m_states.block(
+            m_configuration.rollouts,
+            ControlDoF,
+            0,
+            rollout * ControlDoF
+        );
+    };
+
+    /**
+     * @brief Get the costs of each rollout.
+     * 
+     * @param rollout The rollout to get the cost of.
+     * @returns The cost of the rollout.
+     */
+    inline double cost(std::size_t rollout) const {
+        return m_costs[rollout];
+    }
+
+    /**
+     * @brief Get the current optimal control trajectory.
+     * 
+     * Each control corresponds to the time returned by times().
+     * 
+     * @returns The current optimal control trajectory.
+     */
+    inline const Eigen::VectorXd &controls() const {
+        return m_optimal_control;
+    }
+
+    /**
+     * @brief Evaluate the current optimal control trajectory at a given time.
+     * 
+     * @param t The time to evaluate the control trajectory.
+     * @returns The control parameters for the current time.
+     */
+    Control operator()(double t) const;
 
 private:
 
+    /**
+     * @brief Sample the control trajectories to simulate.
+     * 
+     * This step involves sampling a multivariate gaussian distribution multiple
+     * times to fill out multiple different control trajectories stored in
+     * m_controls. These are then simulated in rollout() and analysed in
+     * optimise() to get the optimal trajectory.
+     */
     void sample();
 
     /**
-     * @brief Rollout from the current state.
+     * @brief Rollout a sampled control parameter trajectory.
      * 
-     * @param index The rollout index from zero to 
-     * @returns If the rollout converged.
+     * The control trajectory for the given rollout is simulated with the system
+     * dynamics and a final cost of those control actions is calculated.
+     * 
+     * @param index The rollout to perform.
      */
-    void rollout(int index);
+    void rollout(std::size_t index);
 
+    /**
+     * @brief Update the optimal control trajectory.
+     * 
+     * Weighs each rollout according to its cost and gradient steps the previous
+     * optimal control trajectory towards the next one.
+     */
     void optimise();
 
     /**
@@ -255,7 +370,7 @@ private:
     State m_current_state;
 
     /// Timestamps of each rollout step.
-    Eigen::ArrayXd m_timestamps;
+    Eigen::VectorXd m_times;
 
     /// The control parameters applied at each step in the rollouts.
     Eigen::MatrixXd m_controls;
@@ -264,10 +379,13 @@ private:
     Eigen::MatrixXd m_states;
 
     /// The cost of each rollout.
-    Eigen::MatrixXd m_costs;
+    Eigen::VectorXd m_costs;
 
     /// The weight of each rollout. The higher the better.
     Eigen::VectorXd m_weights;
+
+    /// The gradient applied to the optimal control trajectory.
+    Eigen::MatrixXd m_gradient;
 
     /// The optimal control trajectory.
     Eigen::MatrixXd m_optimal_control;
@@ -312,24 +430,23 @@ Trajectory<DynamicsType, CostType>::Trajectory(
   , m_costs(1, configuration.rollouts)
   , m_optimal_control(steps, ControlDoF)
 {
+    m_gradient.setZero();
 }
 
 template<typename DynamicsType, typename CostType>
-const Eigen::MatrixXd &Trajectory<DynamicsType, CostType>::optimal(
-    const State &state,
-    Time time
-) {
+void Trajectory<DynamicsType, CostType>::update(const State &state, Time time)
+{
     m_current_state = state;
 
     // Calculate the timestamps at each time increment.
     for (int i = 0; i < m_steps; ++i)
-        m_timestamps[i] = time + i * m_configuration.step_size;
+        m_times[i] = time + i * m_configuration.step_size;
 
-    // Sample trajectories. 
+    // Sample control trajectories. 
     sample();
 
     // Rollout
-    for (int i = 0; i < m_configuration.rollouts; i++)
+    for (std::size_t i = 0; i < m_configuration.rollouts; i++)
         rollout(i);
 
     optimise();
@@ -338,25 +455,23 @@ const Eigen::MatrixXd &Trajectory<DynamicsType, CostType>::optimal(
 template<typename DynamicsType, typename CostType>
 void Trajectory<DynamicsType, CostType>::sample()
 {
+    // TODO: Warmstart sampling, zero velocity sample, negative previous
+    // optimal trajectory.
+
     // Set all trajectories to random noise.
     m_controls.unaryExpr(
         [&](float){ return m_distribution(m_generator); }
     );
 
-    // Add the previous optimal trajectory as the mean.
+    // Relative to the previous optimal trajectory.
     m_controls += m_optimal_control.replicate(m_configuration.rollouts, 1);
-
-    // TODO: Sample zero and negative previous optimal trajectory.
 }
 
 template<typename DynamicsType, typename CostType>
-bool Trajectory<DynamicsType, CostType>::rollout(int i)
+void Trajectory<DynamicsType, CostType>::rollout(std::size_t i)
 {
-    const DynamicsType &dynamics = *m_dynamics;
-    const CostType &cost = *m_cost;
-
-    dynamics.set(m_current_state);
-    cost.reset();
+    m_dynamics.set(m_current_state);
+    m_cost.reset();
 
     for (int step = 0; step < m_steps; ++step) {
 
@@ -364,19 +479,21 @@ bool Trajectory<DynamicsType, CostType>::rollout(int i)
         auto control = m_controls.block<ControlDoF, 1>(i * ControlDoF, step);
 
         // Step the dynamics simulation and store.
-        dynamics.step(m_configuration.step_size);
-        m_states.block<StateDoF, 1>(i * StateDoF, step) = dynamics.state();
+        m_dynamics->step(m_configuration.step_size);
+        m_states.block<StateDoF, 1>(i * StateDoF, step) = m_dynamics->state();
 
-        double cost = m_cost.step(dynamics.state(), control, m_timestamps[step]);
-        double discounted = cost * std::pow(m_configuration.discount_factor, step);
+        double cost = (
+            m_cost.step(m_dynamics->state(), control, m_times[step]) *
+            std::pow(m_configuration.cost_discount_factor, step)
+        );
 
-        if (std::isnan(discounted)) {
-            m_costs[m_steps] = discounted;
+        if (std::isnan(cost)) {
+            m_costs[m_steps] = NAN;
             return;
         }
 
         // Cumulative running cost.
-        m_costs[i] = cost + m_costs[i - 1];
+        m_costs[i] += cost;
     }
 }
 
@@ -386,27 +503,84 @@ void Trajectory<DynamicsType, CostType>::optimise()
     double maximum = std::numeric_limits<double>::max();
     double minimum = std::numeric_limits<double>::min();
 
-    // The cumulative costs at the final column.
-    auto costs = m_costs.col(m_steps);
+    // Get the minimum and maximum rollout cost.
     auto [minimum, maximum] = std::minmax_element(
-        costs.begin(),
-        costs.end(),
-        [](double a, double b) { return a < b : std::isnan(a); }
+        m_costs.begin(),
+        m_costs.end(),
+        [](double a, double b) { return a < b ? true : std::isnan(b); }
     );
 
-    for (std::size_t rollout = 0; rollout < m_configuration.rollouts; ++rollout) {
-        double cost = costs[rollout];
+    // For parameterisation of each cost.
+    double difference = maximum - minimum;
 
-        // NaNs indicate a failed rollout and do not contribute to weight. 
+    // Running sum of total likelihood for normalisation between zero and one.
+    double total = 0.0;
+
+    // Transform the weights to likelihoods.
+    for (std::size_t rollout = 0; rollout < m_configuration.rollouts; ++rollout) {
+        double cost = m_costs[rollout];
+
+        // NaNs indicate a failed rollout and do not contribute anything. 
         if (std::isnan(cost)) {
             m_weights[rollout] = 0.0;
             continue;
         }
-        
+
+        double likelihood = std::exp(
+            m_configuration.cost_scale * (cost - minimum) / difference
+        );
+
+        total += likelihood;
+        m_weights[rollout] = likelihood;
     }
 
+    // Normalise the likelihoods.
+    std::transform(
+        m_weights.begin(),
+        m_weights.end(),
+        m_weights.begin(),
+        [total](double likelihood){ return likelihood / total; }
+    );
 
-    m_weights.
+    // The optimal trajectory is the weighted samples.
+    m_gradient.setZero();
+    for (std::size_t rollout = 0; rollout < m_configuration.rollouts; ++rollout)
+        m_gradient += controls(rollout) * m_weights[rollout];
+
+    // Clip gradient.
+    m_gradient = m_gradient
+        .cwiseMax(m_configuration.gradient_minmax)
+        .cwiseMin(m_configuration.gradient_minmax);
+
+    m_optimal_control += m_gradient * m_configuration.gradient_step;
+}
+
+template<typename DynamicsType, typename CostType>
+Trajectory<DynamicsType, CostType>::Control
+Trajectory<DynamicsType, CostType>::operator()(double time) const
+{
+    auto it = std::upper_bound(m_times.begin(), m_times.end(), time);
+    std::size_t index = std::distance(m_times.begin(), it);
+
+    // Past the end of the trajectory. Return the specified default control
+    // parameters.
+    if (index = m_times.end()) {
+        if (m_configuration.control_default_last)
+            return m_optimal_control.lastCol();
+        return m_configuration.control_default_value;
+    }
+
+    assert(m_times.length() > 1);
+    auto previous = it - 1;
+
+    // Parameterisation of the time between nearest two timestamps.
+    double t = (time - *previous) / (*it - *previous);
+
+    // Linear interpolation between optimal controls.
+    return (
+        (1.0 - t) * m_optimal_control.col(index - 1) +
+        t * m_optimal_control.col(index)
+    );
 }
 
 } // namespace controller
