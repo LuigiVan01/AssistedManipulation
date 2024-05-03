@@ -1,5 +1,6 @@
 #pragma once
 
+#include <random>
 #include <concepts>
 #include <functional>
 #include <limits>
@@ -7,6 +8,11 @@
 #include <Eigen/Eigen>
 
 namespace controller {
+
+/**
+ * @brief A vector of booleans.
+ */
+using VectorXb = Eigen::Array<bool, Dynamic, 1> ArrayXb;
 
 /**
  * @brief The clock used to keep track of time.
@@ -211,7 +217,7 @@ private:
      * @param index The rollout index from zero to 
      * @returns If the rollout converged.
      */
-    bool rollout(int index);
+    void rollout(int index);
 
     void optimise();
 
@@ -237,6 +243,12 @@ private:
     /// The configuration of the trajectory generation.
     Configuration m_configuration;
 
+    /// The random number generator to use in the normal distribution.
+    std::mt19937 m_generator;
+
+    /// Distribution to use for noise.
+    std::normal_distribution<double> m_distribution;
+
     int m_steps;
 
     /// The current state from which the controller is generating trajectories.
@@ -244,9 +256,6 @@ private:
 
     /// Timestamps of each rollout step.
     Eigen::ArrayXd m_timestamps;
-
-    /// Flags for valid rollouts.
-    Eigen::Array<bool, Eigen::Dynamic, 1> m_valid;
 
     /// The control parameters applied at each step in the rollouts.
     Eigen::MatrixXd m_controls;
@@ -256,6 +265,9 @@ private:
 
     /// The cost of each rollout.
     Eigen::MatrixXd m_costs;
+
+    /// The weight of each rollout. The higher the better.
+    Eigen::VectorXd m_weights;
 
     /// The optimal control trajectory.
     Eigen::MatrixXd m_optimal_control;
@@ -292,13 +304,15 @@ Trajectory<DynamicsType, CostType>::Trajectory(
   : m_dynamics(dynamics)
   , m_cost(cost)
   , m_configuration(configuration)
+  , m_generator(std::random_device{}())
   , m_steps(steps)
   , m_current_state(state)
   , m_controls(steps, configuration.rollouts * ControlDoF)
   , m_states(steps, configuration.rollouts * StateDoF)
   , m_costs(1, configuration.rollouts)
   , m_optimal_control(steps, ControlDoF)
-{}
+{
+}
 
 template<typename DynamicsType, typename CostType>
 const Eigen::MatrixXd &Trajectory<DynamicsType, CostType>::optimal(
@@ -306,9 +320,6 @@ const Eigen::MatrixXd &Trajectory<DynamicsType, CostType>::optimal(
     Time time
 ) {
     m_current_state = state;
-
-    // Reset.
-    m_valid.fill(true);
 
     // Calculate the timestamps at each time increment.
     for (int i = 0; i < m_steps; ++i)
@@ -318,9 +329,8 @@ const Eigen::MatrixXd &Trajectory<DynamicsType, CostType>::optimal(
     sample();
 
     // Rollout
-    for (int i = 0; i < m_configuration.rollouts; i++) {
+    for (int i = 0; i < m_configuration.rollouts; i++)
         rollout(i);
-    }
 
     optimise();
 }
@@ -328,6 +338,15 @@ const Eigen::MatrixXd &Trajectory<DynamicsType, CostType>::optimal(
 template<typename DynamicsType, typename CostType>
 void Trajectory<DynamicsType, CostType>::sample()
 {
+    // Set all trajectories to random noise.
+    m_controls.unaryExpr(
+        [&](float){ return m_distribution(m_generator); }
+    );
+
+    // Add the previous optimal trajectory as the mean.
+    m_controls += m_optimal_control.replicate(m_configuration.rollouts, 1);
+
+    // TODO: Sample zero and negative previous optimal trajectory.
 }
 
 template<typename DynamicsType, typename CostType>
@@ -336,40 +355,58 @@ bool Trajectory<DynamicsType, CostType>::rollout(int i)
     const DynamicsType &dynamics = *m_dynamics;
     const CostType &cost = *m_cost;
 
-    m_dynamics.set(m_current_state);
-    m_cost.reset();
+    dynamics.set(m_current_state);
+    cost.reset();
 
     for (int step = 0; step < m_steps; ++step) {
 
+        // Get a reference to the control parameters at this time step.
         auto control = m_controls.block<ControlDoF, 1>(i * ControlDoF, step);
 
         // Step the dynamics simulation and store.
-        m_dynamics.step(m_configuration.step_size);
-        m_states.block<StateDoF, 1>(i * StateDoF, step) = m_dynamics.state();
+        dynamics.step(m_configuration.step_size);
+        m_states.block<StateDoF, 1>(i * StateDoF, step) = dynamics.state();
 
-        double cost = m_cost.step(m_dynamics.state(), control, m_timestamps[step]);
+        double cost = m_cost.step(dynamics.state(), control, m_timestamps[step]);
         double discounted = cost * std::pow(m_configuration.discount_factor, step);
 
-        // step(
-        //         const Eigen::Matrix<double, StateDoF, 1> &state,
-        //         const Eigen::Matrix<double, ControlDoF, 1> &control,
-        //         double dt
-        //     );
-
-        m_controls.block<1, ControlDoF>(i, step) = control;
+        if (std::isnan(discounted)) {
+            m_costs[m_steps] = discounted;
+            return;
+        }
 
         // Cumulative running cost.
         m_costs[i] = cost + m_costs[i - 1];
     }
-
-    m_valid[i] = true;
 }
 
 template<typename DynamicsType, typename CostType>
 void Trajectory<DynamicsType, CostType>::optimise()
 {
-    double maximum_cost = std::numeric_limits<double>::max();
-    double minimum_cost = -maximum_cost;
+    double maximum = std::numeric_limits<double>::max();
+    double minimum = std::numeric_limits<double>::min();
+
+    // The cumulative costs at the final column.
+    auto costs = m_costs.col(m_steps);
+    auto [minimum, maximum] = std::minmax_element(
+        costs.begin(),
+        costs.end(),
+        [](double a, double b) { return a < b : std::isnan(a); }
+    );
+
+    for (std::size_t rollout = 0; rollout < m_configuration.rollouts; ++rollout) {
+        double cost = costs[rollout];
+
+        // NaNs indicate a failed rollout and do not contribute to weight. 
+        if (std::isnan(cost)) {
+            m_weights[rollout] = 0.0;
+            continue;
+        }
+        
+    }
+
+
+    m_weights.
 }
 
 } // namespace controller
