@@ -21,8 +21,8 @@
             "includePath": [
                 "${workspaceFolder}/src/**",
                 "${workspaceFolder}/lib/raisimlib/raisim/win32/include",
-                "${workspaceFolder}/tools/vcpkg/packages/eigen3_x64-windows/include/eigen3/**",
-                "${workspaceFolder}/tools/vcpkg/packages/yaml-cpp/include/**"
+                "${workspaceFolder}/vcpkg/packages/eigen3_x64-windows/include/eigen3/**",
+                "${workspaceFolder}/vcpkg/packages/pinnochio_x64-windows/include/**"
             ]
         }
     ],

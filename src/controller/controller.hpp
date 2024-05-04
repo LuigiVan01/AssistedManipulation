@@ -10,29 +10,6 @@
 namespace controller {
 
 /**
- * @brief The clock used to keep track of time.
- */
-using Clock = std::chrono::high_resolution_clock;
-
-/**
- * @brief The time in seconds.
- */
-using Time = std::chrono::seconds;
-
-/**
- * @brief A duration in seconds.
- */
-using Duration = std::chrono::seconds;
-
-/**
- * @brief Get the current time.
- * @returns The timestamp at the current time.
- */
-// inline Time now() {
-//     return Clock::now().time_since_epoch();
-// }
-
-/**
  * @brief Configuration parameters for the controller.
  */
 struct Configuration
@@ -118,13 +95,7 @@ public:
      * @param control The controls applied at the current state (before dt).
      * @param dt The change in time.
      */
-    virtual void step(const Control &control, double dt) = 0;
-
-    /**
-     * @brief Get the state of the dynamics simulation.
-     * @returns The current state of the simulation.
-     */
-    virtual const State &state() = 0;
+    virtual State step(const Control &control, double dt) = 0;
 };
 
 /**
@@ -233,9 +204,9 @@ public:
      * @brief Update the trajectory from a state and a time.
      * 
      * @param state The current state of the dynamics.
-     * @param time The current time.
+     * @param time The current time in seconds.
      */
-    void update(const State &state, Time time);
+    void update(const State &state, double time);
 
     /**
      * @brief Get the times of each incremental update in the trajectory.
@@ -434,7 +405,7 @@ Trajectory<DynamicsType, CostType>::Trajectory(
 }
 
 template<typename DynamicsType, typename CostType>
-void Trajectory<DynamicsType, CostType>::update(const State &state, Time time)
+void Trajectory<DynamicsType, CostType>::update(const State &state, double time)
 {
     m_current_state = state;
 
@@ -479,11 +450,11 @@ void Trajectory<DynamicsType, CostType>::rollout(std::size_t i)
         auto control = m_controls.block<ControlDoF, 1>(i * ControlDoF, step);
 
         // Step the dynamics simulation and store.
-        m_dynamics->step(m_configuration.step_size);
+        State state = m_dynamics->step(m_configuration.step_size);
         m_states.block<StateDoF, 1>(i * StateDoF, step) = m_dynamics->state();
 
         double cost = (
-            m_cost.step(m_dynamics->state(), control, m_times[step]) *
+            m_cost.step(state, control, m_times[step]) *
             std::pow(m_configuration.cost_discount_factor, step)
         );
 

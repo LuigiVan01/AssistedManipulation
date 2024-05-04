@@ -1,6 +1,8 @@
 ## Development Environment
 
-### Windows Development
+## Windows Development
+
+### `msvc`
 
 Compiling windows C++ applications requires the microsoft visual studio compiler
 (mvsc) that is available as part of the [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/).
@@ -36,7 +38,17 @@ without installing them on the system. Press `ctrl+shift+p` and type `Tasks: Run
 Task` and select `Setup`. This task is defined in
 [tasks.json](.vscode/tasks.json).
 
-### Linux Development
+### `vcpkg`
+
+Package dependancies and management are done with
+[vcpkg](https://vcpkg.io/en/index.html) installed in the root folder. This is
+installed and all dependancies downloaded with the
+[setup.bat](scripts/windows/setup.bat) folder. An additional dependancy for
+`pinnochio` is required that is not supported by vcpkg. The vcpkg overlay
+files in [vcpkg_overlays](vcpkg_overlays\pinnochio) provides vcpkg with
+instructions for installed pinnochio.
+
+## Linux Development
 
 Running the configuration script will download all required dependencies locally without installing them on the system. Press `ctrl+shift+p` and type `Tasks: Run
 Task` and select `Setup`. This task is defined in

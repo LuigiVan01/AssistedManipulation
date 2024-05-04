@@ -16,7 +16,8 @@ set PATH=%VCPKG_ROOT%;%PATH%
 
 :: Install dependancies.
 vcpkg install eigen3 yaml-cpp
+vcpkg install pinnochio --overlay-ports=vcpkg_overlays/pinnochio
 
 cd lib
-git clone https://github.com/raisimTech/raisimlib
-git clone https://github.com/ethz-asl/sampling_based_control
+@REM git clone https://github.com/raisimTech/raisimlib
+@REM git clone https://github.com/ethz-asl/sampling_based_control
