@@ -7,9 +7,6 @@
 #include "raisim/World.hpp"
 #include "controller/controller.hpp"
 
-#include <pinocchio/fwd.hpp>
-#include <pinocchio/multibody/fwd.hpp>
-
 int main(int argc, char* argv[])
 {
     auto cwd = std::filesystem::current_path();
