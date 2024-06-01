@@ -18,7 +18,13 @@ find_package(raisim CONFIG REQUIRED)
 
 include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio_INCLUDE_DIRS})
 
-add_executable(assistedmanipulation application/main.cpp)
+add_executable(
+    assistedmanipulation
+    application/main.cpp
+    application/dynamics.cpp
+    application/cost.cpp
+)
+
 target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(assistedmanipulation PUBLIC raisim::raisim pinocchio::pinocchio)
@@ -35,6 +41,10 @@ elseif (WIN32)
         /wd4710 # 'function': function not inlined
         /wd5031 # #pragma warning(pop): likely mismatch, popping warning state pushed in different file 
         /wd4464 # 'bytes' bytes padding added after construct 'member_name'
+        /wd4820 # bytes padded after base class
+        /wd4625 # copy constructor implicitly deleted
+        /wd4626 # assignment operator implicitly deleted
+        /wd4996 # getenv function or variable may be unsafe
     )
     target_link_libraries(assistedmanipulation PUBLIC Ws2_32)
 endif ()

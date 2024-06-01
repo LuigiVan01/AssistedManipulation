@@ -4,6 +4,7 @@
 #include <concepts>
 #include <functional>
 #include <limits>
+#include <memory>
 
 #include <Eigen/Eigen>
 
@@ -78,6 +79,8 @@ public:
     /// A control of the dynamics.
     using Control = Eigen::Matrix<double, ControlDoF, 1>;
 
+    virtual ~Dynamics() = default;
+
     /**
      * @brief Set the dynamics simulation to a given state.
      * 
@@ -111,6 +114,8 @@ public:
 
     static constexpr const std::size_t StateDoF = StateDoF;
     static constexpr const std::size_t ControlDoF = ControlDoF;
+
+    virtual ~Cost() = default;
 
     /**
      * @brief Update the cost given a subsequent state from a contorl input.
@@ -193,7 +198,7 @@ public:
      * @returns A pointer to the Trajectory trajectory generator on success, or
      * nullptr on failure.
      */
-    std::unique_ptr<Trajectory<DynamicsType, CostType>> create(
+    static std::unique_ptr<Trajectory<DynamicsType, CostType>> create(
         std::shared_ptr<DynamicsType> &dynamics,
         std::shared_ptr<CostType> &cost,
         const State &state,
@@ -374,11 +379,16 @@ Trajectory<DynamicsType, CostType>::create(
     if (configuration.rollouts < 1)
         return nullptr;
 
-    return std::make_unique<Trajectory<DynamicsType, CostType>>(
-        dynamics,
-        cost,
-        state,
-        configuration
+    int steps = std::ceil(configuration.horison / configuration.step_size);
+
+    return std::unique_ptr<Trajectory<DynamicsType, CostType>>(
+        new Trajectory<DynamicsType, CostType>(
+            dynamics,
+            cost,
+            configuration,
+            state,
+            steps
+        )
     );
 }
 
