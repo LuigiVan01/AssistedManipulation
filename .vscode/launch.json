@@ -8,20 +8,16 @@
             "name": "Debug Windows",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/assistedmanipulation.exe",
+            "program": "${workspaceFolder}/install/bin/assistedmanipulation.exe",
             "args": [],
             "environment": [
-                {
-                    "name": "PATH",
-                    "value": "${localEnv:PATH};${workspaceFolder}/lib/raisimlib/raisim/win32/bin"
-                },
                 {
                     "name": "RAISIM_ACTIVATION",
                     "value": "${workspaceFolder}\\activation.raisim"
                 }
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/bin",
+            "cwd": "${workspaceFolder}/install/bin",
             "console": "integratedTerminal",
             "preLaunchTask": "Compile"
         },
@@ -29,7 +25,7 @@
             "name": "Debug Linux",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/assistedmanipulation",
+            "program": "${workspaceFolder}/install/bin/assistedmanipulation",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

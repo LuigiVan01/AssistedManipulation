@@ -48,3 +48,13 @@ elseif (WIN32)
     )
     target_link_libraries(assistedmanipulation PUBLIC Ws2_32)
 endif ()
+
+# Install instructions
+
+install(TARGETS assistedmanipulation DESTINATION bin)
+install(DIRECTORY application/model DESTINATION bin)
+
+# Copy runtime dlls on windows.
+if (WIN32)
+    install(FILES $<TARGET_RUNTIME_DLLS:assistedmanipulation> DESTINATION bin)
+endif ()

@@ -24,7 +24,7 @@ int main(int /* argc */, char* argv[])
     ground->setName("ground");
     ground->setAppearance("grid");
 
-    std::string urdf = (cwd / "robot.urdf").string();
+    std::string urdf = (cwd / "model/robot.urdf").string();
     auto panda = world.addArticulatedSystem(urdf);
 
     controller::Configuration configuration {

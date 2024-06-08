@@ -13,13 +13,8 @@ if %1==true (
 cd build
 cmake --build . --config %DEBUG% || goto :error
 
-if %1==true (
-    copy bin\Release\assistedmanipulation.exe ..\bin\assistedmanipulation.exe /y
-) else (
-    copy bin\Debug\assistedmanipulation.exe ..\bin\assistedmanipulation.exe /y
-)
-
-xcopy "..\src\application\model" "..\bin" /S /Q /Y
+cd ..
+cmake --install build --config %DEBUG% --prefix install || goto :error
 
 :: Success!
 echo Success!
