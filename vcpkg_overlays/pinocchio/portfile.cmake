@@ -1,5 +1,3 @@
-set(VCPKG_BUILD_TYPE release) # header-only
-
 # vcpkg_from_github(
 #     OUT_SOURCE_PATH SOURCE_PATH
 #     REPO stack-of-tasks/pinocchio
@@ -10,7 +8,7 @@ set(VCPKG_BUILD_TYPE release) # header-only
 
 find_program(GIT git)
 set(GIT_URL "https://github.com/stack-of-tasks/pinocchio.git")
-set(GIT_REV "master")
+set(GIT_REV "v2.7.1")
 
 # https://github.com/microsoft/vcpkg/issues/6886
 set(SOURCE_PATH ${CURRENT_BUILDTREES_DIR}/src/${PORT})
@@ -43,4 +41,4 @@ vcpkg_cmake_configure(
 )
 
 vcpkg_cmake_install()
-vcpkg_cmake_config_fixup(PACKAGE_NAME "pinnochio")
+vcpkg_cmake_config_fixup()

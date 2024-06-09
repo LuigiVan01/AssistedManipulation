@@ -1,10 +1,13 @@
 #include "application/dynamics.hpp"
 
 #include <iostream>
+#include <string>
 
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/parsers/urdf.hpp>
+
+using namespace std::string_literals;
 
 Dynamics::Dynamics()
     : m_state(State::Zero())
@@ -38,18 +41,34 @@ Dynamics::State Dynamics::step(const Control &control, double dt)
     return m_state;
 }
 
-std::unique_ptr<Model> Model::create(const std::string &urdf)
+std::unique_ptr<Model> Model::create(const std::string &filename)
 {
+    // Open the file.
+    std::ifstream file {filename, std::ios::in};
+
+    // Check if the file was opened correctly.
+    if (!file.is_open())
+        throw std::runtime_error("failed to open file \"" + filename + "\" to load model from");
+
+    // Load the file.
+    std::stringstream ss;
+    ss << file.rdbuf();
+    if (file.bad() || file.fail())
+        throw std::runtime_error("failed to read file \"" + filename + "\" to load model from");
+
+    file.close();
+
+    std::string urdf = ss.str();
+
     std::unique_ptr<pinocchio::Model> model;
     std::unique_ptr<pinocchio::Data> data;
-
     try {
         model = std::make_unique<pinocchio::Model>();
-        pinocchio::urdf::buildModelFromXML(urdf, *model);
+        pinocchio::urdf::buildModelFromXML(urdf, *model, true);
         data = std::make_unique<pinocchio::Data>(*model);
     }
     catch (const std::exception &err) {
-        std::cout << "Failed to create model: " << err.what() << std::endl;
+        std::cout << "failed to create model. " << err.what() << std::endl;
         return nullptr;
     }
 

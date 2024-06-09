@@ -14,7 +14,6 @@ int main(int /* argc */, char* argv[])
     auto cwd = std::filesystem::current_path();
 
     raisim::World::setActivationKey(std::getenv("RAISIM_ACTIVATION"));
-    std::cout << argv[0] << std::endl;
 
     raisim::World world;
     world.setTimeStep(0.005);

@@ -24,7 +24,7 @@ constexpr const std::size_t ControlDoF = 10;
 class Dynamics : public controller::Dynamics<StateDoF, ControlDoF>
 {
 public:
-
+    
     static std::shared_ptr<Dynamics> create();
 
     /**
@@ -74,11 +74,14 @@ public:
     /**
      * @brief Create a new instance of the robot model.
      * 
-     * @param urdf The robot definition file to instantiate the model from.
+     * @param filename The filename of the URDF robot definition file to
+     * instantiate the model from.
+     * 
+     * @throws std::runtime_error If the model cannot be created.
      * 
      * @return A pointer to the model on success, or nullptr on failure.
      */
-    static std::unique_ptr<Model> create(const std::string &urdf);
+    static std::unique_ptr<Model> create(const std::string &filename);
 
     /**
      * @brief Update the state of the model.
