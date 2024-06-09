@@ -20,9 +20,9 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio
 
 add_executable(
     assistedmanipulation
-    application/main.cpp
-    application/dynamics.cpp
-    application/cost.cpp
+    main.cpp
+    dynamics.cpp
+    cost.cpp
 )
 
 target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -52,7 +52,7 @@ endif ()
 # Install instructions
 
 install(TARGETS assistedmanipulation DESTINATION bin)
-install(DIRECTORY application/model DESTINATION bin)
+install(DIRECTORY model DESTINATION bin)
 
 # Copy runtime dlls on windows.
 if (WIN32)

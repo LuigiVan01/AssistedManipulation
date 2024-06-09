@@ -1,12 +1,12 @@
 #pragma once
 
-#include "application/dynamics.hpp"
+#include "dynamics.hpp"
 
 /**
  * @brief Cost function of the panda research 3 ridgeback assisted manipulation
  * task.
  */
-class Cost : public controller::Cost<10, 10>
+class Cost : public mppi::Cost<FrankaRidgeback::DoF::STATE, FrankaRidgeback::DoF::CONTROL>
 {
 public:
 
@@ -31,8 +31,8 @@ public:
      * @returns The current cumulative cost
      */
     double step(
-        const Eigen::Matrix<double, StateDoF, 1> &state,
-        const Eigen::Matrix<double, ControlDoF, 1> &control,
+        const FrankaRidgeback::State &state,
+        const FrankaRidgeback::Control &control,
         double dt
     );
 
@@ -53,10 +53,10 @@ private:
      * @brief Initialise the assisted manipulation cost.
      * @param model Pointer to the application kinematics / dynamics model.
      */
-    Cost(std::unique_ptr<Model> &&model);
+    Cost(std::unique_ptr<FrankaRidgeback::Model> &&model);
 
     /// Pointer to the model to derive cost from.
-    std::unique_ptr<Model> m_model;
+    std::unique_ptr<FrankaRidgeback::Model> m_model;
 
     /// The point in space for the end effector to reach.
     Eigen::Vector3d m_point;

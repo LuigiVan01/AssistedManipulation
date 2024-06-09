@@ -4,10 +4,50 @@
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/algorithm/frames.hpp>
 
-#include "controller.hpp"
+#include "mppi.hpp"
 
-constexpr const std::size_t StateDoF = 10;
-constexpr const std::size_t ControlDoF = 10;
+namespace FrankaRidgeback {
+
+// Various degrees of freedom of the franka research 3 ridgeback.
+namespace DoF {
+
+    constexpr const std::size_t
+        GRIPPER = 2,
+        ARM = 7,
+        BASE = 0;
+
+    constexpr const std::size_t STATE = GRIPPER + ARM + BASE;
+    constexpr const std::size_t CONTROL = STATE;
+
+} // namespace DoF
+
+struct State : public Eigen::Matrix<double, DoF::STATE, 1>
+{};
+
+/**
+ * @brief A control for the
+ */
+struct Control : public Eigen::Matrix<double, DoF::CONTROL, 1>
+{
+    // inline auto base() {
+    // }
+
+    /**
+     * @brief Get the arm controller parameters.
+     * @returns The torques to apply to each sequential arm joint.
+     */
+    inline auto arm_torque() {
+        return head<DoF::ARM>();
+    }
+
+    /**
+     * @brief Get the gripper position control parameters.
+     * @returns The desired position of the gripper.
+     */
+    inline auto gripper_position() {
+        return tail<DoF::GRIPPER>();
+    }
+};
 
 /**
  * @brief The dynamics of the model parameters.
@@ -21,10 +61,10 @@ constexpr const std::size_t ControlDoF = 10;
  * A control is defined by:
  * - [x, y, yaw, joint1]
  */
-class Dynamics : public controller::Dynamics<StateDoF, ControlDoF>
+class Dynamics : public mppi::Dynamics<DoF::STATE, DoF::CONTROL>
 {
 public:
-    
+
     static std::shared_ptr<Dynamics> create();
 
     /**
@@ -69,7 +109,7 @@ class Model
 public:
 
     /// The state.
-    using State = Eigen::Matrix<double, StateDoF, 1>;
+    using State = Eigen::Matrix<double, DoF::STATE, 1>;
 
     /**
      * @brief Create a new instance of the robot model.
@@ -133,3 +173,5 @@ private:
     /// Index of the end effector frame in the frame vector.
     std::size_t m_end_effector_index;
 };
+
+} // namespace FrankaRidgeback

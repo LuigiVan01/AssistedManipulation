@@ -1,4 +1,4 @@
-#include "application/dynamics.hpp"
+#include "dynamics.hpp"
 
 #include <iostream>
 #include <string>
@@ -8,6 +8,8 @@
 #include <pinocchio/parsers/urdf.hpp>
 
 using namespace std::string_literals;
+
+namespace FrankaRidgeback {
 
 Dynamics::Dynamics()
     : m_state(State::Zero())
@@ -46,17 +48,21 @@ std::unique_ptr<Model> Model::create(const std::string &filename)
     // Open the file.
     std::ifstream file {filename, std::ios::in};
 
-    // Check if the file was opened correctly.
-    if (!file.is_open())
-        throw std::runtime_error("failed to open file \"" + filename + "\" to load model from");
+    // Check file exists and is readable.
+    if (!file.is_open()) {
+        std::cerr << "failed to open file \"" << filename << "\" for model" << std::endl;
+        return nullptr;
+    }
 
-    // Load the file.
+    // Read the file.
     std::stringstream ss;
     ss << file.rdbuf();
-    if (file.bad() || file.fail())
-        throw std::runtime_error("failed to read file \"" + filename + "\" to load model from");
-
     file.close();
+
+    if (file.bad() || file.fail()) {
+        std::cerr << "failed to read file \"" << filename << "\" for model" << std::endl;
+        return nullptr;
+    }
 
     std::string urdf = ss.str();
 
@@ -64,7 +70,7 @@ std::unique_ptr<Model> Model::create(const std::string &filename)
     std::unique_ptr<pinocchio::Data> data;
     try {
         model = std::make_unique<pinocchio::Model>();
-        pinocchio::urdf::buildModelFromXML(urdf, *model, true);
+        pinocchio::urdf::buildModelFromXML(urdf, *model);
         data = std::make_unique<pinocchio::Data>(*model);
     }
     catch (const std::exception &err) {
@@ -111,3 +117,5 @@ std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::end_effector()
         (Eigen::Quaterniond)m_data->oMf[m_end_effector_index].rotation()
     );
 }
+
+} // namespace FrankaRidgeback
