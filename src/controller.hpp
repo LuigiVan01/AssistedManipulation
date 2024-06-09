@@ -406,10 +406,10 @@ Trajectory<DynamicsType, CostType>::Trajectory(
   , m_generator(std::random_device{}())
   , m_steps(steps)
   , m_current_state(state)
-  , m_controls(steps, configuration.rollouts * ControlDoF)
-  , m_states(steps, configuration.rollouts * StateDoF)
-  , m_costs(1, configuration.rollouts)
-  , m_optimal_control(steps, ControlDoF)
+  , m_controls(configuration.rollouts * ControlDoF, steps) // (rows, cols)
+  , m_states(configuration.rollouts * StateDoF, steps)
+  , m_costs(configuration.rollouts, 1)
+  , m_optimal_control(ControlDoF, steps)
 {
     m_gradient.setZero();
 }
