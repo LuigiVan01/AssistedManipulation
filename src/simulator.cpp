@@ -1,44 +1,55 @@
 #include "simulator.hpp"
 
-#include "raisim/RaisimServer.hpp"
-#include "raisim/World.hpp"
-
-namespace simulator {
-
-std::unique_ptr<Simulator> Simulator::create(std::string urdf_filename)
+std::unique_ptr<Simulator> Simulator::create(const Configuration &configuration)
 {
     raisim::World::setActivationKey(std::getenv("RAISIM_ACTIVATION"));
 
-    raisim::World world;
-    world.setTimeStep(0.005);
+    auto world = std::make_unique<raisim::World>();
+    world->setTimeStep(configuration.timestep);
 
-    auto ground = world.addGround();
+    auto ground = world->addGround();
     ground->setName("ground");
     ground->setAppearance("grid");
 
-    auto robot = world.addArticulatedSystem(urdf_filename);
+    auto robot = world->addArticulatedSystem(configuration.urdf_filename);
+    robot->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
 
     auto zero = Eigen::VectorXd::Zero((Eigen::Index)robot->getDOF());
-
-    robot->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
     robot->setPdGains(zero, zero);
     robot->setGeneralizedForce(zero);
 
-    return std::make_unique<Simulator>(
-        std::move(world),
-        std::move(robot)
+    return std::unique_ptr<Simulator>(
+        new Simulator(configuration, std::move(world), robot)
     );
 }
 
-Simulator::Simulator(raisim::World &&world, raisim::ArticulatedSystem *robot)
-    : m_world(std::move(world))
-    , m_robot(robot)
-    , m_server(&world)
+Simulator::Simulator(
+    const Configuration &configuration,
+    std::unique_ptr<raisim::World> &&world,
+    raisim::ArticulatedSystem *robot
+) : m_configuration(configuration)
+  , m_time(0.0)
+  , m_world(std::move(world))
+  , m_robot(robot)
+  , m_server(m_world.get())
 {
+    reset(m_configuration.initial_state);
     m_server.launchServer();
 }
 
-void Simulator::step(FrankaRidgeback::Control control, double dt)
+Simulator::~Simulator()
+{
+    m_server.killServer();
+}
+
+void Simulator::reset(FrankaRidgeback::State &state)
+{
+    m_position_control.setZero();
+    m_velocity_control.setZero();
+    m_robot->setState(state.joint_positions(), state.joint_velocities());
+}
+
+const FrankaRidgeback::State &Simulator::step(FrankaRidgeback::Control &control)
 {
     // Position controls.
     m_position_control.head<FrankaRidgeback::DoF::ARM>().setZero();
@@ -48,8 +59,19 @@ void Simulator::step(FrankaRidgeback::Control control, double dt)
     m_velocity_control.head<FrankaRidgeback::DoF::ARM>() = control.arm_torque();
     m_velocity_control.tail<FrankaRidgeback::DoF::GRIPPER>().setZero();
 
-    // m_robot->setGeneralizedForce();
+    // Set the raisim controller to target position and velocity.
     m_robot->setPdTarget(m_position_control, m_velocity_control);
-}
+    // m_robot->setGeneralizedForce(m_robot->getNonlinearities(m_configuration.gravity));
 
-} // namespace simulator
+    // Simulate!
+    m_server.integrateWorldThreadSafe();
+    m_time += m_configuration.timestep;
+
+    Eigen::VectorXd position, velocity;
+    m_robot->getState(position, velocity);
+
+    m_state.joint_positions() = position;
+    m_state.joint_velocities() = velocity;
+
+    return m_state;
+}

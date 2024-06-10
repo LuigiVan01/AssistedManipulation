@@ -3,8 +3,7 @@
 #include <cstdlib>
 #include <filesystem>
 
-#include "raisim/RaisimServer.hpp"
-#include "raisim/World.hpp"
+#include "simulator.hpp"
 #include "cost.hpp"
 #include "dynamics.hpp"
 #include "mppi.hpp"
@@ -13,21 +12,10 @@ int main(int /* argc */, char*[])
 {
     auto cwd = std::filesystem::current_path();
 
-    raisim::World::setActivationKey(std::getenv("RAISIM_ACTIVATION"));
-
-    raisim::World world;
-    world.setTimeStep(0.005);
-
-    /// create objects
-    auto ground = world.addGround();
-    ground->setName("ground");
-    ground->setAppearance("grid");
-
     std::string urdf = (cwd / "model/robot.urdf").string();
-    auto panda = world.addArticulatedSystem(urdf);
 
     // Create the controller.
-    mppi::Configuration configuration {
+    mppi::Configuration controller_configuration {
         .rollouts = 10,
         .rollouts_cached = 0,
         .step_size = 0.05,
@@ -41,7 +29,7 @@ int main(int /* argc */, char*[])
     };
 
     // Set the initial state.
-    auto initial_state = FrankaRidgeback::State::Zero();
+    auto initial_state = FrankaRidgeback::State::Zero().eval();
 
     std::cout << "creating dynamics" << std::endl;
     auto dynamics = FrankaRidgeback::Dynamics::create();
@@ -62,7 +50,7 @@ int main(int /* argc */, char*[])
         dynamics,
         cost,
         initial_state,
-        configuration
+        controller_configuration
     );
 
     if (!trajectory) {
@@ -70,28 +58,25 @@ int main(int /* argc */, char*[])
         return 1;
     }
 
-    panda->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
-    panda->setPdGains(FrankaRidgeback::Control::Zero(), FrankaRidgeback::Control::Zero());
-    panda->setGeneralizedForce(Eigen::VectorXd::Zero((Eigen::Index)panda->getDOF()));
+    Simulator::Configuration simulator_configuation {
+        .urdf_filename = urdf,
+        .timestep = 0.005,
+        .gravity = 9.81,
+        .initial_state = initial_state
+    };
 
-    /// launch raisim server
-    raisim::RaisimServer server(&world);
-    server.launchServer();
-
-    double mppi_frequency = 0.5;
-    std::size_t updates = mppi_frequency / world.getTimeStep();
-
-    for (;;) {
-        // trajectory->update();
-
-        for (std::size_t i = 0; i < updates; i++) {
-
-            // Set the trajectory.
-
-            auto delay = raisim::TimedLoop((std::size_t)(world.getTimeStep() * 1e6));
-            server.integrateWorldThreadSafe();
-        }
+    std::unique_ptr<Simulator> sim = Simulator::create(simulator_configuation);
+    if (!sim) {
+        std::cerr << "failed to create simulator" << std::endl;
+        return 1;
     }
 
-    server.killServer();
+    for (;;) {
+        trajectory->update(sim->state(), sim->time());
+
+        for (std::size_t i = 0; i < 100; i++) {
+            FrankaRidgeback::Control control = trajectory->get(sim->time());
+            sim->step(control);
+        }
+    }
 }

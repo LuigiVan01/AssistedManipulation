@@ -19,8 +19,8 @@ Cost::Cost(std::unique_ptr<FrankaRidgeback::Model> &&model)
 {}
 
 double Cost::step(
-    const FrankaRidgeback::State & /*state */,
-    const FrankaRidgeback::Control & /*control */,
+    const State & /*state */,
+    const Control & /*control */,
     double /*dt */
 ) {
     return 0;

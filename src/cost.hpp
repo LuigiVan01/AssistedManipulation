@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mppi.hpp"
 #include "dynamics.hpp"
 
 /**
@@ -28,13 +29,9 @@ public:
      * @param control The controls used to achieve the state.
      * @param t The change in time.
      * 
-     * @returns The current cumulative cost
+     * @returns The cost of the step.
      */
-    double step(
-        const FrankaRidgeback::State &state,
-        const FrankaRidgeback::Control &control,
-        double dt
-    );
+    double step(const State &state, const Control &control, double dt) override;
 
     /**
      * @brief Reset the cost.

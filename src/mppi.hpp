@@ -1,10 +1,9 @@
 #pragma once
 
-#include <random>
 #include <concepts>
 #include <functional>
-#include <limits>
 #include <memory>
+#include <random>
 
 #include <Eigen/Eigen>
 
@@ -16,11 +15,11 @@ namespace mppi {
 struct Configuration
 {
     /// The number of rollouts to perform on each time.
-    std::size_t rollouts;
+    std::int64_t rollouts;
 
     /// The number of best control trajectory rollouts to keep to warmstart the
     // next control trajectory sampling phase (before rolling out).
-    std::size_t rollouts_cached;
+    std::int64_t rollouts_cached;
 
     /// The time increment passed to the dynamics simulation when performing
     /// rollouts in seconds.
@@ -56,8 +55,7 @@ struct Configuration
 /**
  * @brief The dynamics class stores and updates the system state.
  * 
- * This class should be subclassed to implement dynamics. The class must be
- * copy constructable.
+ * This class should be subclassed to implement dynamics.
  * 
  * @tparam StateDoF The number of degrees of freedom of the system.
  * @tparam ControlDoF The number of degrees of system of the controls.
@@ -86,9 +84,8 @@ public:
      * 
      * @param state The system state.
      * @param control The controls applied to the current state.
-     * @param t The time in the simulation.
      */
-    virtual void set(const State &state, double t) = 0;
+    virtual void set(const State &state) = 0;
 
     /**
      * @brief Step the dynamics simulation.
@@ -98,37 +95,50 @@ public:
      * @param control The controls applied at the current state (before dt).
      * @param dt The change in time.
      */
-    virtual State step(const Control &control, double dt) = 0;
+    virtual const State &step(const Control &control, double dt) = 0;
 };
 
 /**
  * @brief The cost class stores and updates the cost of a rollout.
  * 
- * @tparam StateDoF 
- * @tparam ControlDoF 
+ * This class should be subclassed to implement the objective function.
+ * 
+ * @tparam StateDoF The number of degrees of freedom of the system.
+ * @tparam ControlDoF The number of degrees of system of the controls.
  */
 template<std::size_t StateDoF, std::size_t ControlDoF>
 class Cost
 {
 public:
 
+    /// The number of degrees of freedom of the system.
     static constexpr const std::size_t StateDoF = StateDoF;
+
+    /// The number of degrees of system of the controls.
     static constexpr const std::size_t ControlDoF = ControlDoF;
+
+    /// A state of the dynamics.
+    using State = Eigen::Matrix<double, StateDoF, 1>;
+
+    /// A control of the dynamics.
+    using Control = Eigen::Matrix<double, ControlDoF, 1>;
 
     virtual ~Cost() = default;
 
     /**
-     * @brief Update the cost given a subsequent state from a contorl input.
+     * @brief Update the cost given a subsequent state from a control input.
      * 
      * @param state The next state of the system.
      * @param control The controls used to achieve the state.
      * @param t The change in time.
+     * 
+     * @returns The cost of the step.
      */
-    void step(
-        const Eigen::Matrix<double, StateDoF, 1> &state,
-        const Eigen::Matrix<double, ControlDoF, 1> &control,
+    virtual double step(
+        const State &state,
+        const Control &control,
         double dt
-    );
+    ) = 0;
 
     /**
      * @brief Reset the cost.
@@ -227,7 +237,7 @@ public:
      * @param rollout The rollout to get the control trajectory of.
      * @return The control trajectory of the rollout.
      */
-    inline auto controls(std::size_t rollout) const {
+    inline auto controls(std::int64_t rollout) const {
         return m_controls.block(
             m_configuration.rollouts,
             ControlDoF,
@@ -244,7 +254,7 @@ public:
      * @param rollout The rollout to get the states of.
      * @returns The state evolution of the rollout.
      */
-    inline auto states(std::size_t rollout) const {
+    inline auto states(std::int64_t rollout) const {
         return m_states.block(
             m_configuration.rollouts,
             ControlDoF,
@@ -259,7 +269,7 @@ public:
      * @param rollout The rollout to get the cost of.
      * @returns The cost of the rollout.
      */
-    inline double cost(std::size_t rollout) const {
+    inline double cost(std::int64_t rollout) const {
         return m_costs[rollout];
     }
 
@@ -280,7 +290,17 @@ public:
      * @param t The time to evaluate the control trajectory.
      * @returns The control parameters for the current time.
      */
-    Control operator()(double t) const;
+    Control get(double t) const;
+
+    /**
+     * @brief Evaluate the current optimal control trajectory at a given time.
+     * 
+     * @param t The time to evaluate the control trajectory.
+     * @returns The control parameters for the current time.
+     */
+    inline Control operator()(double t) const {
+        return get(t);
+    }
 
 private:
 
@@ -302,7 +322,7 @@ private:
      * 
      * @param index The rollout to perform.
      */
-    void rollout(std::size_t index);
+    void rollout(std::int64_t index);
 
     /**
      * @brief Update the optimal control trajectory.
@@ -376,7 +396,7 @@ Trajectory<DynamicsType, CostType>::create(
     const Configuration &configuration
 ) {
     // TODO: Validation goes here.
-    if (configuration.rollouts < 1)
+    if (configuration.rollouts < 1 || configuration.rollouts_cached < 0)
         return nullptr;
 
     int steps = std::ceil(configuration.horison / configuration.step_size);
@@ -427,7 +447,7 @@ void Trajectory<DynamicsType, CostType>::update(const State &state, double time)
     sample();
 
     // Rollout
-    for (std::size_t i = 0; i < m_configuration.rollouts; i++)
+    for (std::int64_t i = 0; i < m_configuration.rollouts; i++)
         rollout(i);
 
     optimise();
@@ -449,10 +469,10 @@ void Trajectory<DynamicsType, CostType>::sample()
 }
 
 template<typename DynamicsType, typename CostType>
-void Trajectory<DynamicsType, CostType>::rollout(std::size_t i)
+void Trajectory<DynamicsType, CostType>::rollout(std::int64_t i)
 {
-    m_dynamics.set(m_current_state);
-    m_cost.reset();
+    m_dynamics->set(m_current_state);
+    m_cost->reset();
 
     for (int step = 0; step < m_steps; ++step) {
 
@@ -460,11 +480,11 @@ void Trajectory<DynamicsType, CostType>::rollout(std::size_t i)
         auto control = m_controls.block<ControlDoF, 1>(i * ControlDoF, step);
 
         // Step the dynamics simulation and store.
-        State state = m_dynamics->step(m_configuration.step_size);
-        m_states.block<StateDoF, 1>(i * StateDoF, step) = m_dynamics->state();
+        const State &state = m_dynamics->step(control, m_configuration.step_size);
+        m_states.block<StateDoF, 1>(i * StateDoF, step) = state;
 
         double cost = (
-            m_cost.step(state, control, m_times[step]) *
+            m_cost->step(state, control, m_times[step]) *
             std::pow(m_configuration.cost_discount_factor, step)
         );
 
@@ -485,11 +505,14 @@ void Trajectory<DynamicsType, CostType>::optimise()
     double minimum = std::numeric_limits<double>::min();
 
     // Get the minimum and maximum rollout cost.
-    auto [minimum, maximum] = std::minmax_element(
+    auto [it1, it2] = std::minmax_element(
         m_costs.begin(),
         m_costs.end(),
         [](double a, double b) { return a < b ? true : std::isnan(b); }
     );
+
+    maximum = *it1;
+    minimum = *it2;
 
     // For parameterisation of each cost.
     double difference = maximum - minimum;
@@ -498,7 +521,7 @@ void Trajectory<DynamicsType, CostType>::optimise()
     double total = 0.0;
 
     // Transform the weights to likelihoods.
-    for (std::size_t rollout = 0; rollout < m_configuration.rollouts; ++rollout) {
+    for (std::int64_t rollout = 0; rollout < m_configuration.rollouts; ++rollout) {
         double cost = m_costs[rollout];
 
         // NaNs indicate a failed rollout and do not contribute anything. 
@@ -525,7 +548,7 @@ void Trajectory<DynamicsType, CostType>::optimise()
 
     // The optimal trajectory is the weighted samples.
     m_gradient.setZero();
-    for (std::size_t rollout = 0; rollout < m_configuration.rollouts; ++rollout)
+    for (std::int64_t rollout = 0; rollout < m_configuration.rollouts; ++rollout)
         m_gradient += controls(rollout) * m_weights[rollout];
 
     // Clip gradient.
@@ -538,20 +561,21 @@ void Trajectory<DynamicsType, CostType>::optimise()
 
 template<typename DynamicsType, typename CostType>
 Trajectory<DynamicsType, CostType>::Control
-Trajectory<DynamicsType, CostType>::operator()(double time) const
+Trajectory<DynamicsType, CostType>::get(double time) const
 {
     auto it = std::upper_bound(m_times.begin(), m_times.end(), time);
-    std::size_t index = std::distance(m_times.begin(), it);
+    auto index = std::distance(m_times.begin(), it);
 
     // Past the end of the trajectory. Return the specified default control
     // parameters.
-    if (index = m_times.end()) {
-        if (m_configuration.control_default_last)
-            return m_optimal_control.lastCol();
+    if (it == m_times.end()) {
+        if (m_configuration.control_default_last) {
+            return m_optimal_control.rightCols(1);
+        }
         return m_configuration.control_default_value;
     }
 
-    assert(m_times.length() > 1);
+    assert(m_times.cols() > 1);
     auto previous = it - 1;
 
     // Parameterisation of the time between nearest two timestamps.

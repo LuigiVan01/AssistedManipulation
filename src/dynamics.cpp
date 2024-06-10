@@ -20,7 +20,7 @@ std::shared_ptr<Dynamics> Dynamics::create()
     return std::shared_ptr<Dynamics>(new Dynamics());
 }
 
-Dynamics::State Dynamics::step(const Control &control, double dt)
+const Dynamics::State &Dynamics::step(const Control &control, double dt)
 {
     // integrate joint velocities
     m_state.tail<7>() += control.tail<7>() * dt;

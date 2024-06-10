@@ -23,6 +23,7 @@ add_executable(
     main.cpp
     dynamics.cpp
     cost.cpp
+    simulator.cpp
 )
 
 target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
