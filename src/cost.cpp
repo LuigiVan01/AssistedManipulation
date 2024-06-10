@@ -1,6 +1,7 @@
 #include "cost.hpp"
 
 #include <iostream>
+#include <random>
 
 std::shared_ptr<Cost> Cost::create(const std::string &urdf)
 {
@@ -19,11 +20,13 @@ Cost::Cost(std::unique_ptr<FrankaRidgeback::Model> &&model)
 {}
 
 double Cost::step(
-    const State & /*state */,
+    const State & state,
     const Control & /*control */,
     double /*dt */
 ) {
-    return 0;
+    m_model->update(state);
+    auto [position, orientation] = m_model->end_effector();
+    return (position - Eigen::Vector3d(1.0, 1.0, 1.0)).norm();
 }
 
 void Cost::reset()

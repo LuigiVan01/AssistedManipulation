@@ -98,7 +98,8 @@ Model::Model(
 
 void Model::update(const State &state)
 {
-    pinocchio::forwardKinematics(*m_model, *m_data, state);
+    Eigen::VectorXd s = state.head<9>();
+    pinocchio::forwardKinematics(*m_model, *m_data, s);
     pinocchio::updateFramePlacements(*m_model, *m_data);
 }
 

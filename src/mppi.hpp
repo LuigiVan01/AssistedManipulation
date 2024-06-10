@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <random>
+#include <iostream>
 
 #include <Eigen/Eigen>
 
@@ -239,10 +240,10 @@ public:
      */
     inline auto controls(std::int64_t rollout) const {
         return m_controls.block(
-            m_configuration.rollouts,
-            ControlDoF,
-            0,
-            rollout * ControlDoF
+            rollout * ControlDoF, // start row
+            0, // start col
+            ControlDoF, // rows
+            m_steps // cols
         );
     };
 
@@ -426,11 +427,21 @@ Trajectory<DynamicsType, CostType>::Trajectory(
   , m_generator(std::random_device{}())
   , m_steps(steps)
   , m_current_state(state)
-  , m_controls(configuration.rollouts * ControlDoF, steps) // (rows, cols)
+  , m_times(steps, 1) // (rows, cols) ...
+  , m_controls(configuration.rollouts * ControlDoF, steps)
   , m_states(configuration.rollouts * StateDoF, steps)
   , m_costs(configuration.rollouts, 1)
+  , m_weights(configuration.rollouts, 1)
   , m_optimal_control(ControlDoF, steps)
+  , m_gradient(ControlDoF, steps)
 {
+    m_optimal_control.setZero();
+
+    m_times.setZero();
+    m_controls.setZero();
+    m_states.setZero();
+    m_costs.setZero();
+    m_weights.setZero();
     m_gradient.setZero();
 }
 
@@ -460,7 +471,7 @@ void Trajectory<DynamicsType, CostType>::sample()
     // optimal trajectory.
 
     // Set all trajectories to random noise.
-    m_controls.unaryExpr(
+    m_controls = m_controls.unaryExpr(
         [&](float){ return m_distribution(m_generator); }
     );
 
@@ -511,11 +522,13 @@ void Trajectory<DynamicsType, CostType>::optimise()
         [](double a, double b) { return a < b ? true : std::isnan(b); }
     );
 
-    maximum = *it1;
-    minimum = *it2;
+    minimum = *it1;
+    maximum = *it2;
 
     // For parameterisation of each cost.
     double difference = maximum - minimum;
+    if (difference < 1e-6)
+        return;
 
     // Running sum of total likelihood for normalisation between zero and one.
     double total = 0.0;
@@ -553,7 +566,7 @@ void Trajectory<DynamicsType, CostType>::optimise()
 
     // Clip gradient.
     m_gradient = m_gradient
-        .cwiseMax(m_configuration.gradient_minmax)
+        .cwiseMax(-m_configuration.gradient_minmax)
         .cwiseMin(m_configuration.gradient_minmax);
 
     m_optimal_control += m_gradient * m_configuration.gradient_step;
@@ -575,7 +588,7 @@ Trajectory<DynamicsType, CostType>::get(double time) const
         return m_configuration.control_default_value;
     }
 
-    assert(m_times.cols() > 1);
+    assert(m_times.rows() > 1);
     auto previous = it - 1;
 
     // Parameterisation of the time between nearest two timestamps.

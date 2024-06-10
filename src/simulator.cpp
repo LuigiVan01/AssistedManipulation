@@ -32,6 +32,8 @@ Simulator::Simulator(
   , m_world(std::move(world))
   , m_robot(robot)
   , m_server(m_world.get())
+  , m_position_control(FrankaRidgeback::Control::Zero())
+  , m_velocity_control(FrankaRidgeback::Control::Zero())
 {
     reset(m_configuration.initial_state);
     m_server.launchServer();

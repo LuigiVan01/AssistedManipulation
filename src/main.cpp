@@ -58,6 +58,7 @@ int main(int /* argc */, char*[])
         return 1;
     }
 
+    std::cout << "creating simulator" << std::endl;
     Simulator::Configuration simulator_configuation {
         .urdf_filename = urdf,
         .timestep = 0.005,
@@ -75,7 +76,9 @@ int main(int /* argc */, char*[])
         trajectory->update(sim->state(), sim->time());
 
         for (std::size_t i = 0; i < 100; i++) {
+            raisim::TimedLoop(simulator_configuation.timestep);
             FrankaRidgeback::Control control = trajectory->get(sim->time());
+            std::cout << control << '\n' << std::endl;
             sim->step(control);
         }
     }
