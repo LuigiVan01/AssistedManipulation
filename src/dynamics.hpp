@@ -15,7 +15,9 @@ namespace DoF {
     constexpr const std::size_t
         GRIPPER = 2,
         ARM = 7,
-        BASE = 0,
+        BASE_VELOCITY = 2,
+        BASE_ROTATION = 1,
+        BASE = BASE_VELOCITY + BASE_ROTATION,
         JOINTS = GRIPPER + ARM + BASE;
 
     // External torque.
@@ -31,69 +33,134 @@ namespace DoF {
 
 } // namespace DoF
 
-struct State : public Eigen::Matrix<double, DoF::STATE, 1>
+/**
+ * @brief The state of the robot.
+ * 
+ * The state is given by [x, y, rotation, theta1, theta2, theta3, theta4,
+ * theta5, theta6, theta7, gripper_x, gripper_y, vx, vy, rotation/s, w1, w2, w3,
+ * w4, w5, w6, w7, gripper_left_x, gripper_right_y, external_torque]
+ * 
+ * Units:
+ * - Position in metres
+ * - Velocities in metres per second.
+ * - Torque in Newton metres.
+ * - Angles in radians.
+ * - Angular velocity in radians per second.
+ * 
+ * The base is omnidirectional, meaning vx and vy are independent from
+ * each other, and both are relative to the rotation of the robot.
+ */
+struct State : public Eigen::Vector<double, DoF::STATE>
 {
     // Inherit all matrix constructors.
-    using Eigen::Matrix<double, DoF::STATE, 1>::Matrix;
+    using Eigen::Vector<double, DoF::STATE>::Vector;
 
     /**
-     * @brief Get the arm joint positions.
+     * @brief Get the (estimated) x and y position [m] of the robot base.
      * 
-     * Slice of the first n = DoF::ARM elements.
+     * Slice of the first n = <DoF::BASE> elements.
      * 
-     * @returns An eigen block of length FrankaRidgeback::DoF::ARM containing
-     * the arm joint positions.
+     * @returns The estimated (x, y) base position in metres.
      */
-    inline auto arm_position() {
-        return head<DoF::ARM>();
+    inline auto base_position() {
+        return head<DoF::BASE_VELOCITY>();
     }
 
     /**
-     * @brief Get the gripper position.
+     * @brief Get the angle of rotation [rad] of the robot base.
      * 
-     * Slice of length <DoF::GRIPPER> starting at index (DoF::ARM)
+     * Slice of length <DoF::BASE_ROTATION> starting at index
+     * (Dof::BASE_VELOICTY).
      * 
-     * @returns An eigen block of length FrankaRidgeback::DoF::GRIPPER
-     * containing the gripper position.
+     * @returns The angle of rotation of the base in radians.
+     */
+    inline auto base_rotation() {
+        return segment<DoF::BASE_ROTATION>(DoF::BASE_VELOCITY);
+    }
+
+    /**
+     * @brief Get the angles [rad] of the franka research 3 joints.
+     * 
+     * Slice of length <DoF::ARM> starting at index (DoF::BASE).
+     * 
+     * @returns The angles [theta1, theta2, theta3, theta4, theta5, theta6,
+     * theta7] ordered from the base to the end effector of each joint.
+     */
+    inline auto arm_position() {
+        return segment<DoF::ARM>(DoF::BASE);
+    }
+
+    /**
+     * @brief Get the left and right gripper positions in metres from the middle.
+     * 
+     * Slice of length <DoF::GRIPPER> starting at index (DoF::BASE + DoF::ARM).
+     * 
+     * @returns The (left, right) gripper positions in metres.
      */
     inline auto gripper_position() {
-        return segment<DoF::GRIPPER>(DoF::ARM);
+        return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
     }
 
     /**
      * @brief Get all the joint positions of the robot.
      * 
-     * Slice of the first n = DoF::JOINTS elements.
+     * Slice of the first n = <DoF::JOINTS> elements.
      * 
-     * @returns An eigen block of length FrankaRidgeback::DoF::JOINTS containing
-     * all joint positions.
+     * The left gripper is x, and the right gripper is y.
+     * 
+     * @returns The joint positions [x, y, rotation, theta1, theta2, theta3,
+     * theta4, theta5, theta6, theta7, gripper_x, gripper_y] of the
+     * robot.
      */
-    inline auto joint_positions() {
+    inline auto position() {
         return head<DoF::JOINTS>();
     }
 
     /**
-     * @brief Get the arm joint velocities.
+     * @brief Get the vx and vy velocity [m/s] of the robot base.
      * 
-     * Slice of length <DoF::ARM> starting at index (DoF::JOINTS)
+     * Slice of length <DoF::BASE_VELOCITY> starting at index (DoF::JOINTS).
      * 
-     * @returns An eigen block of length FrankaRidgeback::DoF::ARM containing
-     * the arm joint velocities.
+     * @returns The (vx, vy) base velocity in metres per second.
      */
-    inline auto arm_velocity() {
-        return segment<DoF::ARM>(DoF::JOINTS);
+    inline auto base_velocity() {
+        return segment<DoF::BASE_VELOCITY>(DoF::JOINTS);
     }
 
     /**
-     * @brief Get the gripper joint velocities.
+     * @brief Get the angular velocity [rad/s] of the robot base.
+     * 
+     * Slice of length <DoF::BASE_VELOCITY> starting at index
+     * (DoF::JOINTS + DoF::BASE_VELOCITY).
+     * 
+     * @returns The change in angle of rotation of the base in radians per
+     * second.
+     */
+    inline auto base_angular_velocity() {
+        return segment<DoF::BASE_VELOCITY>(DoF::JOINTS + DoF::BASE_VELOCITY);
+    }
+
+    /**
+     * @brief Get the angular velocity [rad/s] of the franka research 3 joints.
+     * 
+     * Slice of length <DoF::ARM> starting at index (DoF::JOINTS + DoF::BASE).
+     * 
+     * @returns The angular velocity [w1, w2, w3, w4, w5, w6, w7] ordered from
+     * the base to the end effector of each joint.
+     */
+    inline auto arm_velocity() {
+        return segment<DoF::ARM>(DoF::JOINTS + DoF::BASE);
+    }
+
+    /**
+     * @brief  Get the left and right gripper velocities [m/s].
      * 
      * Slice of length <DoF::GRIPPER> starting at index (DoF::JOINTS + DoF::ARM)
      * 
-     * @return An eigen block of length FrankaRidgeback::DoF::GRIPPER containing
-     * the gripper joint velocities.
+     * @return The (left, right) gripper positions in metres per second.
      */
     inline auto gripper_velocity() {
-        return segment<DoF::GRIPPER>(DoF::JOINTS + DoF::ARM);
+        return segment<DoF::GRIPPER>(DoF::JOINTS + DoF::BASE + DoF::ARM);
     }
 
     /**
@@ -101,48 +168,89 @@ struct State : public Eigen::Matrix<double, DoF::STATE, 1>
      * 
      * Slice of length <DoF::JOINTS> starting at index (DoF::JOINTS)
      * 
-     * @returns An eigen block of length FrankaRidgeback::DoF::JOINTS containing
-     * all joint velocities.
+     * The left gripper is x, and the right gripper is y.
+     * 
+     * @returns The joint velocities [vx, vy, rotation/s, w1, w2, w3, w4, w5,
+     * w6, w7, gripper_left_x, gripper_right_y] of the robot.
      */
-    inline auto joint_velocities() {
+    inline auto velocity() {
         return segment<DoF::JOINTS>(DoF::JOINTS);
     }
 
     /**
      * @brief Get the external torque.
      * 
-     * Slice of the last n = FrankaRidgeback::DoF::EXTERNAL_TORQUE elements.
+     * Slice of the last n = <DoF::EXTERNAL_TORQUE> elements.
      * 
-     * @returns An eigen block of length FrankaRidgeback::DoF::EXTERNAL_TORQUE
-     * containing the external torque vector.
+     * @returns The external torque applied to the end effector.
      */
     inline auto external_torque() {
         return tail<DoF::EXTERNAL_TORQUE>();
     }
 };
 
-struct Control : public Eigen::Matrix<double, DoF::CONTROL, 1>
+/**
+ * @brief The data to send to the robot to control it.
+ * 
+ * The control is by [vx, vy, rotation, tau1, tau2, tau3, tau4, tau5, tau6, tau7,
+ * gripper_x, gripper_y].
+ * 
+ * Units:
+ * - Position in metres
+ * - Velocities in metres per second.
+ * - Torque in Newton metres.
+ * - Angles in radians.
+ * - Angular velocity in radians per second.
+ * 
+ * The base is omnidirectional, meaning vx and vy are independent from
+ * each other, and both are relative to the rotation of the robot.
+ */
+struct Control : public Eigen::Vector<double, DoF::CONTROL>
 {
     // Inherit all matrix constructors.
-    using Eigen::Matrix<double, DoF::CONTROL, 1>::Matrix;
+    using Eigen::Vector<double, DoF::CONTROL>::Vector;
 
     /**
-     * @brief Get the arm controller parameters.
+     * @brief Get the vx and vy velocity [m/s] of the robot base.
      * 
-     * Slice of the first n = DoF::ARM elements.
+     * Slice of the first n = <DoF::BASE> elements.
      * 
-     * @returns The torques to apply to each sequential arm joint.
+     * @return The (vx, vy) base velocity in metres per second.
      */
-    inline auto arm_torque() {
-        return head<DoF::ARM>();
+    inline auto base_velocity() {
+        return head<DoF::BASE_VELOCITY>();
     }
 
     /**
-     * @brief Get the gripper position control parameters.
+     * @brief Get the angle of rotation [rad] of the robot base.
      * 
-     * Slice of the last n = DoF::GRIPPER elements.
+     * Slice of length <DoF::BASE_ROTATION> starting at index
+     * (Dof::BASE_VELOICTY).
      * 
-     * @returns The desired position of the gripper.
+     * @returns The angle of rotation of the base in radians.
+     */
+    inline auto base_rotation() {
+        return segment<DoF::BASE_ROTATION>(DoF::BASE_VELOCITY);
+    }
+
+    /**
+     * @brief Get the torque [Nm] of the franka research 3 joints.
+     * 
+     * Slice of length <DoF::ARM> starting at index (DoF::BASE).
+     * 
+     * @returns The torques [tau1, tau2, tau3, tau4, tau5, tau6, tau7] ordered
+     * from the base to the end effector, in newton metres.
+     */
+    inline auto arm_torque() {
+        return segment<DoF::ARM>(DoF::BASE);
+    }
+
+    /**
+     * @brief Get the left and right gripper positions in metres from the middle.
+     * 
+     * Slice of the last n = <DoF::GRIPPER> elements.
+     * 
+     * @returns The left and right gripper positions in metres.
      */
     inline auto gripper_position() {
         return tail<DoF::GRIPPER>();

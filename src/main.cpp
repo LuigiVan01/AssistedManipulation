@@ -62,7 +62,7 @@ int main(int /* argc */, char*[])
     Simulator::Configuration simulator_configuation {
         .urdf_filename = urdf,
         .timestep = 0.005,
-        .gravity = 9.81,
+        .gravity = {0.0, 0.0, 9.81},
         .initial_state = initial_state
     };
 
@@ -78,7 +78,6 @@ int main(int /* argc */, char*[])
         for (std::size_t i = 0; i < 100; i++) {
             raisim::TimedLoop(simulator_configuation.timestep);
             FrankaRidgeback::Control control = trajectory->get(sim->time());
-            std::cout << control << '\n' << std::endl;
             sim->step(control);
         }
     }

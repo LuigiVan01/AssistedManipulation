@@ -72,6 +72,7 @@
             "detail": "Build the robot model. Must be run in a ROS environment.",
             "type": "shell",
             "linux": { "command": "${workspaceFolder}/scripts/linux/build_robot_model.bash"},
+            "windows": { "command": ""},
             "problemMatcher": []
         },
         {

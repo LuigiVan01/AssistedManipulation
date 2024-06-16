@@ -2,7 +2,7 @@ set -e
 
 ROOT=`pwd`
 SOURCE=$ROOT/lib/sampling_based_control/mppi_examples
-DESTINATION=$ROOT/src/application/model
+DESTINATION=$ROOT/src/model
 
 rm -rf $DESTINATION/*
 

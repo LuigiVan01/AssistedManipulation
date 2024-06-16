@@ -27,7 +27,7 @@ public:
         double timestep;
 
         // The gravitational acceleration.
-        double gravity;
+        Eigen::Vector3d gravity;
 
         // The initial state.
         FrankaRidgeback::State initial_state;
@@ -88,10 +88,6 @@ private:
     );
 
     Configuration m_configuration;
-
-    Eigen::VectorXd m_position_control;
-
-    Eigen::VectorXd m_velocity_control;
 
     FrankaRidgeback::State m_state;
 
