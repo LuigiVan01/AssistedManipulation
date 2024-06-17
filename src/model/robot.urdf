@@ -8,8 +8,84 @@
   <link name="world"/>
   <joint name="world_joint" type="fixed">
     <parent link="world"/>
+    <child link="omni_base_root_link"/>
+  </joint>
+  <link name="omni_base_root_link"/>
+  <link name="x_slider">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+  <link name="y_slider">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+  <link name="pivot">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+  <joint name="x_base_joint" type="prismatic">
+    <parent link="omni_base_root_link"/>
+    <child link="x_slider"/>
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="1000.0" lower="-10" upper="10" velocity="1.0"/>
+    <dynamics damping="0.0" friction="10"/>
+  </joint>
+  <transmission name="transmision_x_base_joint">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="x_base_joint">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="x_base_joint_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <joint name="y_base_joint" type="prismatic">
+    <parent link="x_slider"/>
+    <child link="y_slider"/>
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="1000.0" lower="-10" upper="10" velocity="1.0"/>
+    <dynamics damping="0.0" friction="10"/>
+  </joint>
+  <transmission name="transmision_y_base_joint">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="y_base_joint">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="y_base_joint_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <joint name="pivot_joint" type="revolute">
+    <parent link="y_slider"/>
+    <child link="pivot"/>
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="-10.0" upper="10.0" velocity="1.0"/>
+    <dynamics damping="0.0" friction="10"/>
+  </joint>
+  <transmission name="transmision_pivot_joint">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="pivot_joint">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="pivot_joint_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  <joint name="omni_base_flange" type="fixed">
+    <parent link="pivot"/>
     <child link="base_link"/>
-    <origin rpy="0.000 0.000 -1.500" xyz="0.004 1.087 0.000"/>
   </joint>
   <material name="dark_grey">
     <color rgba="0.2 0.2 0.2 1.0"/>
@@ -36,6 +112,15 @@
       <mass value="1.0"/>
       <inertia ixx="0.048966669" ixy="0" ixz="0" iyy="0.046466667" iyz="0" izz="0.0041666669"/>
     </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.01" radius="0.53"/>
+      </geometry>
+      <material name="Cyan">
+        <color rgba="0 1.0 1.0 0.3"/>
+      </material>
+    </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0.25"/>
       <geometry>
@@ -58,7 +143,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/body.stl"/>
+        <mesh filename="ridgeback/meshes/body.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -82,7 +167,7 @@
     <visual>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/side-cover.stl"/>
+        <mesh filename="ridgeback/meshes/side-cover.obj"/>
       </geometry>
       <material name="yellow"/>
     </visual>
@@ -91,7 +176,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/side-cover.stl"/>
+        <mesh filename="ridgeback/meshes/side-cover.obj"/>
       </geometry>
       <material name="yellow"/>
     </visual>
@@ -105,7 +190,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/end-cover.stl"/>
+        <mesh filename="ridgeback/meshes/end-cover.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -119,7 +204,7 @@
     <visual>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/end-cover.stl"/>
+        <mesh filename="ridgeback/meshes/end-cover.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -138,7 +223,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/lights.stl"/>
+        <mesh filename="ridgeback/meshes/lights.obj"/>
       </geometry>
       <material name="white"/>
     </visual>
@@ -147,7 +232,7 @@
     <visual>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/lights.stl"/>
+        <mesh filename="ridgeback/meshes/lights.obj"/>
       </geometry>
       <material name="red"/>
     </visual>
@@ -161,7 +246,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/top.stl"/>
+        <mesh filename="ridgeback/meshes/top.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -175,7 +260,7 @@
     <visual>
       <origin rpy="0 1.5707963267948966 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback/meshes/axle.stl"/>
+        <mesh filename="ridgeback/meshes/axle.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -199,13 +284,7 @@
     <origin rpy="0 0 0" xyz="0 0 0.28"/>
   </joint>
   <!-- Sensor mount -->
-  <link name="ridgeback_sensor_mount_link">
-    <visual>
-      <geometry>
-        <mesh filename="mppi_manipulation_resources/data/meshes/ridgeback_sensor_mount.dae"/>
-      </geometry>
-    </visual>
-  </link>
+  <link name="ridgeback_sensor_mount_link"/>
   <joint name="ridgeback_sensor_mount_joint" type="fixed">
     <origin rpy="0 0 1.571" xyz="0 0 0"/>
     <parent link="mid_mount"/>
@@ -221,8 +300,7 @@
   <joint name="arm_mount_joint" type="fixed">
     <parent link="mid_mount"/>
     <child link="franka_mount_link"/>
-    <!--        <origin xyz="$(optenv RIDGEBACK_FRANKA_XYZ 0.21 0.0 0.2)" rpy="$(optenv RIDGEBACK_FRANKA_RPY 0 0 0)"/>-->
-    <origin rpy="0 0 0" xyz="0.30 0.0 0.445"/>
+    <origin rpy="0 0 0" xyz="0.295 0.005 0.445"/>
   </joint>
   <link name="franka_mount_link"/>
   <joint name="panda_joint_franka_mount_link" type="fixed">
@@ -317,7 +395,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/link0.dae"/>
+        <mesh filename="panda/meshes/visual/link0.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -326,7 +404,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/collision/link0.obj"/>
+        <mesh filename="panda/meshes/collision/link0.obj"/>
       </geometry>
     </collision>
   </link>
@@ -339,7 +417,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/link1.dae"/>
+        <mesh filename="panda/meshes/visual/link1.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -348,7 +426,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/collision/link1.obj"/>
+        <mesh filename="panda/meshes/collision/link1.obj"/>
       </geometry>
     </collision>
   </link>
@@ -358,7 +436,8 @@
     <parent link="panda_link0"/>
     <child link="panda_link1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="87" lower="-20" upper="20" velocity="2.1750"/>
+    <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    <dynamics damping="0.0" friction="0.0"/>
   </joint>
   <link name="panda_link2">
     <inertial>
@@ -369,7 +448,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/link2.dae"/>
+        <mesh filename="panda/meshes/visual/link2.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -378,7 +457,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/collision/link2.obj"/>
+        <mesh filename="panda/meshes/collision/link2.obj"/>
       </geometry>
     </collision>
   </link>
@@ -388,7 +467,8 @@
     <parent link="panda_link1"/>
     <child link="panda_link2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="87" lower="-20" upper="20" velocity="2.1750"/>
+    <limit effort="87" lower="-1.7628" upper="1.7628" velocity="2.1750"/>
+    <dynamics damping="0.0" friction="0.0"/>
   </joint>
   <link name="panda_link3">
     <inertial>
@@ -399,7 +479,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/link3.dae"/>
+        <mesh filename="panda/meshes/visual/link3.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -408,7 +488,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/collision/link3.obj"/>
+        <mesh filename="panda/meshes/collision/link3.obj"/>
       </geometry>
     </collision>
   </link>
@@ -418,7 +498,8 @@
     <parent link="panda_link2"/>
     <child link="panda_link3"/>
     <axis xyz="0 0 1"/>
-    <limit effort="87" lower="-20" upper="20" velocity="2.1750"/>
+    <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    <dynamics damping="0.0" friction="0.0"/>
   </joint>
   <link name="panda_link4">
     <inertial>
@@ -429,7 +510,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/link4.dae"/>
+        <mesh filename="panda/meshes/visual/link4.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -438,7 +519,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/collision/link4.obj"/>
+        <mesh filename="panda/meshes/collision/link4.obj"/>
       </geometry>
     </collision>
   </link>
@@ -449,7 +530,9 @@
     <parent link="panda_link3"/>
     <child link="panda_link4"/>
     <axis xyz="0 0 1"/>
-    <limit effort="87" lower="-20" upper="20" velocity="2.1750"/>
+    <limit effort="87" lower="-3.0718" upper="0.0698" velocity="2.1750"/>
+    <!-- upper should be -0.0698, but that brakes simulation when initial position for this joint is 0.0 -->
+    <dynamics damping="0.0" friction="0.0"/>
   </joint>
   <link name="panda_link5">
     <inertial>
@@ -460,7 +543,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/link5.dae"/>
+        <mesh filename="panda/meshes/visual/link5.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -469,7 +552,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/collision/link5.obj"/>
+        <mesh filename="panda/meshes/collision/link5.obj"/>
       </geometry>
     </collision>
   </link>
@@ -479,7 +562,8 @@
     <parent link="panda_link4"/>
     <child link="panda_link5"/>
     <axis xyz="0 0 1"/>
-    <limit effort="12" lower="-20" upper="20" velocity="2.6100"/>
+    <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    <dynamics damping="0.0" friction="0.0"/>
   </joint>
   <link name="panda_link6">
     <inertial>
@@ -490,7 +574,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/link6.dae"/>
+        <mesh filename="panda/meshes/visual/link6.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -499,7 +583,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/collision/link6.obj"/>
+        <mesh filename="panda/meshes/collision/link6.obj"/>
       </geometry>
     </collision>
   </link>
@@ -509,7 +593,8 @@
     <parent link="panda_link5"/>
     <child link="panda_link6"/>
     <axis xyz="0 0 1"/>
-    <limit effort="12" lower="-20" upper="20" velocity="2.6100"/>
+    <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
+    <dynamics damping="0.0" friction="0.0"/>
   </joint>
   <link name="panda_link7">
     <inertial>
@@ -520,7 +605,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/link7.dae"/>
+        <mesh filename="panda/meshes/visual/link7.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -529,7 +614,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/collision/link7.obj"/>
+        <mesh filename="panda/meshes/collision/link7.obj"/>
       </geometry>
     </collision>
   </link>
@@ -539,7 +624,8 @@
     <parent link="panda_link6"/>
     <child link="panda_link7"/>
     <axis xyz="0 0 1"/>
-    <limit effort="12" lower="-20" upper="20" velocity="2.6100"/>
+    <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    <dynamics damping="0.0" friction="0.0"/>
   </joint>
   <link name="panda_link8">
     <inertial>
@@ -568,7 +654,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/hand.dae"/>
+        <mesh filename="panda/meshes/visual/hand.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
@@ -578,7 +664,7 @@
       <!--origin rpy="0 0 0" xyz="0 0 0"/-->
       <origin rpy="0 0 0" xyz="0 0 0.0333"/>
       <geometry>
-        <!--mesh filename="${resources_prefix}${resources_directory}/resources/panda/meshes/collision/hand.${collision_format}"/!-->
+        <!--mesh filename="panda/meshes/collision/hand.${collision_format}"/!-->
         <box size="0.035 0.19 0.065"/>
       </geometry>
     </collision>
@@ -613,19 +699,38 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/finger.dae"/>
+        <mesh filename="panda/meshes/visual/finger.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
       </material>
     </visual>
     <collision>
-      <!--origin rpy="0 0 0" xyz="0 0 0"/-->
-      <origin rpy="0 0 3.14159265359" xyz="0 0.01 0.028"/>
+      <origin rpy="0.0 0 0.0" xyz="0 0.018 0.01"/>
       <geometry>
-        <!--mesh filename="${resources_prefix}${resources_directory}/resources/panda/meshes/collision/finger.${collision_format}"/-->
-        <box size="0.02 0.02 0.05"/>
+        <box size="0.0222 0.015 0.02"/>
       </geometry>
+      <material name="">
+        <contact name="steel"/>
+      </material>
+    </collision>
+    <collision>
+      <origin rpy="0.5233333333333333 0 0.0" xyz="0 0.017 0.027"/>
+      <geometry>
+        <box size="0.0222 0.007 0.025"/>
+      </geometry>
+      <material name="">
+        <contact name="steel"/>
+      </material>
+    </collision>
+    <collision>
+      <origin rpy="0.0 0 0.0" xyz="0 0.007 0.045"/>
+      <geometry>
+        <box size="0.0222 0.0145 0.018"/>
+      </geometry>
+      <material name="">
+        <contact name="steel"/>
+      </material>
     </collision>
   </link>
   <link name="panda_rightfinger">
@@ -637,25 +742,45 @@
     <visual>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="mppi_panda_resources/resources/panda/meshes/visual/finger.dae"/>
+        <mesh filename="panda/meshes/visual/finger.dae"/>
       </geometry>
       <material name="">
         <color rgba="1 1 1 1"/>
       </material>
     </visual>
     <collision>
-      <!-- origin rpy="0 0 3.14159265359" xyz="0 0 0"/ -->
-      <origin rpy="0 0 3.14159265359" xyz="0 -0.01 0.028"/>
+      <origin rpy="0.0 0 0.0" xyz="0 -0.018 0.01"/>
       <geometry>
-        <!--mesh filename="${resources_prefix}${resources_directory}/resources/panda/meshes/collision/finger.${collision_format}"/-->
-        <box size="0.02 0.02 0.05"/>
+        <box size="0.0222 0.015 0.02"/>
       </geometry>
+      <material name="">
+        <contact name="steel"/>
+      </material>
+    </collision>
+    <collision>
+      <origin rpy="-0.5233333333333333 0 0.0" xyz="0 -0.017 0.027"/>
+      <geometry>
+        <box size="0.0222 0.007 0.025"/>
+      </geometry>
+      <material name="">
+        <contact name="steel"/>
+      </material>
+    </collision>
+    <collision>
+      <origin rpy="0.0 0 0.0" xyz="0 -0.007 0.045"/>
+      <geometry>
+        <box size="0.0222 0.0145 0.018"/>
+      </geometry>
+      <material name="">
+        <contact name="steel"/>
+      </material>
     </collision>
   </link>
   <joint name="panda_finger_joint1" type="prismatic">
     <parent link="panda_hand"/>
     <child link="panda_leftfinger"/>
     <origin rpy="0 0 0" xyz="0 0 0.0584"/>
+    <!-- 0.0584 -->
     <axis xyz="0 1 0"/>
     <limit effort="20" lower="-0.001" upper="0.04" velocity="0.3"/>
   </joint>
@@ -663,6 +788,7 @@
     <parent link="panda_hand"/>
     <child link="panda_rightfinger"/>
     <origin rpy="0 0 0" xyz="0 0 0.0584"/>
+    <!-- 0.064 -->
     <axis xyz="0 -1 0"/>
     <limit effort="20" lower="-0.001" upper="0.04" velocity="0.3"/>
   </joint>
@@ -671,7 +797,7 @@
     <parent link="panda_hand"/>
     <child link="panda_grasp"/>
     <axis xyz="0 1 0"/>
-    <origin rpy="0 0 0" xyz="0 0 0.1"/>
+    <origin rpy="0 0 0" xyz="0 0 0.095"/>
   </joint>
 </robot>
 

@@ -17,6 +17,7 @@
             "detail": "Generate build files for user_build_target defined in .vscode/settings.json",
             "type": "shell",
             "windows": { "command": "call scripts/windows/configure.bat" },
+            "linux": { "command": ""},
             "args": [ "${config:user_build_target}" ],
             "options": { "cwd": "${workspaceFolder}" },
             "presentation": {
@@ -71,7 +72,8 @@
             "label": "Build Robot Model",
             "detail": "Build the robot model. Must be run in a ROS environment.",
             "type": "shell",
-            "linux": { "command": "${workspaceFolder}/scripts/linux/build_robot_model.bash"},
+            "options": {"cwd": "${workspaceFolder}/src/model"},
+            "linux": { "command": "xacro panda_mobile.urdf.xacro > robot.urdf"},
             "windows": { "command": ""},
             "problemMatcher": []
         },

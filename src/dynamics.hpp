@@ -222,14 +222,14 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
     }
 
     /**
-     * @brief Get the angle of rotation [rad] of the robot base.
+     * @brief Get the angle of rotation [rad/s] of the robot base.
      * 
      * Slice of length <DoF::BASE_ROTATION> starting at index
      * (Dof::BASE_VELOICTY).
      * 
-     * @returns The angle of rotation of the base in radians.
+     * @returns The angular velocity of the base in radians per second.
      */
-    inline auto base_rotation() {
+    inline auto base_angular_velocity() {
         return segment<DoF::BASE_ROTATION>(DoF::BASE_VELOCITY);
     }
 
