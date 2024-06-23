@@ -24,15 +24,21 @@ std::shared_ptr<Dynamics> Dynamics::create()
 Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double dt)
 {
     const Control &control = ctrl;
- 
-    // Arm joint angles increased by 
-    m_state.arm_position() += control.arm_torque() * dt;
 
-    m_state.base_position() = (
-        Eigen::Rotation2Dd(m_state.base_angle().value()) * control.base_velocity() * dt
-    );
+    double yaw = m_state.base_yaw().value();
+    auto rotated = (Eigen::Rotation2Dd(yaw) * control.base_velocity()).eval();
 
-    m_state.base_angle() += control.base_angular_velocity() * dt;
+    // Rotate base velocity to the robot frame of reference.
+    m_state.base_position() = rotated * dt;
+    m_state.base_yaw() += control.base_angular_velocity() * dt;
+
+    // Double integrate arm torque to position. Should use a better numerical
+    // method.
+    m_state.arm_velocity() += control.arm_torque() * dt;
+    m_state.arm_position() += m_state.arm_velocity() * dt;
+
+    // Gripper, usually redundant.
+    // m_state.gripper_position() = control.gripper_position();
 
     return m_state;
 }
@@ -108,6 +114,7 @@ void Model::update(const State &state)
 
 std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::end_effector()
 {
+    // oMf is vector of absolute frame placements in the space frame.
     return std::make_tuple(
         m_data->oMf[m_end_effector_index].translation(),
         (Eigen::Quaterniond)m_data->oMf[m_end_effector_index].rotation()

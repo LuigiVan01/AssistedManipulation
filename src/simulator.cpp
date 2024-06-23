@@ -33,29 +33,15 @@ std::unique_ptr<Simulator> Simulator::create(const Configuration &configuration)
         i++;
     }
 
-    // The base and the gripper use proportional derivative control for their
-    // joints, whereas the arm uses feed-forward torque commands. Therefore, the
-    // PD gains of the torque commands should be zero (disable PD control) and
-    // the PD gains of the base and the gripper should be one (enable PD
-    // control). This is true for both position and velocity control.
-
-    FrankaRidgeback::Control position_gain = FrankaRidgeback::Control::Zero();
-    position_gain.base_velocity() << 0.0, 0.0;
-    position_gain.base_angular_velocity() << 0.0;
-    position_gain.arm_torque() << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-    position_gain.gripper_position() << 100.0, 100.0;
-
-    FrankaRidgeback::Control velocity_gain = FrankaRidgeback::Control::Zero();
-    velocity_gain.base_velocity() << 1000.0, 1000.0;
-    velocity_gain.base_angular_velocity() << 1.0;
-    velocity_gain.arm_torque() << 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0;
-    velocity_gain.gripper_position() << 50.0, 50.0;
-
-    robot->setPdGains(position_gain, velocity_gain);
+    robot->setPdGains(
+        configuration.proportional_gain,
+        configuration.differential_gain
+    );
 
     Eigen::VectorXd pgain, dgain;
     robot->getPdGains(pgain, dgain);
-    std::cout << "set pd gains to " << pgain << " and " << dgain << std::endl;
+    std::cout << "set position gain to " << pgain.transpose() << std::endl;
+    std::cout << "set velocity gain to " << dgain.transpose() << std::endl;
 
     // Start with zero force on the joints.
     auto zero = Eigen::VectorXd::Zero((Eigen::Index)robot->getDOF());
@@ -79,6 +65,9 @@ Simulator::Simulator(
 {
     reset(m_configuration.initial_state);
     m_server.launchServer();
+
+    auto sphere = m_server.addVisualSphere("sphere", 0.1);
+    sphere->setPosition(1.0, 1.0, 1.0);
 }
 
 Simulator::~Simulator()
@@ -100,23 +89,26 @@ const FrankaRidgeback::State &Simulator::step(FrankaRidgeback::Control &control)
     // control.gripper_position() << 0.0, 0.0;
     // control.arm_torque() << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
 
-    // Positional controls.
+    // Gripper positional controls.
     auto desired_position = Eigen::Vector<double, DoF::JOINTS>::Zero().eval();
     desired_position.tail<DoF::GRIPPER>() = control.gripper_position();
 
-    // Velocity controls.
+    // Base velocity controls.
     auto desired_velocity = Eigen::Vector<double, DoF::JOINTS>::Zero().eval();
-    desired_velocity.segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY) = control.base_angular_velocity();
-    desired_velocity.head<DoF::BASE_VELOCITY>() = Eigen::Rotation2Dd(m_state.base_angle().value()) * control.base_velocity();
+    desired_velocity.head<DoF::BASE_POSITION>() = Eigen::Rotation2Dd(m_state.base_yaw().value()) * control.base_velocity();
+    desired_velocity.segment<DoF::BASE_YAW>(DoF::BASE_POSITION) = control.base_angular_velocity();
 
-    // Add torque to the arm joints.
+    // Arm torque controls, add to the inherent gravitational and coriolis
+    // forces on the joints.
     auto forces = m_robot->getNonlinearities(m_world->getGravity()).e().eval();
     forces.segment<DoF::ARM>(DoF::BASE) += control.arm_torque();
 
+    // Set the PD controller targets and apply the torques.
     m_robot->setPdTarget(desired_position, desired_velocity);
     m_robot->setGeneralizedForce(forces);
 
-    // Simulate!
+    // Once the robot joint control parameters for this time step have been set,
+    // simulate!
     m_server.integrateWorldThreadSafe();
     m_time += m_configuration.timestep;
 

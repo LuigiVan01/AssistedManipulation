@@ -15,20 +15,21 @@ int main(int /* argc */, char*[])
 
     // Create the controller.
     mppi::Configuration controller_configuration {
-        .rollouts = 10,
+        .rollouts = 100,
         .rollouts_cached = 0,
         .step_size = 0.05,
-        .horison = 1.0,
+        .horison = 0.25,
         .gradient_step = 1.0,
-        .gradient_minmax = 10000.0,
+        .gradient_minmax = 10.0,
         .cost_scale = 1.0,
-        .cost_discount_factor = 0.9,
+        .cost_discount_factor = 0.95,
         .control_default_last = true,
         .control_default_value = FrankaRidgeback::Control::Zero(),
     };
 
     // Set the initial state.
-    auto initial_state = FrankaRidgeback::State::Zero().eval();
+    FrankaRidgeback::State initial_state = FrankaRidgeback::State::Zero();
+    initial_state.base_velocity() << 0.0, 0.0;
 
     std::cout << "creating dynamics" << std::endl;
     auto dynamics = FrankaRidgeback::Dynamics::create();
@@ -58,24 +59,37 @@ int main(int /* argc */, char*[])
     }
 
     std::cout << "creating simulator" << std::endl;
-    Simulator::Configuration simulator_configuation {
+    Simulator::Configuration simulator {
         .urdf_filename = urdf,
         .timestep = 0.005,
         .gravity = {0.0, 0.0, 9.81},
-        .initial_state = initial_state
+        .initial_state = initial_state,
+        .proportional_gain = FrankaRidgeback::Control::Zero(),
+        .differential_gain = FrankaRidgeback::Control::Zero()
     };
 
-    std::unique_ptr<Simulator> sim = Simulator::create(simulator_configuation);
+    simulator.proportional_gain.base_velocity() << 0.0, 0.0;
+    simulator.proportional_gain.base_angular_velocity() << 0.0;
+    simulator.proportional_gain.arm_torque() << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+    simulator.proportional_gain.gripper_position() << 100.0, 100.0;
+
+    simulator.differential_gain.base_velocity() << 1000.0, 1000.0;
+    simulator.differential_gain.base_angular_velocity() << 1.0;
+    simulator.differential_gain.arm_torque() << 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0;
+    simulator.differential_gain.gripper_position() << 50.0, 50.0;
+
+    std::unique_ptr<Simulator> sim = Simulator::create(simulator);
     if (!sim) {
         std::cerr << "failed to create simulator" << std::endl;
         return 1;
     }
 
+    int steps = (int)(controller_configuration.horison / controller_configuration.step_size);
+
     for (;;) {
         trajectory->update(sim->state(), sim->time());
-
-        for (std::size_t i = 0; i < 100; i++) {
-            raisim::TimedLoop(simulator_configuation.timestep);
+        for (std::size_t i = 0; i < steps; i++) {
+            raisim::TimedLoop(simulator.timestep * 1e6);
             FrankaRidgeback::Control control = trajectory->get(sim->time());
             sim->step(control);
         }

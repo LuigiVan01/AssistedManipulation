@@ -12,7 +12,15 @@
 
 /**
  * @brief Raisim simulator.
- * lib\sampling_based_control\mppi_examples\mppi_manipulation\src\dynamics.cpp
+ * 
+ * Note that the simulator uses the PD controller with the feed-forward torque
+ * control method. This is because the base and the gripper use proportional
+ * derivative control for their joints, whereas the arm uses feed-forward torque
+ * commands.
+ * 
+ * @BUG: It is not possible to disable the PD control of the arm joints,
+ * including setting the PD gains of the arm to zero. Therefore the torque
+ * commands are also opposing the PD controller.
  */
 class Simulator
 {
@@ -31,6 +39,12 @@ public:
 
         // The initial state.
         FrankaRidgeback::State initial_state;
+
+        // The proportional gain of the joint PD controller.
+        FrankaRidgeback::Control proportional_gain;
+
+        // The differential gain of the joint PD controller.
+        FrankaRidgeback::Control differential_gain;
     };
 
     ~Simulator();

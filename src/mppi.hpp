@@ -119,15 +119,15 @@ public:
     virtual constexpr int state_dof() = 0;
 
     /**
-     * @brief Update the cost given a subsequent state from a control input.
+     * @brief Get the cost of a state and control input over dt.
      * 
-     * @param state The next state of the system.
-     * @param control The controls used to achieve the state.
-     * @param t The change in time.
+     * @param state The state of the system.
+     * @param control The control parameters applied to the state.
+     * @param dt The change in time.
      * 
      * @returns The cost of the step.
      */
-    virtual double step(
+    virtual double get(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
         double dt
@@ -223,14 +223,14 @@ public:
      * @param rollout The rollout to get the states of.
      * @returns The state evolution of the rollout.
      */
-    inline auto states(std::int64_t rollout) const {
-        return m_states.block(
-            m_configuration.rollouts,
-            m_dynamics->control_dof(),
-            0,
-            rollout * m_dynamics->control_dof()
-        );
-    };
+    // inline auto states(std::int64_t rollout) const {
+    //     return m_states.block(
+    //         m_configuration.rollouts,
+    //         m_dynamics->control_dof(),
+    //         0,
+    //         rollout * m_dynamics->control_dof()
+    //     );
+    // };
 
     /**
      * @brief Get the costs of each rollout.
@@ -348,7 +348,7 @@ private:
     Eigen::MatrixXd m_controls;
 
     /// The evolution of states for each rollout.
-    Eigen::MatrixXd m_states;
+    // Eigen::MatrixXd m_states;
 
     /// The cost of each rollout.
     Eigen::VectorXd m_costs;

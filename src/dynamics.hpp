@@ -13,24 +13,49 @@ namespace FrankaRidgeback {
 // Various degrees of freedom of the franka research 3 ridgeback.
 namespace DoF {
 
+    // Base degrees of freedom.
+    constexpr const std::size_t
+        BASE_X = 1,
+        BASE_Y = 1,
+        BASE_YAW = 1,
+        BASE_POSITION = BASE_X + BASE_Y,
+        BASE = BASE_X + BASE_Y + BASE_YAW;
+
+    // Arm degrees of freedom.
+    constexpr const std::size_t
+        ARM_JOINT1 = 1,
+        ARM_JOINT2 = 1,
+        ARM_JOINT3 = 1,
+        ARM_JOINT4 = 1,
+        ARM_JOINT5 = 1,
+        ARM_JOINT6 = 1,
+        ARM_JOINT7 = 1,
+        ARM = ARM_JOINT1 + ARM_JOINT2 + ARM_JOINT3 + ARM_JOINT4 + ARM_JOINT5 + ARM_JOINT6 + ARM_JOINT7;
+
+    // Gripper degrees of freedom.
+    constexpr const std::size_t
+        GRIPPER_LEFT = 1,
+        GRIPPER_RIGHT = 1,
+        GRIPPER = GRIPPER_LEFT + GRIPPER_RIGHT;
+
     // Joint dimensions.
     constexpr const std::size_t
-        GRIPPER = 2,
-        ARM = 7,
-        BASE_VELOCITY = 2,
-        BASE_ANGLE = 1,
-        BASE = BASE_VELOCITY + BASE_ANGLE,
-        JOINTS = GRIPPER + ARM + BASE;
+        JOINTS = BASE + ARM + GRIPPER;
 
     // External torque.
     constexpr const std::size_t
         EXTERNAL_TORQUE = 1;
 
-    // The state contains all joint positions, all joint velocities, and
-    // the external torque.
-    constexpr const std::size_t STATE  = 2 * (GRIPPER + ARM + BASE) + EXTERNAL_TORQUE;
+    /**
+     * @brief Joint position, joint velocity and external torque.
+     */
+    constexpr const std::size_t STATE  = 2 * JOINTS + EXTERNAL_TORQUE;
 
-    // A control contains the desired joint torques of each joint.
+    /**
+     * @brief Base velocity, arm torque and gripper position.
+     * 
+     * See FrankaRidgeback::Control
+     */
     constexpr const std::size_t CONTROL = JOINTS;
 
 } // namespace DoF
@@ -38,9 +63,11 @@ namespace DoF {
 /**
  * @brief The state of the robot.
  * 
- * The state is given by [x, y, rotation, theta1, theta2, theta3, theta4,
- * theta5, theta6, theta7, gripper_x, gripper_y, vx, vy, rotation/s, w1, w2, w3,
- * w4, w5, w6, w7, gripper_left_x, gripper_right_y, external_torque]
+ * @TODO: franka::RobotState?
+ * 
+ * The state is given by [x, y, yaw, theta1, theta2, theta3, theta4, theta5,
+ * theta6, theta7, gripper_x, gripper_y, vx, vy, rotation/s, w1, w2, w3, w4, w5,
+ * w6, w7, gripper_left_vx, gripper_right_vy, external_torque]
  * 
  * Units:
  * - Position in metres
@@ -50,7 +77,7 @@ namespace DoF {
  * - Angular velocity in radians per second.
  * 
  * The base is omnidirectional, meaning vx and vy are independent from
- * each other, and both are relative to the rotation of the robot.
+ * each other, and both are relative to the yaw of the robot.
  */
 struct State : public Eigen::Vector<double, DoF::STATE>
 {
@@ -65,27 +92,27 @@ struct State : public Eigen::Vector<double, DoF::STATE>
      * @returns The estimated (x, y) base position in metres.
      */
     inline auto base_position() {
-        return head<DoF::BASE_VELOCITY>();
+        return head<DoF::BASE_POSITION>();
     }
 
     inline const auto base_position() const {
-        return head<DoF::BASE_VELOCITY>();
+        return head<DoF::BASE_POSITION>();
     }
 
     /**
      * @brief Get the angle of rotation [rad] of the robot base.
      * 
-     * Slice of length <DoF::BASE_ANGLE> starting at index
+     * Slice of length <DoF::BASE_YAW> starting at index
      * (Dof::BASE_VELOICTY).
      * 
      * @returns The angle of rotation of the base in radians.
      */
-    inline auto base_angle() {
-        return segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY);
+    inline auto base_yaw() {
+        return segment<DoF::BASE_YAW>(DoF::BASE_POSITION);
     }
 
-    inline const auto base_angle() const {
-        return segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY);
+    inline const auto base_yaw() const {
+        return segment<DoF::BASE_YAW>(DoF::BASE_POSITION);
     }
 
     /**
@@ -141,33 +168,33 @@ struct State : public Eigen::Vector<double, DoF::STATE>
     /**
      * @brief Get the vx and vy velocity [m/s] of the robot base.
      * 
-     * Slice of length <DoF::BASE_VELOCITY> starting at index (DoF::JOINTS).
+     * Slice of length <DoF::BASE_POSITION> starting at index (DoF::JOINTS).
      * 
      * @returns The (vx, vy) base velocity in metres per second.
      */
     inline auto base_velocity() {
-        return segment<DoF::BASE_VELOCITY>(DoF::JOINTS);
+        return segment<DoF::BASE_POSITION>(DoF::JOINTS);
     }
 
     inline const auto base_velocity() const {
-        return segment<DoF::BASE_VELOCITY>(DoF::JOINTS);
+        return segment<DoF::BASE_POSITION>(DoF::JOINTS);
     }
 
     /**
      * @brief Get the angular velocity [rad/s] of the robot base.
      * 
-     * Slice of length <DoF::BASE_VELOCITY> starting at index
-     * (DoF::JOINTS + DoF::BASE_VELOCITY).
+     * Slice of length <DoF::BASE_POSITION> starting at index
+     * (DoF::JOINTS + DoF::BASE_POSITION).
      * 
      * @returns The change in angle of rotation of the base in radians per
      * second.
      */
     inline auto base_angular_velocity() {
-        return segment<DoF::BASE_VELOCITY>(DoF::JOINTS + DoF::BASE_VELOCITY);
+        return segment<DoF::BASE_POSITION>(DoF::JOINTS + DoF::BASE_POSITION);
     }
 
     inline const auto base_angular_velocity() const {
-        return segment<DoF::BASE_VELOCITY>(DoF::JOINTS + DoF::BASE_VELOCITY);
+        return segment<DoF::BASE_POSITION>(DoF::JOINTS + DoF::BASE_POSITION);
     }
 
     /**
@@ -264,27 +291,27 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
      * @return The (vx, vy) base velocity in metres per second.
      */
     inline auto base_velocity() {
-        return head<DoF::BASE_VELOCITY>();
+        return head<DoF::BASE_POSITION>();
     }
 
     inline const auto base_velocity() const {
-        return head<DoF::BASE_VELOCITY>();
+        return head<DoF::BASE_POSITION>();
     }
 
     /**
      * @brief Get the angle of rotation [rad/s] of the robot base.
      * 
-     * Slice of length <DoF::BASE_ANGLE> starting at index
+     * Slice of length <DoF::BASE_YAW> starting at index
      * (Dof::BASE_VELOICTY).
      * 
      * @returns The angular velocity of the base in radians per second.
      */
     inline auto base_angular_velocity() {
-        return segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY);
+        return segment<DoF::BASE_YAW>(DoF::BASE_POSITION);
     }
 
     inline const auto base_angular_velocity() const {
-        return segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY);
+        return segment<DoF::BASE_YAW>(DoF::BASE_POSITION);
     }
 
     /**

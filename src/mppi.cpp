@@ -36,13 +36,13 @@ Trajectory::Trajectory(
   , m_dynamics(dynamics)
   , m_cost(cost)
   , m_generator(std::random_device{}())
+  , m_distribution(0.0, 0.1)
   , m_steps(steps)
   , m_state_dof(dynamics->state_dof())
   , m_control_dof(dynamics->control_dof())
   , m_current_state(state)
   , m_times(steps, 1) // (rows, cols) ...
   , m_controls(configuration.rollouts * dynamics->control_dof(), steps)
-  , m_states(configuration.rollouts * dynamics->state_dof(), steps)
   , m_costs(configuration.rollouts, 1)
   , m_weights(configuration.rollouts, 1)
   , m_optimal_control(dynamics->control_dof(), steps)
@@ -52,7 +52,6 @@ Trajectory::Trajectory(
 
     m_times.setZero();
     m_controls.setZero();
-    m_states.setZero();
     m_costs.setZero();
     m_weights.setZero();
     m_gradient.setZero();
@@ -68,6 +67,8 @@ void Trajectory::update(const Eigen::VectorXd &state, double time)
 
     // Sample control trajectories. 
     sample();
+
+    // std::cout << m_controls << std::endl;
 
     // Rollout
     for (std::int64_t i = 0; i < m_configuration.rollouts; i++)
@@ -92,20 +93,18 @@ void Trajectory::sample()
 
 void Trajectory::rollout(std::int64_t i)
 {
-    m_dynamics->set(m_current_state);
+    Eigen::VectorXd state = m_current_state;
+
+    m_dynamics->set(state);
+    m_costs[i] = 0.0;
 
     for (int step = 0; step < m_steps; ++step) {
 
-        // Get a reference to the control parameters at this time step.
         auto control = m_controls.block(i * m_control_dof, step, m_control_dof, 1);
 
-        // Step the dynamics simulation and store.
-        auto state = m_dynamics->step(control, m_configuration.step_size);
-        m_states.block(i * m_state_dof, step, m_state_dof, 1) = state;
-
         double cost = (
-            m_cost->step(state, control, m_times[step]) *
-            std::pow(m_configuration.cost_discount_factor, step)
+            std::pow(m_configuration.cost_discount_factor, step) *
+            m_cost->get(state, control, m_configuration.step_size)
         );
 
         if (std::isnan(cost)) {
@@ -115,6 +114,11 @@ void Trajectory::rollout(std::int64_t i)
 
         // Cumulative running cost.
         m_costs[i] += cost;
+
+        // Step the dynamics simulation and store.
+        state = m_dynamics->step(control, m_configuration.step_size);
+
+        // m_states.block(i * m_state_dof, step, m_state_dof, 1) = state;
     }
 }
 
@@ -152,12 +156,15 @@ void Trajectory::optimise()
         }
 
         double likelihood = std::exp(
-            m_configuration.cost_scale * (cost - minimum) / difference
+            -m_configuration.cost_scale * (cost - minimum) / difference
         );
 
         total += likelihood;
         m_weights[rollout] = likelihood;
     }
+
+    // std::cout << "costs: " << m_costs.transpose() << std::endl;
+    // std::cout << "weights: " << m_weights.transpose() << std::endl;
 
     // Normalise the likelihoods.
     std::transform(
@@ -167,17 +174,25 @@ void Trajectory::optimise()
         [total](double likelihood){ return likelihood / total; }
     );
 
+    // std::cout << "normalised: " << m_weights.transpose() << std::endl;
+
     // The optimal trajectory is the weighted samples.
     m_gradient.setZero();
     for (std::int64_t rollout = 0; rollout < m_configuration.rollouts; ++rollout)
         m_gradient += controls(rollout) * m_weights[rollout];
+
+    // std::cout << "gradient: " << m_gradient.transpose() << std::endl;
 
     // Clip gradient.
     m_gradient = m_gradient
         .cwiseMax(-m_configuration.gradient_minmax)
         .cwiseMin(m_configuration.gradient_minmax);
 
+    // std::cout << "gradient_clipped: " << m_gradient.transpose() << std::endl;
+
     m_optimal_control += m_gradient * m_configuration.gradient_step;
+
+    // std::cout << "optimal: " << m_optimal_control << std::endl;
 }
 
 Eigen::VectorXd Trajectory::get(double time) const

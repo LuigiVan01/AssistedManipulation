@@ -31,15 +31,19 @@ public:
     static std::shared_ptr<Cost> create(const std::string &urdf);
 
     /**
-     * @brief Update the cost given a subsequent state from a control input.
+     * @brief Get the cost of a state and control input over dt.
      * 
-     * @param state The next state of the system.
-     * @param control The controls used to achieve the state.
-     * @param t The change in time.
+     * @param state The state of the system.
+     * @param control The control parameters applied to the state.
+     * @param dt The change in time.
      * 
      * @returns The cost of the step.
      */
-    double step(const Eigen::VectorXd &state, const Eigen::VectorXd &control, double dt) override;
+    double get(
+        const Eigen::VectorXd &state,
+        const Eigen::VectorXd &control,
+        double dt
+    ) override;
 
 private:
 
