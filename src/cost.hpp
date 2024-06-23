@@ -7,9 +7,17 @@
  * @brief Cost function of the panda research 3 ridgeback assisted manipulation
  * task.
  */
-class Cost : public mppi::Cost<FrankaRidgeback::DoF::STATE, FrankaRidgeback::DoF::CONTROL>
+class Cost : public mppi::Cost
 {
 public:
+
+    inline constexpr int state_dof() override {
+        return FrankaRidgeback::DoF::STATE;
+    }
+
+    inline constexpr int control_dof() override {
+        return FrankaRidgeback::DoF::CONTROL;
+    }
 
     /**
      * @brief Create an instance of the assisted object manipulation cost
@@ -31,18 +39,7 @@ public:
      * 
      * @returns The cost of the step.
      */
-    double step(const State &state, const Control &control, double dt) override;
-
-    /**
-     * @brief Reset the cost.
-     */
-    void reset() override;
-
-    /**
-     * @brief Get the total cumulative cost.
-     * @return The cumulative cost.
-     */
-    double cost() override;
+    double step(const Eigen::VectorXd &state, const Eigen::VectorXd &control, double dt) override;
 
 private:
 
@@ -54,7 +51,4 @@ private:
 
     /// Pointer to the model to derive cost from.
     std::unique_ptr<FrankaRidgeback::Model> m_model;
-
-    /// The point in space for the end effector to reach.
-    Eigen::Vector3d m_point;
 };

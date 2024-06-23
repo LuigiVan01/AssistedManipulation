@@ -21,6 +21,7 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio
 add_executable(
     assistedmanipulation
     main.cpp
+    mppi.cpp
     dynamics.cpp
     cost.cpp
     simulator.cpp

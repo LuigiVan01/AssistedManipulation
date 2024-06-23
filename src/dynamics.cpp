@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
@@ -20,31 +21,26 @@ std::shared_ptr<Dynamics> Dynamics::create()
     return std::shared_ptr<Dynamics>(new Dynamics());
 }
 
-const Dynamics::State &Dynamics::step(const Control &control, double dt)
+Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double dt)
 {
-    // integrate joint velocities
-    m_state.tail<7>() += control.tail<7>() * dt;
+    const Control &control = ctrl;
+ 
+    // Arm joint angles increased by 
+    m_state.arm_position() += control.arm_torque() * dt;
 
-    // Base velocity in in body frame
-    const double &vx = control(0);
-    // const double &vy = control(1);
-    const double &yawd = control(2);
-    const double &yaw = m_state(2);
+    m_state.base_position() = (
+        Eigen::Rotation2Dd(m_state.base_angle().value()) * control.base_velocity() * dt
+    );
 
-    // if (holonomic_) {
-        // m_state(0) += (vx * std::cos(yaw) - vy * std::sin(yaw)) * dt;
-        // m_state(1) += (vx * std::sin(yaw) + vy * std::cos(yaw)) * dt;
-    // } else {
-        m_state(0) += vx * std::cos(yaw) * dt;
-        m_state(1) += vx * std::sin(yaw) * dt;
-    // }
+    m_state.base_angle() += control.base_angular_velocity() * dt;
 
-    m_state(2) += yawd * dt;
     return m_state;
 }
 
-std::unique_ptr<Model> Model::create(const std::string &filename)
-{
+std::unique_ptr<Model> Model::create(
+    const std::string &filename,
+    const std::string &end_effector_frame
+) {
     // Open the file.
     std::ifstream file {filename, std::ios::in};
 
@@ -55,8 +51,8 @@ std::unique_ptr<Model> Model::create(const std::string &filename)
     }
 
     // Read the file.
-    std::stringstream ss;
-    ss << file.rdbuf();
+    std::stringstream urdf;
+    urdf << file.rdbuf();
     file.close();
 
     if (file.bad() || file.fail()) {
@@ -64,13 +60,11 @@ std::unique_ptr<Model> Model::create(const std::string &filename)
         return nullptr;
     }
 
-    std::string urdf = ss.str();
-
     std::unique_ptr<pinocchio::Model> model;
     std::unique_ptr<pinocchio::Data> data;
     try {
         model = std::make_unique<pinocchio::Model>();
-        pinocchio::urdf::buildModelFromXML(urdf, *model);
+        pinocchio::urdf::buildModelFromXML(urdf.str(), *model);
         data = std::make_unique<pinocchio::Data>(*model);
     }
     catch (const std::exception &err) {
@@ -78,11 +72,13 @@ std::unique_ptr<Model> Model::create(const std::string &filename)
         return nullptr;
     }
 
+    auto end_effector_index = model->getFrameId(end_effector_frame);
+
     return std::unique_ptr<Model>(
         new Model(
             std::move(model),
             std::move(data),
-            model->getFrameId("panda_grasp")
+            end_effector_index
         )
     );
 }
@@ -98,8 +94,7 @@ Model::Model(
 
 void Model::update(const State &state)
 {
-    Eigen::VectorXd s = state.head<9>();
-    pinocchio::forwardKinematics(*m_model, *m_data, s);
+    pinocchio::forwardKinematics(*m_model, *m_data, state.position());
     pinocchio::updateFramePlacements(*m_model, *m_data);
 }
 

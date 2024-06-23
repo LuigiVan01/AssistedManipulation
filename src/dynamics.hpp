@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/algorithm/frames.hpp>
@@ -16,8 +18,8 @@ namespace DoF {
         GRIPPER = 2,
         ARM = 7,
         BASE_VELOCITY = 2,
-        BASE_ROTATION = 1,
-        BASE = BASE_VELOCITY + BASE_ROTATION,
+        BASE_ANGLE = 1,
+        BASE = BASE_VELOCITY + BASE_ANGLE,
         JOINTS = GRIPPER + ARM + BASE;
 
     // External torque.
@@ -66,16 +68,24 @@ struct State : public Eigen::Vector<double, DoF::STATE>
         return head<DoF::BASE_VELOCITY>();
     }
 
+    inline const auto base_position() const {
+        return head<DoF::BASE_VELOCITY>();
+    }
+
     /**
      * @brief Get the angle of rotation [rad] of the robot base.
      * 
-     * Slice of length <DoF::BASE_ROTATION> starting at index
+     * Slice of length <DoF::BASE_ANGLE> starting at index
      * (Dof::BASE_VELOICTY).
      * 
      * @returns The angle of rotation of the base in radians.
      */
-    inline auto base_rotation() {
-        return segment<DoF::BASE_ROTATION>(DoF::BASE_VELOCITY);
+    inline auto base_angle() {
+        return segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY);
+    }
+
+    inline const auto base_angle() const {
+        return segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY);
     }
 
     /**
@@ -90,6 +100,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
         return segment<DoF::ARM>(DoF::BASE);
     }
 
+    inline const auto arm_position() const {
+        return segment<DoF::ARM>(DoF::BASE);
+    }
+
     /**
      * @brief Get the left and right gripper positions in metres from the middle.
      * 
@@ -98,6 +112,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
      * @returns The (left, right) gripper positions in metres.
      */
     inline auto gripper_position() {
+        return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
+    }
+
+    inline const auto gripper_position() const {
         return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
     }
 
@@ -116,6 +134,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
         return head<DoF::JOINTS>();
     }
 
+    inline const auto position() const {
+        return head<DoF::JOINTS>();
+    }
+
     /**
      * @brief Get the vx and vy velocity [m/s] of the robot base.
      * 
@@ -124,6 +146,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
      * @returns The (vx, vy) base velocity in metres per second.
      */
     inline auto base_velocity() {
+        return segment<DoF::BASE_VELOCITY>(DoF::JOINTS);
+    }
+
+    inline const auto base_velocity() const {
         return segment<DoF::BASE_VELOCITY>(DoF::JOINTS);
     }
 
@@ -140,6 +166,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
         return segment<DoF::BASE_VELOCITY>(DoF::JOINTS + DoF::BASE_VELOCITY);
     }
 
+    inline const auto base_angular_velocity() const {
+        return segment<DoF::BASE_VELOCITY>(DoF::JOINTS + DoF::BASE_VELOCITY);
+    }
+
     /**
      * @brief Get the angular velocity [rad/s] of the franka research 3 joints.
      * 
@@ -152,6 +182,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
         return segment<DoF::ARM>(DoF::JOINTS + DoF::BASE);
     }
 
+    inline const auto arm_velocity() const {
+        return segment<DoF::ARM>(DoF::JOINTS + DoF::BASE);
+    }
+
     /**
      * @brief  Get the left and right gripper velocities [m/s].
      * 
@@ -160,6 +194,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
      * @return The (left, right) gripper positions in metres per second.
      */
     inline auto gripper_velocity() {
+        return segment<DoF::GRIPPER>(DoF::JOINTS + DoF::BASE + DoF::ARM);
+    }
+
+    inline const auto gripper_velocity() const {
         return segment<DoF::GRIPPER>(DoF::JOINTS + DoF::BASE + DoF::ARM);
     }
 
@@ -177,6 +215,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
         return segment<DoF::JOINTS>(DoF::JOINTS);
     }
 
+    inline const auto velocity() const {
+        return segment<DoF::JOINTS>(DoF::JOINTS);
+    }
+
     /**
      * @brief Get the external torque.
      * 
@@ -185,6 +227,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
      * @returns The external torque applied to the end effector.
      */
     inline auto external_torque() {
+        return tail<DoF::EXTERNAL_TORQUE>();
+    }
+
+    inline const auto external_torque() const {
         return tail<DoF::EXTERNAL_TORQUE>();
     }
 };
@@ -221,16 +267,24 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
         return head<DoF::BASE_VELOCITY>();
     }
 
+    inline const auto base_velocity() const {
+        return head<DoF::BASE_VELOCITY>();
+    }
+
     /**
      * @brief Get the angle of rotation [rad/s] of the robot base.
      * 
-     * Slice of length <DoF::BASE_ROTATION> starting at index
+     * Slice of length <DoF::BASE_ANGLE> starting at index
      * (Dof::BASE_VELOICTY).
      * 
      * @returns The angular velocity of the base in radians per second.
      */
     inline auto base_angular_velocity() {
-        return segment<DoF::BASE_ROTATION>(DoF::BASE_VELOCITY);
+        return segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY);
+    }
+
+    inline const auto base_angular_velocity() const {
+        return segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY);
     }
 
     /**
@@ -245,6 +299,10 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
         return segment<DoF::ARM>(DoF::BASE);
     }
 
+    inline const auto arm_torque() const {
+        return segment<DoF::ARM>(DoF::BASE);
+    }
+
     /**
      * @brief Get the left and right gripper positions in metres from the middle.
      * 
@@ -255,6 +313,10 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
     inline auto gripper_position() {
         return tail<DoF::GRIPPER>();
     }
+
+    inline const auto gripper_position() const {
+        return tail<DoF::GRIPPER>();
+    }
 };
 
 /**
@@ -262,11 +324,19 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
  * 
  * Defines how State evolves with Control input.
  */
-class Dynamics : public mppi::Dynamics<DoF::STATE, DoF::CONTROL>
+class Dynamics : public mppi::Dynamics
 {
 public:
 
     static std::shared_ptr<Dynamics> create();
+
+    inline constexpr int state_dof() override {
+        return DoF::STATE;
+    }
+
+    inline constexpr int control_dof() override {
+        return DoF::CONTROL;
+    }
 
     /**
      * @brief Set the dynamics simulation to a given state.
@@ -274,7 +344,7 @@ public:
      * @param state The system state.
      * @param t The time in the simulation.
      */
-    inline void set(const State &state) override {
+    inline void set(const Eigen::VectorXd &state) override {
         m_state = state;
     };
 
@@ -284,7 +354,7 @@ public:
      * @param control The controls applied at the current state (before dt).
      * @param dt The change in time.
      */
-    const State &step(const Control &control, double dt) override;
+    Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) override;
 
 private:
 
@@ -314,12 +384,14 @@ public:
      * 
      * @param filename The filename of the URDF robot definition file to
      * instantiate the model from.
-     * 
-     * @throws std::runtime_error If the model cannot be created.
+     * @param end_effector_frame The name of the end effector frame.
      * 
      * @return A pointer to the model on success, or nullptr on failure.
      */
-    static std::unique_ptr<Model> create(const std::string &filename);
+    static std::unique_ptr<Model> create(
+        const std::string &filename,
+        const std::string &end_effector_frame = "panda_grasp"
+    );
 
     /**
      * @brief Update the state of the model.

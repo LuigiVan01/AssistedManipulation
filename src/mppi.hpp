@@ -57,28 +57,24 @@ struct Configuration
  * @brief The dynamics class stores and updates the system state.
  * 
  * This class should be subclassed to implement dynamics.
- * 
- * @tparam StateDoF The number of degrees of freedom of the system.
- * @tparam ControlDoF The number of degrees of system of the controls.
  */
-template<std::size_t StateDoF, std::size_t ControlDoF>
 class Dynamics
 {
 public:
 
-    /// The number of degrees of freedom of the system.
-    static constexpr const std::size_t StateDoF = StateDoF;
-
-    /// The number of degrees of system of the controls.
-    static constexpr const std::size_t ControlDoF = ControlDoF;
-
-    /// A state of the dynamics.
-    using State = Eigen::Matrix<double, StateDoF, 1>;
-
-    /// A control of the dynamics.
-    using Control = Eigen::Matrix<double, ControlDoF, 1>;
-
     virtual ~Dynamics() = default;
+
+    /**
+     * @brief Get the degrees of freedom of the system control input.
+     * @returns The degrees of freedom of the system control input.
+     */
+    virtual constexpr int control_dof() = 0;
+
+    /**
+     * @brief Get the degrees of freedom of the system state.
+     * @returns The degrees of freedom of the system state.
+     */
+    virtual constexpr int state_dof() = 0;
 
     /**
      * @brief Set the dynamics simulation to a given state.
@@ -86,7 +82,7 @@ public:
      * @param state The system state.
      * @param control The controls applied to the current state.
      */
-    virtual void set(const State &state) = 0;
+    virtual void set(const Eigen::VectorXd &state) = 0;
 
     /**
      * @brief Step the dynamics simulation.
@@ -96,35 +92,31 @@ public:
      * @param control The controls applied at the current state (before dt).
      * @param dt The change in time.
      */
-    virtual const State &step(const Control &control, double dt) = 0;
+    virtual Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) = 0;
 };
 
 /**
  * @brief The cost class stores and updates the cost of a rollout.
  * 
  * This class should be subclassed to implement the objective function.
- * 
- * @tparam StateDoF The number of degrees of freedom of the system.
- * @tparam ControlDoF The number of degrees of system of the controls.
  */
-template<std::size_t StateDoF, std::size_t ControlDoF>
 class Cost
 {
 public:
 
-    /// The number of degrees of freedom of the system.
-    static constexpr const std::size_t StateDoF = StateDoF;
-
-    /// The number of degrees of system of the controls.
-    static constexpr const std::size_t ControlDoF = ControlDoF;
-
-    /// A state of the dynamics.
-    using State = Eigen::Matrix<double, StateDoF, 1>;
-
-    /// A control of the dynamics.
-    using Control = Eigen::Matrix<double, ControlDoF, 1>;
-
     virtual ~Cost() = default;
+
+    /**
+     * @brief Get the expected degrees of freedom of the system control input.
+     * @returns The expected degrees of freedom of the system control input.
+     */
+    virtual constexpr int control_dof() = 0;
+
+    /**
+     * @brief Get the expected degrees of freedom of the system state.
+     * @returns The expected degrees of freedom of the system state.
+     */
+    virtual constexpr int state_dof() = 0;
 
     /**
      * @brief Update the cost given a subsequent state from a control input.
@@ -136,21 +128,10 @@ public:
      * @returns The cost of the step.
      */
     virtual double step(
-        const State &state,
-        const Control &control,
+        const Eigen::VectorXd &state,
+        const Eigen::VectorXd &control,
         double dt
     ) = 0;
-
-    /**
-     * @brief Reset the cost.
-     */
-    virtual void reset() = 0;
-
-    /**
-     * @brief Get the current cumulative cost.
-     * @returns The current cumulative cost.
-     */
-    virtual double cost() = 0;
 };
 
 /**
@@ -160,6 +141,7 @@ public:
  * Generates sequences of control outputs over a period of time (a control
  * trajectory) by optimising for the least cost randomly generated system state
  * evolution and control trajectory.
+ * 
  * The generated trajectory should be linearly interpolated with respect to
  * time.
  * 
@@ -167,24 +149,10 @@ public:
  * That is each number in a column is stored contiguously. Hence each control
  * vector and state vector are stored column wise. Time increases with the
  * column index.
- * 
- * @tparam DynamicsType The dynamics type.
- * @tparam CostType The cost type.
  */
-template<class DynamicsType, class CostType>
 class Trajectory
 {
 public:
-
-    // Ensure that the system and cost functions are suitable.
-    static_assert(DynamicsType::StateDoF == CostType::StateDoF);
-    static_assert(DynamicsType::ControlDoF == CostType::ControlDoF);
-
-    using State = DynamicsType::State;
-    using Control = DynamicsType::Control;
-
-    static constexpr const std::size_t StateDoF = DynamicsType::StateDoF;
-    static constexpr const std::size_t ControlDoF = DynamicsType::ControlDoF;
 
     /**
      * @brief Create a new Trajectory optimal trajectory generator.
@@ -209,11 +177,11 @@ public:
      * @returns A pointer to the Trajectory trajectory generator on success, or
      * nullptr on failure.
      */
-    static std::unique_ptr<Trajectory<DynamicsType, CostType>> create(
-        std::shared_ptr<DynamicsType> &dynamics,
-        std::shared_ptr<CostType> &cost,
-        const State &state,
-        const Configuration &configuration
+    static std::unique_ptr<Trajectory> create(
+        Dynamics *dynamics,
+        Cost *cost,
+        const Configuration &configuration,
+        const Eigen::VectorXd &state
     );
 
     /**
@@ -222,7 +190,7 @@ public:
      * @param state The current state of the dynamics.
      * @param time The current time in seconds.
      */
-    void update(const State &state, double time);
+    void update(const Eigen::VectorXd &state, double time);
 
     /**
      * @brief Get the times of each incremental update in the trajectory.
@@ -240,9 +208,9 @@ public:
      */
     inline auto controls(std::int64_t rollout) const {
         return m_controls.block(
-            rollout * ControlDoF, // start row
+            rollout * m_dynamics->control_dof(), // start row
             0, // start col
-            ControlDoF, // rows
+            m_dynamics->control_dof(), // rows
             m_steps // cols
         );
     };
@@ -258,9 +226,9 @@ public:
     inline auto states(std::int64_t rollout) const {
         return m_states.block(
             m_configuration.rollouts,
-            ControlDoF,
+            m_dynamics->control_dof(),
             0,
-            rollout * ControlDoF
+            rollout * m_dynamics->control_dof()
         );
     };
 
@@ -291,7 +259,7 @@ public:
      * @param t The time to evaluate the control trajectory.
      * @returns The control parameters for the current time.
      */
-    Control get(double t) const;
+    Eigen::VectorXd get(double t) const;
 
     /**
      * @brief Evaluate the current optimal control trajectory at a given time.
@@ -299,11 +267,24 @@ public:
      * @param t The time to evaluate the control trajectory.
      * @returns The control parameters for the current time.
      */
-    inline Control operator()(double t) const {
+    inline Eigen::VectorXd operator()(double t) const {
         return get(t);
     }
 
 private:
+
+    /**
+     * @brief Initialise the trajectory generator.
+     * 
+     * See Trajectory::create().
+     */
+    Trajectory(
+        Dynamics *dynamics,
+        Cost *cost,
+        const Configuration &configuration,
+        const Eigen::VectorXd &state,
+        int steps
+    ) noexcept;
 
     /**
      * @brief Sample the control trajectories to simulate.
@@ -333,24 +314,11 @@ private:
      */
     void optimise();
 
-    /**
-     * @brief Initialise the trajectory generator.
-     * 
-     * See Trajectory::create().
-     */
-    Trajectory(
-        std::shared_ptr<DynamicsType> &dynamics,
-        std::shared_ptr<CostType> &cost,
-        const Configuration &configuration,
-        const State &state,
-        int steps
-    ) noexcept;
-
     /// Keeps track of system state and simulates responses to control actions.
-    std::shared_ptr<Dynamics<StateDoF, ControlDoF>> m_dynamics;
+    Dynamics *m_dynamics;
 
     /// Keeps track of individual cumulative cost of dynamics simulation rollouts.
-    std::shared_ptr<Cost<StateDoF, ControlDoF>> m_cost;
+    Cost *m_cost;
 
     /// The configuration of the trajectory generation.
     Configuration m_configuration;
@@ -361,10 +329,17 @@ private:
     /// Distribution to use for noise.
     std::normal_distribution<double> m_distribution;
 
+    /// The number of time steps per rollout.
     int m_steps;
 
+    /// The number of degrees of freedom for the system state.
+    int m_state_dof;
+
+    /// The number of degrees of freedom for the control input.
+    int m_control_dof;
+
     /// The current state from which the controller is generating trajectories.
-    State m_current_state;
+    Eigen::VectorXd m_current_state;
 
     /// Timestamps of each rollout step.
     Eigen::VectorXd m_times;
@@ -387,218 +362,5 @@ private:
     /// The optimal control trajectory.
     Eigen::MatrixXd m_optimal_control;
 };
-
-template<typename DynamicsType, typename CostType>
-std::unique_ptr<Trajectory<DynamicsType, CostType>>
-Trajectory<DynamicsType, CostType>::create(
-    std::shared_ptr<DynamicsType> &dynamics,
-    std::shared_ptr<CostType> &cost,
-    const State &state,
-    const Configuration &configuration
-) {
-    // TODO: Validation goes here.
-    if (configuration.rollouts < 1 || configuration.rollouts_cached < 0)
-        return nullptr;
-
-    int steps = std::ceil(configuration.horison / configuration.step_size);
-
-    return std::unique_ptr<Trajectory<DynamicsType, CostType>>(
-        new Trajectory<DynamicsType, CostType>(
-            dynamics,
-            cost,
-            configuration,
-            state,
-            steps
-        )
-    );
-}
-
-template<typename DynamicsType, typename CostType>
-Trajectory<DynamicsType, CostType>::Trajectory(
-    std::shared_ptr<DynamicsType> &dynamics,
-    std::shared_ptr<CostType> &cost,
-    const Configuration &configuration,
-    const State &state,
-    int steps
-) noexcept
-  : m_dynamics(dynamics)
-  , m_cost(cost)
-  , m_configuration(configuration)
-  , m_generator(std::random_device{}())
-  , m_steps(steps)
-  , m_current_state(state)
-  , m_times(steps, 1) // (rows, cols) ...
-  , m_controls(configuration.rollouts * ControlDoF, steps)
-  , m_states(configuration.rollouts * StateDoF, steps)
-  , m_costs(configuration.rollouts, 1)
-  , m_weights(configuration.rollouts, 1)
-  , m_optimal_control(ControlDoF, steps)
-  , m_gradient(ControlDoF, steps)
-{
-    m_optimal_control.setZero();
-
-    m_times.setZero();
-    m_controls.setZero();
-    m_states.setZero();
-    m_costs.setZero();
-    m_weights.setZero();
-    m_gradient.setZero();
-}
-
-template<typename DynamicsType, typename CostType>
-void Trajectory<DynamicsType, CostType>::update(const State &state, double time)
-{
-    m_current_state = state;
-
-    // Calculate the timestamps at each time increment.
-    for (int i = 0; i < m_steps; ++i)
-        m_times[i] = time + i * m_configuration.step_size;
-
-    // Sample control trajectories. 
-    sample();
-
-    // Rollout
-    for (std::int64_t i = 0; i < m_configuration.rollouts; i++)
-        rollout(i);
-
-    optimise();
-}
-
-template<typename DynamicsType, typename CostType>
-void Trajectory<DynamicsType, CostType>::sample()
-{
-    // TODO: Warmstart sampling, zero velocity sample, negative previous
-    // optimal trajectory.
-
-    // Set all trajectories to random noise.
-    m_controls = m_controls.unaryExpr(
-        [&](float){ return m_distribution(m_generator); }
-    );
-
-    // Relative to the previous optimal trajectory.
-    m_controls += m_optimal_control.replicate(m_configuration.rollouts, 1);
-}
-
-template<typename DynamicsType, typename CostType>
-void Trajectory<DynamicsType, CostType>::rollout(std::int64_t i)
-{
-    m_dynamics->set(m_current_state);
-    m_cost->reset();
-
-    for (int step = 0; step < m_steps; ++step) {
-
-        // Get a reference to the control parameters at this time step.
-        auto control = m_controls.block<ControlDoF, 1>(i * ControlDoF, step);
-
-        // Step the dynamics simulation and store.
-        const State &state = m_dynamics->step(control, m_configuration.step_size);
-        m_states.block<StateDoF, 1>(i * StateDoF, step) = state;
-
-        double cost = (
-            m_cost->step(state, control, m_times[step]) *
-            std::pow(m_configuration.cost_discount_factor, step)
-        );
-
-        if (std::isnan(cost)) {
-            m_costs[m_steps] = NAN;
-            return;
-        }
-
-        // Cumulative running cost.
-        m_costs[i] += cost;
-    }
-}
-
-template<typename DynamicsType, typename CostType>
-void Trajectory<DynamicsType, CostType>::optimise()
-{
-    double maximum = std::numeric_limits<double>::max();
-    double minimum = std::numeric_limits<double>::min();
-
-    // Get the minimum and maximum rollout cost.
-    auto [it1, it2] = std::minmax_element(
-        m_costs.begin(),
-        m_costs.end(),
-        [](double a, double b) { return a < b ? true : std::isnan(b); }
-    );
-
-    minimum = *it1;
-    maximum = *it2;
-
-    // For parameterisation of each cost.
-    double difference = maximum - minimum;
-    if (difference < 1e-6)
-        return;
-
-    // Running sum of total likelihood for normalisation between zero and one.
-    double total = 0.0;
-
-    // Transform the weights to likelihoods.
-    for (std::int64_t rollout = 0; rollout < m_configuration.rollouts; ++rollout) {
-        double cost = m_costs[rollout];
-
-        // NaNs indicate a failed rollout and do not contribute anything. 
-        if (std::isnan(cost)) {
-            m_weights[rollout] = 0.0;
-            continue;
-        }
-
-        double likelihood = std::exp(
-            m_configuration.cost_scale * (cost - minimum) / difference
-        );
-
-        total += likelihood;
-        m_weights[rollout] = likelihood;
-    }
-
-    // Normalise the likelihoods.
-    std::transform(
-        m_weights.begin(),
-        m_weights.end(),
-        m_weights.begin(),
-        [total](double likelihood){ return likelihood / total; }
-    );
-
-    // The optimal trajectory is the weighted samples.
-    m_gradient.setZero();
-    for (std::int64_t rollout = 0; rollout < m_configuration.rollouts; ++rollout)
-        m_gradient += controls(rollout) * m_weights[rollout];
-
-    // Clip gradient.
-    m_gradient = m_gradient
-        .cwiseMax(-m_configuration.gradient_minmax)
-        .cwiseMin(m_configuration.gradient_minmax);
-
-    m_optimal_control += m_gradient * m_configuration.gradient_step;
-}
-
-template<typename DynamicsType, typename CostType>
-Trajectory<DynamicsType, CostType>::Control
-Trajectory<DynamicsType, CostType>::get(double time) const
-{
-    auto it = std::upper_bound(m_times.begin(), m_times.end(), time);
-    auto index = std::distance(m_times.begin(), it);
-
-    // Past the end of the trajectory. Return the specified default control
-    // parameters.
-    if (it == m_times.end()) {
-        if (m_configuration.control_default_last) {
-            return m_optimal_control.rightCols(1);
-        }
-        return m_configuration.control_default_value;
-    }
-
-    assert(m_times.rows() > 1);
-    auto previous = it - 1;
-
-    // Parameterisation of the time between nearest two timestamps.
-    double t = (time - *previous) / (*it - *previous);
-
-    // Linear interpolation between optimal controls.
-    return (
-        (1.0 - t) * m_optimal_control.col(index - 1) +
-        t * m_optimal_control.col(index)
-    );
-}
 
 } // namespace mppi

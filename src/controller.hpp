@@ -36,7 +36,7 @@ private:
     std::shared_ptr<Cost> m_cost;
 
     /// Pointer to the trajectory generator.
-    std::unique_ptr<mppi::Trajectory<Dynamics, Cost>> m_trajectory;
+    std::unique_ptr<mppi::Trajectory> m_trajectory;
 };
 
 template<typename Dynamics, typename Cost>

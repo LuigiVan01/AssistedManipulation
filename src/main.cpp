@@ -6,7 +6,6 @@
 #include "simulator.hpp"
 #include "cost.hpp"
 #include "dynamics.hpp"
-#include "mppi.hpp"
 
 int main(int /* argc */, char*[])
 {
@@ -25,7 +24,7 @@ int main(int /* argc */, char*[])
         .cost_scale = 1.0,
         .cost_discount_factor = 0.9,
         .control_default_last = true,
-        .control_default_value = FrankaRidgeback::Dynamics::Control::Zero(),
+        .control_default_value = FrankaRidgeback::Control::Zero(),
     };
 
     // Set the initial state.
@@ -46,11 +45,11 @@ int main(int /* argc */, char*[])
     }
 
     std::cout << "creating trajectory" << std::endl;
-    auto trajectory = mppi::Trajectory<FrankaRidgeback::Dynamics, Cost>::create(
-        dynamics,
-        cost,
-        initial_state,
-        controller_configuration
+    auto trajectory = mppi::Trajectory::create(
+        dynamics.get(),
+        cost.get(),
+        controller_configuration,
+        initial_state
     );
 
     if (!trajectory) {

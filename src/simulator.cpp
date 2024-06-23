@@ -53,6 +53,10 @@ std::unique_ptr<Simulator> Simulator::create(const Configuration &configuration)
 
     robot->setPdGains(position_gain, velocity_gain);
 
+    Eigen::VectorXd pgain, dgain;
+    robot->getPdGains(pgain, dgain);
+    std::cout << "set pd gains to " << pgain << " and " << dgain << std::endl;
+
     // Start with zero force on the joints.
     auto zero = Eigen::VectorXd::Zero((Eigen::Index)robot->getDOF());
     robot->setGeneralizedForce(zero);
@@ -92,13 +96,9 @@ const FrankaRidgeback::State &Simulator::step(FrankaRidgeback::Control &control)
     using namespace FrankaRidgeback;
 
     // control.base_velocity() << 1.0, 0.0;
-    // control.base_angular_velocity() << 0.0;
+    // control.base_angular_velocity() << 1.0;
     // control.gripper_position() << 0.0, 0.0;
     // control.arm_torque() << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-
-    // Rotate the velocity vector to the direction of the base.
-    double rotation = control.base_angular_velocity().coeff(0);
-    control.base_velocity() = Eigen::Rotation2Dd(rotation) * control.base_velocity();
 
     // Positional controls.
     auto desired_position = Eigen::Vector<double, DoF::JOINTS>::Zero().eval();
@@ -106,29 +106,25 @@ const FrankaRidgeback::State &Simulator::step(FrankaRidgeback::Control &control)
 
     // Velocity controls.
     auto desired_velocity = Eigen::Vector<double, DoF::JOINTS>::Zero().eval();
-    desired_velocity.segment<DoF::BASE_ROTATION>(DoF::BASE_VELOCITY) = control.base_angular_velocity();
-    desired_velocity.head<DoF::BASE_VELOCITY>() = control.base_velocity();
+    desired_velocity.segment<DoF::BASE_ANGLE>(DoF::BASE_VELOCITY) = control.base_angular_velocity();
+    desired_velocity.head<DoF::BASE_VELOCITY>() = Eigen::Rotation2Dd(m_state.base_angle().value()) * control.base_velocity();
 
-    // Set the raisim controller to target position and velocity.
+    // Add torque to the arm joints.
+    auto forces = m_robot->getNonlinearities(m_world->getGravity()).e().eval();
+    forces.segment<DoF::ARM>(DoF::BASE) += control.arm_torque();
+
     m_robot->setPdTarget(desired_position, desired_velocity);
-
-    // Add the desired arm torque to the coriolis and gravity forces.
-    auto torque = m_robot->getNonlinearities(m_world->getGravity()).e().eval();
-    torque.segment<DoF::ARM>(DoF::BASE) = control.arm_torque();
-    m_robot->setGeneralizedForce(torque);
+    m_robot->setGeneralizedForce(forces);
 
     // Simulate!
     m_server.integrateWorldThreadSafe();
     m_time += m_configuration.timestep;
 
     // Get the next state.
-    Eigen::VectorXd position, velocity;
-    m_robot->getState(position, velocity);
-
-    m_state.arm_position() = position.head<DoF::ARM>();
-    m_state.gripper_position() = position.tail<DoF::GRIPPER>();
-    m_state.arm_velocity() = velocity.head<DoF::ARM>();
-    m_state.gripper_velocity() = velocity.tail<DoF::GRIPPER>();
+    Eigen::VectorXd state_position, state_velocity;
+    m_robot->getState(state_position, state_velocity);
+    m_state.position() = state_position;
+    m_state.velocity() = state_velocity;
 
     return m_state;
 }
