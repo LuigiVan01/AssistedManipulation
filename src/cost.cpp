@@ -3,7 +3,7 @@
 #include <iostream>
 #include <random>
 
-std::shared_ptr<Cost> Cost::create(const std::string &urdf)
+std::unique_ptr<Cost> Cost::create(const std::string &urdf)
 {
     auto model = FrankaRidgeback::Model::create(urdf);
     if (!model) {
@@ -11,7 +11,7 @@ std::shared_ptr<Cost> Cost::create(const std::string &urdf)
         return nullptr;
     }
 
-    return std::shared_ptr<Cost>(new Cost(std::move(model)));
+    return std::unique_ptr<Cost>(new Cost(std::move(model)));
 }
 
 Cost::Cost(std::unique_ptr<FrankaRidgeback::Model> &&model)

@@ -1,5 +1,7 @@
 #include "mppi.hpp"
 
+#include <cmath>
+
 namespace mppi {
 
 std::unique_ptr<Trajectory> Trajectory::create(
@@ -8,10 +10,31 @@ std::unique_ptr<Trajectory> Trajectory::create(
     const Configuration &configuration,
     const Eigen::VectorXd &state
 ) {
-    // TODO: Validation goes here.
-    if (configuration.rollouts < 1 || configuration.rollouts_cached < 0)
+    // Ensure dynamics and cost expect the same control.
+    if (dynamics->control_dof() != cost->control_dof()) {
+        std::cerr << "controller dynamics control dof " << dynamics->control_dof()
+                  << " != cost control dof " << cost->control_dof() << std::endl;
         return nullptr;
+    }
 
+    // Ensure dynamics and cost expect the same state.
+    if (dynamics->state_dof() != cost->state_dof()) {
+        std::cerr << "controller dynamics state dof " << dynamics->state_dof()
+                  << " != cost state dof " << cost->state_dof() << std::endl;
+        return nullptr;
+    }
+
+    if (configuration.rollouts < 1) {
+        std::cerr << "trajectory rollouts must be greater than zero" << std::endl;
+        return nullptr;
+    }
+
+    if (configuration.keep_best_rollouts < 0) {
+        std::cerr << "trajectory cached rollouts cannot be less than zero" << std::endl;
+        return nullptr;
+    }
+
+    // Number of time steps per rollout.
     int steps = std::ceil(configuration.horison / configuration.step_size);
 
     return std::unique_ptr<Trajectory>(
@@ -40,17 +63,14 @@ Trajectory::Trajectory(
   , m_steps(steps)
   , m_state_dof(dynamics->state_dof())
   , m_control_dof(dynamics->control_dof())
-  , m_current_state(state)
-  , m_times(steps, 1) // (rows, cols) ...
-  , m_controls(configuration.rollouts * dynamics->control_dof(), steps)
+  , m_rollout_state(state)
+  , m_controls(configuration.rollouts * dynamics->control_dof(), steps) // (rows, cols) ...
   , m_costs(configuration.rollouts, 1)
   , m_weights(configuration.rollouts, 1)
-  , m_optimal_control(dynamics->control_dof(), steps)
   , m_gradient(dynamics->control_dof(), steps)
+  , m_optimal_control(dynamics->control_dof(), steps)
 {
     m_optimal_control.setZero();
-
-    m_times.setZero();
     m_controls.setZero();
     m_costs.setZero();
     m_weights.setZero();
@@ -59,22 +79,25 @@ Trajectory::Trajectory(
 
 void Trajectory::update(const Eigen::VectorXd &state, double time)
 {
-    m_current_state = state;
-
-    // Calculate the timestamps at each time increment.
-    for (int i = 0; i < m_steps; ++i)
-        m_times[i] = time + i * m_configuration.step_size;
+    m_rollout_state = state;
 
     // Sample control trajectories. 
     sample();
-
-    // std::cout << m_controls << std::endl;
 
     // Rollout
     for (std::int64_t i = 0; i < m_configuration.rollouts; i++)
         rollout(i);
 
+    // Optimise for the gradient step.
     optimise();
+
+    std::scoped_lock<std::mutex> lock(m_double_buffer_mutex);
+
+    // Update optimal rollout.
+    m_rollout_time = time;
+    m_optimal_control += m_gradient * m_configuration.gradient_step;
+
+    // std::cout << "optimal: " << m_optimal_control << std::endl;
 }
 
 void Trajectory::sample()
@@ -82,24 +105,35 @@ void Trajectory::sample()
     // TODO: Warmstart sampling, zero velocity sample, negative previous
     // optimal trajectory.
 
+    // Warmstart. Find and keep the best rollouts.
+    // std::vector<int> best_indicies(m_configuration.keep_best_rollouts);
+    // std::vector<double> best_costs(m_configuration.keep_best_rollouts, std::numeric_limits<double>::max());
+
+    // for (int i = 0; i < m_configuration.rollouts; ++i) {
+    //     auto it = std::lower_bound(best_costs.begin(), best_costs.end(), m_costs[i]);
+    //     if ()
+    //     best_indicies[std::distance(best_costs.begin(), it)] = i;
+    // }
+
     // Set all trajectories to random noise.
     m_controls = m_controls.unaryExpr(
         [&](float){ return m_distribution(m_generator); }
     );
 
-    // Relative to the previous optimal trajectory.
+    // Add the mean (the previous optimal trajectory) to the samples.
     m_controls += m_optimal_control.replicate(m_configuration.rollouts, 1);
+
+    // std::cout << m_controls << std::endl;
 }
 
 void Trajectory::rollout(std::int64_t i)
 {
-    Eigen::VectorXd state = m_current_state;
+    Eigen::VectorXd state = m_rollout_state;
 
     m_dynamics->set(state);
     m_costs[i] = 0.0;
 
     for (int step = 0; step < m_steps; ++step) {
-
         auto control = m_controls.block(i * m_control_dof, step, m_control_dof, 1);
 
         double cost = (
@@ -117,8 +151,6 @@ void Trajectory::rollout(std::int64_t i)
 
         // Step the dynamics simulation and store.
         state = m_dynamics->step(control, m_configuration.step_size);
-
-        // m_states.block(i * m_state_dof, step, m_state_dof, 1) = state;
     }
 }
 
@@ -177,8 +209,8 @@ void Trajectory::optimise()
     // std::cout << "normalised: " << m_weights.transpose() << std::endl;
 
     // The optimal trajectory is the weighted samples.
-    m_gradient.setZero();
-    for (std::int64_t rollout = 0; rollout < m_configuration.rollouts; ++rollout)
+    m_gradient = controls(0) * m_weights[0];
+    for (std::int64_t rollout = 1; rollout < m_configuration.rollouts; ++rollout)
         m_gradient += controls(rollout) * m_weights[rollout];
 
     // std::cout << "gradient: " << m_gradient.transpose() << std::endl;
@@ -189,36 +221,38 @@ void Trajectory::optimise()
         .cwiseMin(m_configuration.gradient_minmax);
 
     // std::cout << "gradient_clipped: " << m_gradient.transpose() << std::endl;
-
-    m_optimal_control += m_gradient * m_configuration.gradient_step;
-
-    // std::cout << "optimal: " << m_optimal_control << std::endl;
 }
 
-Eigen::VectorXd Trajectory::get(double time) const
+void Trajectory::get(Eigen::VectorXd &control, double time)
 {
-    auto it = std::upper_bound(m_times.begin(), m_times.end(), time);
-    auto index = std::distance(m_times.begin(), it);
+    assert(time <= m_rollout_time);
+
+    // The time relative to the last optimal trajectory generation.
+    double current = time - m_rollout_time;
+
+    // Round down to integer.
+    int lower = (int)(current / m_configuration.step_size);
+    int upper = lower + 1;
+
+    std::scoped_lock<std::mutex> lock(m_double_buffer_mutex);
 
     // Past the end of the trajectory. Return the specified default control
     // parameters.
-    if (it == m_times.end()) {
-        if (m_configuration.control_default_last) {
-            return m_optimal_control.rightCols(1);
-        }
-        return m_configuration.control_default_value;
+    if (upper >= m_steps) {
+        if (m_configuration.control_default_last)
+            control = m_optimal_control.rightCols(1);
+        else
+            control = m_configuration.control_default_value;
+        return;
     }
 
-    assert(m_times.rows() > 1);
-    auto previous = it - 1;
-
-    // Parameterisation of the time between nearest two timestamps.
-    double t = (time - *previous) / (*it - *previous);
+    // Parameterise current time between lower and upper.
+    double t = current - lower * m_configuration.step_size;
 
     // Linear interpolation between optimal controls.
-    return (
-        (1.0 - t) * m_optimal_control.col(index - 1) +
-        t * m_optimal_control.col(index)
+    control = (
+        (1.0 - t) * m_optimal_control.col(lower) +
+        t * m_optimal_control.col(upper)
     );
 }
 

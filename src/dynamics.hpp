@@ -355,7 +355,7 @@ class Dynamics : public mppi::Dynamics
 {
 public:
 
-    static std::shared_ptr<Dynamics> create();
+    static std::unique_ptr<Dynamics> create();
 
     inline constexpr int state_dof() override {
         return DoF::STATE;

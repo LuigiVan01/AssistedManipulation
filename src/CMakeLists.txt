@@ -24,6 +24,7 @@ add_executable(
     mppi.cpp
     dynamics.cpp
     cost.cpp
+    controller.cpp
     simulator.cpp
 )
 

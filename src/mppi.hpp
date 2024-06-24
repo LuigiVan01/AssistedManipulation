@@ -3,6 +3,7 @@
 #include <concepts>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <iostream>
 
@@ -20,7 +21,7 @@ struct Configuration
 
     /// The number of best control trajectory rollouts to keep to warmstart the
     // next control trajectory sampling phase (before rolling out).
-    std::int64_t rollouts_cached;
+    std::int64_t keep_best_rollouts;
 
     /// The time increment passed to the dynamics simulation when performing
     /// rollouts in seconds.
@@ -193,14 +194,6 @@ public:
     void update(const Eigen::VectorXd &state, double time);
 
     /**
-     * @brief Get the times of each incremental update in the trajectory.
-     * @returns The times of each trajectory step.
-     */
-    inline const Eigen::VectorXd &times() const {
-        return m_times;
-    }
-
-    /**
      * @brief Get the control trajectory of a rollout.
      * 
      * @param rollout The rollout to get the control trajectory of.
@@ -214,23 +207,6 @@ public:
             m_steps // cols
         );
     };
-
-    /**
-     * @brief Get the system state evolution of a rollout.
-     * 
-     * Each state corresponds to the time returned by time().
-     * 
-     * @param rollout The rollout to get the states of.
-     * @returns The state evolution of the rollout.
-     */
-    // inline auto states(std::int64_t rollout) const {
-    //     return m_states.block(
-    //         m_configuration.rollouts,
-    //         m_dynamics->control_dof(),
-    //         0,
-    //         rollout * m_dynamics->control_dof()
-    //     );
-    // };
 
     /**
      * @brief Get the costs of each rollout.
@@ -256,19 +232,21 @@ public:
     /**
      * @brief Evaluate the current optimal control trajectory at a given time.
      * 
+     * @param control Reference to the control vector to fill.
      * @param t The time to evaluate the control trajectory.
-     * @returns The control parameters for the current time.
      */
-    Eigen::VectorXd get(double t) const;
+    void get(Eigen::VectorXd &control, double time);
 
     /**
      * @brief Evaluate the current optimal control trajectory at a given time.
      * 
-     * @param t The time to evaluate the control trajectory.
+     * @param time The time to evaluate the control trajectory.
      * @returns The control parameters for the current time.
      */
-    inline Eigen::VectorXd operator()(double t) const {
-        return get(t);
+    inline Eigen::VectorXd operator()(double time) {
+        Eigen::VectorXd control;
+        get(control, time);
+        return control;
     }
 
 private:
@@ -339,16 +317,13 @@ private:
     int m_control_dof;
 
     /// The current state from which the controller is generating trajectories.
-    Eigen::VectorXd m_current_state;
+    Eigen::VectorXd m_rollout_state;
 
-    /// Timestamps of each rollout step.
-    Eigen::VectorXd m_times;
+    /// The time of the last trajectory generation.
+    double m_rollout_time;
 
     /// The control parameters applied at each step in the rollouts.
     Eigen::MatrixXd m_controls;
-
-    /// The evolution of states for each rollout.
-    // Eigen::MatrixXd m_states;
 
     /// The cost of each rollout.
     Eigen::VectorXd m_costs;
@@ -359,8 +334,11 @@ private:
     /// The gradient applied to the optimal control trajectory.
     Eigen::MatrixXd m_gradient;
 
-    /// The optimal control trajectory.
+    /// A double buffer of the optimal control.
     Eigen::MatrixXd m_optimal_control;
+
+    /// Mutex protecting concurrent access to the optimal control double buffer.
+    std::mutex m_double_buffer_mutex;
 };
 
 } // namespace mppi

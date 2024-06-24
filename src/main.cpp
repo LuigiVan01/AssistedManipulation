@@ -4,57 +4,36 @@
 #include <filesystem>
 
 #include "simulator.hpp"
+#include "controller.hpp"
 #include "cost.hpp"
 #include "dynamics.hpp"
 
 int main(int /* argc */, char*[])
 {
     auto cwd = std::filesystem::current_path();
-
     std::string urdf = (cwd / "model/robot.urdf").string();
 
-    // Create the controller.
-    mppi::Configuration controller_configuration {
-        .rollouts = 100,
-        .rollouts_cached = 0,
-        .step_size = 0.05,
-        .horison = 0.25,
-        .gradient_step = 1.0,
-        .gradient_minmax = 10.0,
-        .cost_scale = 1.0,
-        .cost_discount_factor = 0.95,
-        .control_default_last = true,
-        .control_default_value = FrankaRidgeback::Control::Zero(),
+    controller::Configuration configuration {
+        .dynamics = FrankaRidgeback::Dynamics::create(),
+        .cost = Cost::create(urdf),
+        .trajectory = {
+            .rollouts = 100,
+            .keep_best_rollouts = 0,
+            .step_size = 0.05,
+            .horison = 0.25,
+            .gradient_step = 1.0,
+            .gradient_minmax = 10.0,
+            .cost_scale = 1.0,
+            .cost_discount_factor = 0.95,
+            .control_default_last = true,
+            .control_default_value = FrankaRidgeback::Control::Zero()
+        },
+        .initial_state = FrankaRidgeback::State::Zero(),
     };
 
-    // Set the initial state.
-    FrankaRidgeback::State initial_state = FrankaRidgeback::State::Zero();
-    initial_state.base_velocity() << 0.0, 0.0;
-
-    std::cout << "creating dynamics" << std::endl;
-    auto dynamics = FrankaRidgeback::Dynamics::create();
-    if (!dynamics) {
-        std::cerr << "failed to create dynamics" << std::endl;
-        return 1;
-    }
-
-    std::cout << "creating cost" << std::endl;
-    auto cost = Cost::create(urdf);
-    if (!cost) {
-        std::cerr << "failed to create cost" << std::endl;
-        return 1;
-    }
-
-    std::cout << "creating trajectory" << std::endl;
-    auto trajectory = mppi::Trajectory::create(
-        dynamics.get(),
-        cost.get(),
-        controller_configuration,
-        initial_state
-    );
-
-    if (!trajectory) {
-        std::cerr << "failed to create trajectory" << std::endl;
+    auto controller = controller::Controller::create(std::move(configuration));
+    if (!controller) {
+        std::cerr << "failed to create controller" << std::endl;
         return 1;
     }
 
@@ -63,7 +42,7 @@ int main(int /* argc */, char*[])
         .urdf_filename = urdf,
         .timestep = 0.005,
         .gravity = {0.0, 0.0, 9.81},
-        .initial_state = initial_state,
+        .initial_state = configuration.initial_state,
         .proportional_gain = FrankaRidgeback::Control::Zero(),
         .differential_gain = FrankaRidgeback::Control::Zero()
     };
@@ -84,13 +63,15 @@ int main(int /* argc */, char*[])
         return 1;
     }
 
-    int steps = (int)(controller_configuration.horison / controller_configuration.step_size);
+    int steps = (int)(configuration.trajectory.horison / configuration.trajectory.step_size);
+
+    FrankaRidgeback::Control control;
 
     for (;;) {
-        trajectory->update(sim->state(), sim->time());
+        controller->update(sim->state(), sim->time());
         for (std::size_t i = 0; i < steps; i++) {
             raisim::TimedLoop(simulator.timestep * 1e6);
-            FrankaRidgeback::Control control = trajectory->get(sim->time());
+            controller->get((Eigen::VectorXd&)control, sim->time());
             sim->step(control);
         }
     }

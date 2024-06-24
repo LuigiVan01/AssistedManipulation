@@ -28,7 +28,7 @@ public:
      * 
      * @return A pointer to the cost instance on success, or nullptr on failure.
      */
-    static std::shared_ptr<Cost> create(const std::string &urdf);
+    static std::unique_ptr<Cost> create(const std::string &urdf);
 
     /**
      * @brief Get the cost of a state and control input over dt.

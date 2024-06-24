@@ -16,9 +16,9 @@ Dynamics::Dynamics()
     : m_state(State::Zero())
 {}
 
-std::shared_ptr<Dynamics> Dynamics::create()
+std::unique_ptr<Dynamics> Dynamics::create()
 {
-    return std::shared_ptr<Dynamics>(new Dynamics());
+    return std::unique_ptr<Dynamics>(new Dynamics());
 }
 
 Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double dt)
