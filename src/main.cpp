@@ -13,18 +13,22 @@ int main(int /* argc */, char*[])
     auto cwd = std::filesystem::current_path();
     std::string urdf = (cwd / "model/robot.urdf").string();
 
+    Eigen::VectorXd stddev(12, 1);
+    stddev << 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+
     controller::Configuration configuration {
         .dynamics = FrankaRidgeback::Dynamics::create(),
         .cost = Cost::create(urdf),
         .trajectory = {
-            .rollouts = 100,
-            .keep_best_rollouts = 0,
+            .rollouts = 10,
+            .keep_best_rollouts = 5,
             .step_size = 0.05,
             .horison = 0.25,
             .gradient_step = 1.0,
             .gradient_minmax = 10.0,
             .cost_scale = 1.0,
             .cost_discount_factor = 0.95,
+            .covariance = stddev.asDiagonal(),
             .control_default_last = true,
             .control_default_value = FrankaRidgeback::Control::Zero()
         },
@@ -68,10 +72,11 @@ int main(int /* argc */, char*[])
     FrankaRidgeback::Control control;
 
     for (;;) {
-        controller->update(sim->state(), sim->time());
+        Eigen::VectorXd state = sim->state();
+        controller->update(state, sim->time());
         for (std::size_t i = 0; i < steps; i++) {
             raisim::TimedLoop(simulator.timestep * 1e6);
-            controller->get((Eigen::VectorXd&)control, sim->time());
+            controller->get(control, sim->time());
             sim->step(control);
         }
     }

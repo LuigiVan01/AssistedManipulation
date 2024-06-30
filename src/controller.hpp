@@ -49,7 +49,9 @@ public:
      * @param state The current state of the dynamics.
      * @param time The current time in seconds.
      */
-    void update(const Eigen::VectorXd &state, double time);
+    inline void update(const Eigen::Ref<Eigen::VectorXd> state, double time) {
+        m_trajectory->update(state, time);
+    }
 
     /**
      * @brief Evaluate the current optimal control trajectory at a given time.
@@ -57,7 +59,9 @@ public:
      * @param control Reference to the control vector to fill.
      * @param t The time to evaluate the control trajectory.
      */
-    void get(Eigen::VectorXd &control, double time) const;
+    inline void get(Eigen::Ref<Eigen::VectorXd> control, double time) const {
+        m_trajectory->get(control, time);
+    }
 
 private:
 

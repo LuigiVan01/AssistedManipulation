@@ -25,6 +25,7 @@ std::unique_ptr<Controller> Controller::create(Configuration &&config)
 
     if (!trajectory) {
         std::cerr << "controller could not create trajectory" << std::endl;
+        return nullptr;
     }
 
     return std::unique_ptr<Controller>(

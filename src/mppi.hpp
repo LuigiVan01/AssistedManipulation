@@ -42,8 +42,8 @@ struct Configuration
     /// Discount factor of cost calculation.
     double cost_discount_factor;
 
-    /// Variance matrix of 
-    Eigen::MatrixXd sample_variance;
+    /// The covariance matrix to generate rollout noise from.
+    Eigen::MatrixXd covariance;
 
     /// True to use the last control when a trajectory finishes, or false to use
     // the default value.
@@ -79,9 +79,7 @@ public:
 
     /**
      * @brief Set the dynamics simulation to a given state.
-     * 
      * @param state The system state.
-     * @param control The controls applied to the current state.
      */
     virtual void set(const Eigen::VectorXd &state) = 0;
 
@@ -136,6 +134,80 @@ public:
 };
 
 /**
+ * @brief A multivariate gaussian sampler.
+ * 
+ * Based on https://github.com/ethz-asl/sampling_based_control/blob/master/mppi/include/mppi/utils/multivariate_normal_eigen.h
+ * that is based on https://stackoverflow.com/questions/6142576/sample-from-multivariate-normal-gaussian-distribution-in-c
+ */
+class Gaussian
+{
+public:
+
+    /**
+     * @brief Create a new multivariate gaussian.
+     * 
+     * The covariance matrix must be square, and the mean must have length
+     * equal to the number of covariance rows.
+     * 
+     * @param mean The mean of each gaussian.
+     * @param covariance The covariance matrix of the distribution.
+     */
+    inline Gaussian(const Eigen::VectorXd &mean, const Eigen::MatrixXd &covariance)
+        : m_mean(mean)
+    {
+        set_covariance(covariance);
+    }
+
+    /**
+     * @brief Create a new multivariate gaussian with zero mean.
+     * 
+     * The covariance matrix must be square.
+     * 
+     * @param covariance The covariance matrix of the distribution.
+     */
+    inline Gaussian(const Eigen::MatrixXd &covariance)
+        : Gaussian(Eigen::VectorXd::Zero(covariance.rows()), covariance)
+    {}
+
+    /**
+     * @brief Set the covariance of the distribution.
+     * @param covariance The covariance matrix of the distribution.
+     */
+    inline void set_covariance(Eigen::MatrixXd const &covariance)
+    {
+        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(covariance);
+        m_transform = (
+            solver.eigenvectors() *
+            solver.eigenvalues().cwiseSqrt().asDiagonal()
+        );
+    }
+
+    /**
+     * @brief Sample the distribution.
+     * @returns A vector of values sampled from each gaussian.
+     */
+    inline Eigen::VectorXd operator()() const {
+        return m_mean + m_transform * Eigen::VectorXd(m_mean.size()).unaryExpr(
+            [&](double) { return s_distribution(s_generator); }
+        );
+    }
+
+private:
+
+    /// The mean of each gaussian.
+    Eigen::VectorXd m_mean;
+
+    /// Transformation matrix from N(0, 1) noise to the multivariate noise.
+    Eigen::MatrixXd m_transform;
+
+    /// The pseudo-random number generator.
+    static std::mt19937 s_generator;
+
+    /// A N(0, 1) gaussian distribution single values from.
+    static std::normal_distribution<double> s_distribution;
+};
+
+/**
  * @brief A model predictive path integral (MPPI) optimal trajectory
  * generator.
  * 
@@ -155,52 +227,45 @@ class Trajectory
 {
 public:
 
+    /// The number of always available precomputed rollouts. These are the zero
+    /// control sample and negative of the previous optimal trajectory.
+    static const constexpr std::int64_t s_static_rollouts = 2;
+
     /**
      * @brief Create a new Trajectory optimal trajectory generator.
-     * 
-     * The number of steps taken for each rollout is given by
-     * round_down(rollout_duration / rollout_time_delta).
-     * 
-     * The total number of dynamics simulation increments is given by
-     * rollouts * round_down(rollout_duration / rollout_time_delta).
      * 
      * @param dynamics A pointer to the dynamics object responsible that keeps
      * track of the current system state, and predicts future system states.
      * @param cost A pointer to a cost object, that tracks to cumulative cost
      * of dynamics simulation rollouts.
-     * @param state The initial system state, to be passed to the dynamics
-     * object.
-     * @param rollout_time_delta The time increment passed to the dynamics
-     * simulation when performing rollouts, in seconds.
-     * @param time_duration The duration of time of each rollout, in seconds.
-     * @param rollouts The number of rollouts to perform on each time.
+     * @param configuration The configuration of the trajectory.
+     * @param state The initial system state.
      * 
-     * @returns A pointer to the Trajectory trajectory generator on success, or
-     * nullptr on failure.
+     * @returns A pointer to the trajectory on success, or nullptr on failure.
      */
     static std::unique_ptr<Trajectory> create(
         Dynamics *dynamics,
         Cost *cost,
         const Configuration &configuration,
-        const Eigen::VectorXd &state
+        const Eigen::Ref<Eigen::VectorXd> state
     );
 
     /**
-     * @brief Update the trajectory from a state and a time.
+     * @brief Update the trajectory from a state and time.
      * 
      * @param state The current state of the dynamics.
      * @param time The current time in seconds.
      */
-    void update(const Eigen::VectorXd &state, double time);
+    void update(const Eigen::Ref<Eigen::VectorXd> state, double time);
 
     /**
-     * @brief Get the control trajectory of a rollout.
+     * @brief Get the noise of a rollout.
      * 
-     * @param rollout The rollout to get the control trajectory of.
-     * @return The control trajectory of the rollout.
+     * @param rollout The rollout to get the noise of.
+     * @return The noise of the rollout.
      */
-    inline auto controls(std::int64_t rollout) const {
-        return m_controls.block(
+    inline auto get_rollout(std::int64_t rollout) {
+        return m_rollouts.block(
             rollout * m_dynamics->control_dof(), // start row
             0, // start col
             m_dynamics->control_dof(), // rows
@@ -209,33 +274,30 @@ public:
     };
 
     /**
-     * @brief Get the costs of each rollout.
+     * @brief Get the cost of a rollout.
      * 
      * @param rollout The rollout to get the cost of.
      * @returns The cost of the rollout.
      */
-    inline double cost(std::int64_t rollout) const {
+    inline double get_cost(std::int64_t rollout) const {
         return m_costs[rollout];
     }
 
     /**
-     * @brief Get the current optimal control trajectory.
-     * 
-     * Each control corresponds to the time returned by times().
-     * 
-     * @returns The current optimal control trajectory.
+     * @brief Get the optimal trajectory starting at the last update time.
+     * @returns The optimal control trajectory.
      */
-    inline const Eigen::VectorXd &controls() const {
+    inline const Eigen::VectorXd &trajectory() const {
         return m_optimal_control;
     }
 
     /**
-     * @brief Evaluate the current optimal control trajectory at a given time.
+     * @brief Evaluate the optimal control trajectory at a given time.
      * 
      * @param control Reference to the control vector to fill.
      * @param t The time to evaluate the control trajectory.
      */
-    void get(Eigen::VectorXd &control, double time);
+    void get(Eigen::Ref<Eigen::VectorXd> control, double time);
 
     /**
      * @brief Evaluate the current optimal control trajectory at a given time.
@@ -253,44 +315,59 @@ private:
 
     /**
      * @brief Initialise the trajectory generator.
-     * 
-     * See Trajectory::create().
      */
     Trajectory(
         Dynamics *dynamics,
         Cost *cost,
         const Configuration &configuration,
-        const Eigen::VectorXd &state,
+        const Eigen::Ref<Eigen::VectorXd> state,
         int steps
     ) noexcept;
 
     /**
-     * @brief Sample the control trajectories to simulate.
+     * @brief Sample the rollouts to simulate.
      * 
-     * This step involves sampling a multivariate gaussian distribution multiple
-     * times to fill out multiple different control trajectories stored in
-     * m_controls. These are then simulated in rollout() and analysed in
-     * optimise() to get the optimal trajectory.
+     * Samples noise from a multivariate gaussian distribution for each time
+     * step of each rollout.
+     * 
+     * Shifts the previous rollouts forward in time to align with the current
+     * sample time. Otherwise the optimal rollout would be applied after a time
+     * delay.
+     * 
+     * The best k rollouts from the previous sample are not resampled. Only the
+     * part of the horison that has come into view are sampled.
+     * 
+     * Each rollout noise is added to the current optimal rollout and simulated
+     * in rollout(), and analysed in optimise() to get the optimal trajectory.
      */
-    void sample();
+    void sample(double time);
 
     /**
-     * @brief Rollout a sampled control parameter trajectory.
+     * @brief Rollout a sampled trajectory.
      * 
-     * The control trajectory for the given rollout is simulated with the system
-     * dynamics and a final cost of those control actions is calculated.
+     * Adds the noise of the given rollout to the optimal trajectory, and
+     * simulates it. The cumulative cost of the rollout is stored.
      * 
      * @param index The rollout to perform.
      */
     void rollout(std::int64_t index);
 
     /**
-     * @brief Update the optimal control trajectory.
+     * @brief Updates the optimal control trajectory.
      * 
-     * Weighs each rollout according to its cost and gradient steps the previous
-     * optimal control trajectory towards the next one.
+     * Transforms the costs of each simulated rollouts into normalised
+     * likelihoods.
+     * 
+     * Creates a linear combination of all rollout noise, using the normalised
+     * likelihoods as the weights, to produce the optimal rollout noise.
+     * 
+     * Uses the optimal rollout noise to gradient step the optimal control
+     * trajectory.
      */
     void optimise();
+
+    /// The configuration of the trajectory generation.
+    Configuration m_configuration;
 
     /// Keeps track of system state and simulates responses to control actions.
     Dynamics *m_dynamics;
@@ -298,14 +375,8 @@ private:
     /// Keeps track of individual cumulative cost of dynamics simulation rollouts.
     Cost *m_cost;
 
-    /// The configuration of the trajectory generation.
-    Configuration m_configuration;
-
     /// The random number generator to use in the normal distribution.
-    std::mt19937 m_generator;
-
-    /// Distribution to use for noise.
-    std::normal_distribution<double> m_distribution;
+    Gaussian m_gaussian;
 
     /// The number of time steps per rollout.
     int m_steps;
@@ -319,11 +390,20 @@ private:
     /// The current state from which the controller is generating trajectories.
     Eigen::VectorXd m_rollout_state;
 
-    /// The time of the last trajectory generation.
+    /// The current time of trajectory generation.
     double m_rollout_time;
 
+    /// The number of time steps to shift control by to align with current time.
+    std::int64_t m_shift_by;
+
+    /// The number of columns that was shifted to align with current time.
+    std::int64_t m_shifted;
+
+    /// The time of the last trajectory generation.
+    double m_last_rollout_time;
+
     /// The control parameters applied at each step in the rollouts.
-    Eigen::MatrixXd m_controls;
+    Eigen::MatrixXd m_rollouts;
 
     /// The cost of each rollout.
     Eigen::VectorXd m_costs;
@@ -334,11 +414,17 @@ private:
     /// The gradient applied to the optimal control trajectory.
     Eigen::MatrixXd m_gradient;
 
-    /// A double buffer of the optimal control.
+    /// The previous optimal control, shifted to align with the current time.
+    Eigen::MatrixXd m_optimal_control_shifted;
+
+    /// The optimal control.
     Eigen::MatrixXd m_optimal_control;
 
     /// Mutex protecting concurrent access to the optimal control double buffer.
-    std::mutex m_double_buffer_mutex;
+    std::mutex m_optimal_control_mutex;
+
+    /// Buffer to store rollout indexes before sorting them by cost.
+    std::vector<std::int64_t> m_ordered_rollouts;
 };
 
 } // namespace mppi
