@@ -63,7 +63,7 @@ Simulator::Simulator(
   , m_server(m_world.get())
   , m_state(FrankaRidgeback::State::Zero())
 {
-    reset(m_configuration.initial_state);
+    set(m_configuration.initial_state);
     m_server.launchServer();
 
     auto sphere = m_server.addVisualSphere("sphere", 0.1);
@@ -75,7 +75,7 @@ Simulator::~Simulator()
     m_server.killServer();
 }
 
-void Simulator::reset(FrankaRidgeback::State &state)
+void Simulator::set(FrankaRidgeback::State &state)
 {
     m_robot->setState(state.position(), state.velocity());
 }

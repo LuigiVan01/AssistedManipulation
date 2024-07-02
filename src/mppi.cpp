@@ -192,7 +192,6 @@ void Trajectory::rollout(std::int64_t i)
     m_dynamics->set(state);
     m_costs[i] = 0.0;
 
-    std::cout << "rollout " << i << std::endl;
     for (int step = 0; step < m_steps; ++step) {
 
         // Add the rollout noise to the optimal control.
@@ -213,7 +212,6 @@ void Trajectory::rollout(std::int64_t i)
 
         // Step the dynamics simulation.
         state = m_dynamics->step(control, m_configuration.step_size);
-        std::cout << state[0] << std::endl;
     }
 }
 
@@ -231,8 +229,6 @@ void Trajectory::optimise()
 
     minimum = *it1;
     maximum = *it2;
-
-    std::cout << minimum << std::endl;
 
     // For parameterisation of each cost.
     double difference = maximum - minimum;

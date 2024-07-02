@@ -29,7 +29,7 @@ Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double d
     auto rotated = (Eigen::Rotation2Dd(yaw) * control.base_velocity()).eval();
 
     // Rotate base velocity to the robot frame of reference.
-    m_state.base_position() = rotated * dt;
+    m_state.base_position() += rotated * dt;
     m_state.base_yaw() += control.base_angular_velocity() * dt;
 
     // Double integrate arm torque to position. Should use a better numerical
@@ -98,23 +98,54 @@ Model::Model(
     , m_end_effector_index(end_effector_index)
 {}
 
-void Model::update(const State &state)
-{
+void Model::set(const State &state) {
     pinocchio::forwardKinematics(*m_model, *m_data, state.position());
     pinocchio::updateFramePlacements(*m_model, *m_data);
 }
 
-// void Model::update(
-//     const State &state,
-//     const Velocity &velocity
-// ) {
-//     pinocchio::forwardKinematics(m_model, m_data, state, velocity);
-//     pinocchio::updateFramePlacements(m_model, m_data);
-// }
+Eigen::Vector3d Model::offset(
+    const std::string &from_frame,
+    const std::string &to_frame
+) {
+    return m_data->oMf[m_model->getFrameId(to_frame)].translation() -
+    m_data->oMf[m_model->getFrameId(from_frame)].translation();
+}
 
-std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::end_effector()
-{
-    // oMf is vector of absolute frame placements in the space frame.
+Eigen::Matrix<double, 6, 1> Model::error(
+    const std::string &from_frame,
+    const std::string &to_frame
+) {
+    using namespace pinocchio;
+
+    return log6(
+        m_data->oMf[m_model->getFrameId(to_frame)].actInv(
+            m_data->oMf[m_model->getFrameId(from_frame)]
+        )
+    ).toVector();
+}
+
+Eigen::Matrix<double, 6, 1> Model::error(
+    const std::string &frame,
+    const Eigen::Quaterniond& rot,
+    const Eigen::Vector3d& trans
+) {
+    using namespace pinocchio;
+
+    return log6(
+        m_data->oMf[m_model->getFrameId(frame)].actInv(SE3(rot, trans))
+    ).toVector();
+}
+
+std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::pose(
+    const std::string &frame
+) {
+    return std::make_tuple(
+        m_data->oMf[m_model->getFrameId(frame)].translation(),
+        (Eigen::Quaterniond)m_data->oMf[m_model->getFrameId(frame)].rotation()
+    );
+}
+
+std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::end_effector() {
     return std::make_tuple(
         m_data->oMf[m_end_effector_index].translation(),
         (Eigen::Quaterniond)m_data->oMf[m_end_effector_index].rotation()

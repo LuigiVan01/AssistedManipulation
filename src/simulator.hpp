@@ -67,15 +67,15 @@ public:
     /**
      * @brief Reset the simulator to the initial state.
      */
-    inline void reset() {
-        reset(m_configuration.initial_state);
+    inline void set() {
+        set(m_configuration.initial_state);
     }
 
     /**
      * @brief Reset the simulator to a state.
      * @param state The state to reset to.
      */
-    void reset(FrankaRidgeback::State &state);
+    void set(FrankaRidgeback::State &state);
 
     /**
      * @brief Get the current state in the simulation.

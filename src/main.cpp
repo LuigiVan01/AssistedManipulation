@@ -14,20 +14,20 @@ int main(int /* argc */, char*[])
     std::string urdf = (cwd / "model/robot.urdf").string();
 
     Eigen::VectorXd stddev(12, 1);
-    stddev << 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+    stddev << 0.0, 0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 0.1, 0.1;
 
     controller::Configuration configuration {
         .dynamics = FrankaRidgeback::Dynamics::create(),
         .cost = Cost::create(urdf),
         .trajectory = {
-            .rollouts = 10,
-            .keep_best_rollouts = 5,
-            .step_size = 0.05,
-            .horison = 0.25,
+            .rollouts = 40,
+            .keep_best_rollouts = 12,
+            .step_size = 0.015,
+            .horison = 1.0,
             .gradient_step = 1.0,
             .gradient_minmax = 10.0,
-            .cost_scale = 1.0,
-            .cost_discount_factor = 0.95,
+            .cost_scale = 10.0,
+            .cost_discount_factor = 1.0,
             .covariance = stddev.asDiagonal(),
             .control_default_last = true,
             .control_default_value = FrankaRidgeback::Control::Zero()

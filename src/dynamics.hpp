@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <tuple>
 
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
@@ -383,6 +384,10 @@ public:
      */
     Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) override;
 
+    inline Eigen::Ref<Eigen::VectorXd> get() {
+        return m_state;
+    }
+
 private:
 
     /**
@@ -422,10 +427,17 @@ public:
 
     /**
      * @brief Update the state of the model.
-     * 
      * @param state The joint parameters of the model.
      */
-    void update(const State &state);
+    void set(const State &state);
+
+    // void Model::set(
+    //     const State &state,
+    //     const Velocity &velocity
+    // ) {
+    //     pinocchio::forwardKinematics(m_model, m_data, state, velocity);
+    //     pinocchio::updateFramePlacements(m_model, m_data);
+    // }
 
     /**
      * @brief Update the state of the model and the joint velocities.
@@ -435,10 +447,26 @@ public:
      */
     // void update(const State &state, const Velocity &velocity);
 
-    /**
-     * @brief Get the end effector pose.
-     * @returns A tuple of (translation, rotation).
-     */
+    Eigen::Vector3d offset(
+        const std::string &from_frame,
+        const std::string &to_frame
+    );
+
+    Eigen::Matrix<double, 6, 1> error(
+        const std::string &from_frame,
+        const std::string &to_frame
+    );
+
+    Eigen::Matrix<double, 6, 1> error(
+        const std::string &frame,
+        const Eigen::Quaterniond& rot,
+        const Eigen::Vector3d& trans
+    );
+
+    std::tuple<Eigen::Vector3d, Eigen::Quaterniond> pose(
+        const std::string &frame
+    );
+
     std::tuple<Eigen::Vector3d, Eigen::Quaterniond> end_effector();
 
 private:

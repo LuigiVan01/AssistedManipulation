@@ -45,6 +45,10 @@ public:
         double dt
     ) override;
 
+    std::unique_ptr<FrankaRidgeback::Model> &model() {
+        return m_model;
+    }
+
 private:
 
     /**
