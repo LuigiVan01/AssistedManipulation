@@ -13,26 +13,28 @@ int main(int /* argc */, char*[])
     auto cwd = std::filesystem::current_path();
     std::string urdf = (cwd / "model/robot.urdf").string();
 
-    Eigen::VectorXd stddev(12, 1);
-    stddev << 0.0, 0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 0.1, 0.1;
-
     controller::Configuration configuration {
         .dynamics = FrankaRidgeback::Dynamics::create(),
         .cost = Cost::create(urdf),
         .trajectory = {
-            .rollouts = 40,
+            .rollouts = 20,
             .keep_best_rollouts = 12,
             .step_size = 0.015,
             .horison = 1.0,
             .gradient_step = 1.0,
-            .gradient_minmax = 10.0,
             .cost_scale = 10.0,
             .cost_discount_factor = 1.0,
-            .covariance = stddev.asDiagonal(),
-            .control_default_last = true,
-            .control_default_value = FrankaRidgeback::Control::Zero()
+            .covariance = FrankaRidgeback::Control{0.0, 0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 0.1, 0.1}.asDiagonal(),
+            .control_bound = true,
+            .control_min = FrankaRidgeback::Control{-0.2, -0.2, -0.2, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.05, -0.05},
+            .control_max = FrankaRidgeback::Control{0.2, 0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 0.05},
+            .control_default = FrankaRidgeback::Control::Zero(),
+            .filter = mppi::Configuration::Filter{
+                .window = 10,
+                .order = 1
+            }
         },
-        .initial_state = FrankaRidgeback::State::Zero(),
+        .initial_state = FrankaRidgeback::State::Zero()
     };
 
     auto controller = controller::Controller::create(std::move(configuration));

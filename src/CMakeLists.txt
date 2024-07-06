@@ -27,6 +27,8 @@ add_executable(
     cost.cpp
     controller.cpp
     simulator.cpp
+    filter/filter.cpp
+    filter/gram_savitzky_golay.cpp
 )
 
 target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -4,10 +4,14 @@
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <random>
 #include <iostream>
+#include <optional>
 
 #include <Eigen/Eigen>
+
+#include "gaussian.hpp"
+#include "task.hpp"
+#include "filter/filter.hpp"
 
 namespace mppi {
 
@@ -33,9 +37,6 @@ struct Configuration
     /// The factor by which the optimal policy is updated.
     double gradient_step;
 
-    /// The gradient is clipped to [-gradient_minmax, gradient_minmax].
-    double gradient_minmax;
-
     /// Cost to likelihood mapping scaling.
     double cost_scale;
 
@@ -45,13 +46,28 @@ struct Configuration
     /// The covariance matrix to generate rollout noise from.
     Eigen::MatrixXd covariance;
 
-    /// True to use the last control when a trajectory finishes, or false to use
-    // the default value.
-    bool control_default_last;
+    /// If the control output is bounded between control_min and control_max.
+    bool control_bound;
 
-    /// If not control_default_last, the control to return when the trajectory
-    // finishes.
-    Eigen::VectorXd control_default_value;
+    /// The minimum control output for each control degree of freedom.
+    Eigen::VectorXd control_min;
+
+    /// The maximum control output for each control degree of freedom.
+    Eigen::VectorXd control_max;
+
+    /// The control to return when getting the trajectory past the horison.
+    std::optional<Eigen::VectorXd> control_default;
+
+    struct Filter {
+        unsigned int window;
+        unsigned int order;
+    };
+
+    std::optional<Filter> filter;
+
+    /// The number of threads to use for concurrent work such as sampling and
+    /// rollouts.
+    unsigned int threads;
 };
 
 /**
@@ -131,80 +147,6 @@ public:
         const Eigen::VectorXd &control,
         double dt
     ) = 0;
-};
-
-/**
- * @brief A multivariate gaussian sampler.
- * 
- * Based on https://github.com/ethz-asl/sampling_based_control/blob/master/mppi/include/mppi/utils/multivariate_normal_eigen.h
- * that is based on https://stackoverflow.com/questions/6142576/sample-from-multivariate-normal-gaussian-distribution-in-c
- */
-class Gaussian
-{
-public:
-
-    /**
-     * @brief Create a new multivariate gaussian.
-     * 
-     * The covariance matrix must be square, and the mean must have length
-     * equal to the number of covariance rows.
-     * 
-     * @param mean The mean of each gaussian.
-     * @param covariance The covariance matrix of the distribution.
-     */
-    inline Gaussian(const Eigen::VectorXd &mean, const Eigen::MatrixXd &covariance)
-        : m_mean(mean)
-    {
-        set_covariance(covariance);
-    }
-
-    /**
-     * @brief Create a new multivariate gaussian with zero mean.
-     * 
-     * The covariance matrix must be square.
-     * 
-     * @param covariance The covariance matrix of the distribution.
-     */
-    inline Gaussian(const Eigen::MatrixXd &covariance)
-        : Gaussian(Eigen::VectorXd::Zero(covariance.rows()), covariance)
-    {}
-
-    /**
-     * @brief Set the covariance of the distribution.
-     * @param covariance The covariance matrix of the distribution.
-     */
-    inline void set_covariance(Eigen::MatrixXd const &covariance)
-    {
-        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(covariance);
-        m_transform = (
-            solver.eigenvectors() *
-            solver.eigenvalues().cwiseSqrt().asDiagonal()
-        );
-    }
-
-    /**
-     * @brief Sample the distribution.
-     * @returns A vector of values sampled from each gaussian.
-     */
-    inline Eigen::VectorXd operator()() const {
-        return m_mean + m_transform * Eigen::VectorXd(m_mean.size()).unaryExpr(
-            [&](double) { return s_distribution(s_generator); }
-        );
-    }
-
-private:
-
-    /// The mean of each gaussian.
-    Eigen::VectorXd m_mean;
-
-    /// Transformation matrix from N(0, 1) noise to the multivariate noise.
-    Eigen::MatrixXd m_transform;
-
-    /// The pseudo-random number generator.
-    static std::mt19937 s_generator;
-
-    /// A N(0, 1) gaussian distribution single values from.
-    static std::normal_distribution<double> s_distribution;
 };
 
 /**
@@ -342,6 +284,8 @@ private:
      */
     void sample(double time);
 
+    void rollout();
+
     /**
      * @brief Rollout a sampled trajectory.
      * 
@@ -350,7 +294,7 @@ private:
      * 
      * @param index The rollout to perform.
      */
-    void rollout(std::int64_t index);
+    void rollout(int thread, int start, int stop);
 
     /**
      * @brief Updates the optimal control trajectory.
@@ -369,11 +313,14 @@ private:
     /// The configuration of the trajectory generation.
     Configuration m_configuration;
 
+    /// A collection of threads used for sampling and rollouts.
+    ThreadPool m_thread_pool;
+
     /// Keeps track of system state and simulates responses to control actions.
-    Dynamics *m_dynamics;
+    std::vector<std::unique_ptr<Dynamics>> m_dynamics;
 
     /// Keeps track of individual cumulative cost of dynamics simulation rollouts.
-    Cost *m_cost;
+    std::vector<std::unique_ptr<Cost>> m_cost;
 
     /// The random number generator to use in the normal distribution.
     Gaussian m_gaussian;
@@ -425,6 +372,8 @@ private:
 
     /// Buffer to store rollout indexes before sorting them by cost.
     std::vector<std::int64_t> m_ordered_rollouts;
+
+    SavitzkyGolayFilter m_filter;
 };
 
 } // namespace mppi
