@@ -113,7 +113,7 @@ public:
      * @brief Make a copy of this parameterised dynamics.
      * @returns A std::unique_ptr to the parameterised dynamics copy.
      */
-    std::unique_ptr<Dynamics> copy();
+    virtual std::unique_ptr<Dynamics> copy() = 0;
 };
 
 /**
@@ -158,7 +158,7 @@ public:
      * @brief Make a copy of this objective function.
      * @returns A std::unique_ptr to the objective function copy.
      */
-    std::unique_ptr<Cost> copy();
+    virtual std::unique_ptr<Cost> copy() = 0;
 };
 
 /**

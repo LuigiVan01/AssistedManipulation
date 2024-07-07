@@ -113,8 +113,8 @@ Trajectory::Trajectory(
     m_gradient.setZero();
 
     for (unsigned int i = 0; i < configuration.threads; i++) {
-        m_dynamics.push_back(dynamics->copy());
-        m_cost.push_back(cost->copy());
+        m_dynamics[i] = dynamics->copy();
+        m_cost[i] = cost->copy();
     }
 
     if (configuration.filter) {

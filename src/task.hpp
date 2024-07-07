@@ -22,9 +22,9 @@ public:
      * 
      * @param n The number of threads in the pool.
      */
-    ThreadPool(unsigned int n);
+    inline ThreadPool(unsigned int n);
 
-    ~ThreadPool();
+    inline ~ThreadPool();
 
     inline void worker(std::stop_token stop);
 
@@ -70,7 +70,7 @@ inline ThreadPool::ThreadPool(unsigned int n)
     }
 }
 
-ThreadPool::~ThreadPool()
+inline ThreadPool::~ThreadPool()
 {
     m_stop.request_stop();
     m_condition.notify_all();
@@ -115,7 +115,7 @@ ThreadPool::enqueue(unsigned int priority, Callable &&function, Args&&... args)
     if (m_stop.stop_requested())
         throw std::runtime_error("enqueing task to stopped thread pool");
 
-    auto task = std::make_unique<std::packaged_task<Result(Args...)>>(
+    auto task = std::make_shared<std::packaged_task<Result(Args...)>>(
         std::bind(std::forward<Callable>(function), std::forward<Args>(args)...)
     );
 
@@ -123,7 +123,7 @@ ThreadPool::enqueue(unsigned int priority, Callable &&function, Args&&... args)
 
     {
         std::scoped_lock lock(m_mutex);
-        m_tasks.emplace(priority, [&task](){ (*task)(); });
+        m_tasks.emplace(priority, [task = std::move(task)]{ (*task)(); });
     }
 
     m_condition.notify_one();

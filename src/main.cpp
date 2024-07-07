@@ -32,7 +32,8 @@ int main(int /* argc */, char*[])
             .filter = mppi::Configuration::Filter{
                 .window = 10,
                 .order = 1
-            }
+            },
+            .threads = 20
         },
         .initial_state = FrankaRidgeback::State::Zero()
     };

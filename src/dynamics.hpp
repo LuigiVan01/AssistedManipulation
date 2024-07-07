@@ -388,6 +388,12 @@ public:
         return m_state;
     }
 
+    inline std::unique_ptr<mppi::Dynamics> copy() override {
+        Dynamics *dynamics = new Dynamics();
+        dynamics->m_state = m_state;
+        return std::unique_ptr<Dynamics>(dynamics);
+    }
+
 private:
 
     /**
@@ -473,7 +479,7 @@ public:
     {
         auto model = std::make_unique<pinocchio::Model>(*m_model);
         auto data = std::make_unique<pinocchio::Data>(*model);
-        return std::make_unique<Model>(new Model(
+        return std::unique_ptr<Model>(new Model(
             std::move(model),
             std::move(data),
             m_end_effector_index
