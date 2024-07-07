@@ -7,9 +7,11 @@
 #include <future>
 #include <barrier>
 #include <exception>
+#include <type_traits>
+#include <memory>
 
-template<typename Function, typename... Args>
-using result_of_t = typename std::result_of<Function(Args...)>::type;
+template<typename Callable, typename... Args>
+using invoke_result_t = typename std::invoke_result<Callable, Args...>::type;
 
 class ThreadPool
 {
@@ -26,24 +28,27 @@ public:
 
     inline void worker(std::stop_token stop);
 
-    template<typename Function, typename... Args>
-    std::future<result_of_t<Function(Args...)>>
-    enqueue(unsigned int priority, Function &&callable, Args&&... args);
+    template<typename Callable, typename... Args>
+    std::future<invoke_result_t<Callable, Args...>>
+    enqueue(unsigned int priority, Callable &&callable, Args&&... args);
 
-    template<typename Function, typename... Args>
-    std::future<result_of_t<Function(Args...)>>
-    enqueue(Function &&callable, Args&&... args)
+    template<typename Callable, typename... Args>
+    std::future<invoke_result_t<Callable, Args...>>
+    enqueue(Callable &&callable, Args&&... args)
     {
-        return enqueue(0, std::forward(function), std::forward<Args>(args)...);
+        return enqueue(0, std::forward<Callable&&>(callable), std::forward<Args&&>(args)...);
     }
 
 private:
 
-    using Task = std::pair<int, std::function<void()>>;
+    struct Task {
+        unsigned int priority;
+        std::function<void()> run;
 
-    bool compare_tasks(const Task &left, const Task &right) {
-        return left.first < right.first;
-    }
+        friend bool operator<(const Task &left, const Task &other) {
+            return left.priority < other.priority;
+        }
+    };
 
     std::mutex m_mutex;
 
@@ -57,11 +62,10 @@ private:
 };
 
 inline ThreadPool::ThreadPool(unsigned int n)
-    : m_tasks(ThreadPool::compare_tasks)
 {
-    for (int i = 0; i < n; i++) {
+    for (unsigned int i = 0; i < n; i++) {
         m_threads.push_back(
-            std::jthread(&ThreadPool::worker, m_stop.get_token())
+            std::jthread(&ThreadPool::worker, this, m_stop.get_token())
         );
     }
 }
@@ -98,29 +102,31 @@ void ThreadPool::worker(std::stop_token stop)
             m_tasks.pop();
         }
 
-        task.second();
+        task.run();
     }
 }
 
-template<typename Function, typename... Args>
-std::future<result_of_t<Function(Args...)>>
-ThreadPool::enqueue(unsigned int priority, Function &&function, Args&&... args)
+template<typename Callable, typename... Args>
+std::future<invoke_result_t<Callable, Args...>>
+ThreadPool::enqueue(unsigned int priority, Callable &&function, Args&&... args)
 {
-    if (m_stop.stop_requested())
-        return;
+    using Result = invoke_result_t<Callable, Args...>;
 
-    auto task = std::make_unique<std::packaged_task<result_of_t<Callable>>>(
-        std::bind(std::forward(function), std::forward<Args>(args)...)
+    if (m_stop.stop_requested())
+        throw std::runtime_error("enqueing task to stopped thread pool");
+
+    auto task = std::make_unique<std::packaged_task<Result(Args...)>>(
+        std::bind(std::forward<Callable>(function), std::forward<Args>(args)...)
     );
 
-    auto future = task->get_future();
+    std::future<Result> future = task->get_future();
 
     {
         std::scoped_lock lock(m_mutex);
-        m_tasks.emplace(std::make_pair(priority, [task](){ (*task)(); }));
+        m_tasks.emplace(priority, [&task](){ (*task)(); });
     }
 
-    m_tasks.notify_one();
+    m_condition.notify_one();
 
     return future;
 }
@@ -144,7 +150,7 @@ ThreadPool::enqueue(unsigned int priority, Function &&function, Args&&... args)
 //     {};
 
 //     template<typename Function, typename... Args>
-//     std::future<result_of_t<Function(Args...)>>
+//     std::future<invoke_result_t<Function(Args...)>>
 //     void add_task();
 
 // private:

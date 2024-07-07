@@ -88,8 +88,9 @@ Trajectory::Trajectory(
     int steps
 ) noexcept
   : m_configuration(configuration)
-  , m_dynamics(dynamics)
-  , m_cost(cost)
+  , m_dynamics(configuration.threads)
+  , m_cost(configuration.threads)
+  , m_futures(configuration.threads)
   , m_gaussian(configuration.covariance)
   , m_steps(steps)
   , m_state_dof(dynamics->state_dof())
@@ -110,6 +111,11 @@ Trajectory::Trajectory(
     m_costs.setZero();
     m_weights.setZero();
     m_gradient.setZero();
+
+    for (unsigned int i = 0; i < configuration.threads; i++) {
+        m_dynamics.push_back(dynamics->copy());
+        m_cost.push_back(cost->copy());
+    }
 
     if (configuration.filter) {
         m_filter = SavitzkyGolayFilter(
@@ -213,7 +219,7 @@ void Trajectory::rollout()
     );
 
     int start = 0;
-    for (int i = 0; i < m_configuration.threads; i++) {
+    for (unsigned int i = 0; i < m_configuration.threads; i++) {
         int stop = start + each_thread;
 
         // If there are threads to distribute.
@@ -226,20 +232,23 @@ void Trajectory::rollout()
         if (start == stop)
             break;
 
-        m_thread_pool.enqueue(
-            [this](int thread, int start, int stop){
-                rollout(thread, start, stop);
+        m_futures[i] = m_thread_pool.enqueue(
+            [this, i, start, stop]() {
+                return rollout(i, start, stop);
             }
         );
 
         start = stop;
     }
+
+    for (auto &future : m_futures)
+        future.get();
 }
 
 void Trajectory::rollout(int thread, int start, int stop)
 {
-    auto dynamics = m_dynamics[thread];
-    auto cost = m_cost[thread];
+    auto &dynamics = m_dynamics[thread];
+    auto &cost = m_cost[thread];
 
     for (int rollout = start; rollout < stop; rollout++) {
 
@@ -259,19 +268,18 @@ void Trajectory::rollout(int thread, int start, int stop)
                 cost->get(state, control, m_configuration.step_size)
             );
 
-            if (std::isnan(cost)) {
+            if (std::isnan(step_cost)) {
                 m_costs[m_steps] = NAN;
                 return;
             }
 
             // Cumulative running cost.
-            m_costs[i] += step_cost;
+            m_costs[rollout] += step_cost;
 
             // Step the dynamics simulation.
-            state = m_dynamics->step(control, m_configuration.step_size);
+            state = dynamics->step(control, m_configuration.step_size);
         }
     }
-
 }
 
 void Trajectory::optimise()

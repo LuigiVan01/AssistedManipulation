@@ -108,6 +108,12 @@ public:
      * @param dt The change in time.
      */
     virtual Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) = 0;
+
+    /**
+     * @brief Make a copy of this parameterised dynamics.
+     * @returns A std::unique_ptr to the parameterised dynamics copy.
+     */
+    std::unique_ptr<Dynamics> copy();
 };
 
 /**
@@ -147,6 +153,12 @@ public:
         const Eigen::VectorXd &control,
         double dt
     ) = 0;
+
+    /**
+     * @brief Make a copy of this objective function.
+     * @returns A std::unique_ptr to the objective function copy.
+     */
+    std::unique_ptr<Cost> copy();
 };
 
 /**
@@ -208,9 +220,9 @@ public:
      */
     inline auto get_rollout(std::int64_t rollout) {
         return m_rollouts.block(
-            rollout * m_dynamics->control_dof(), // start row
+            rollout * m_control_dof, // start row
             0, // start col
-            m_dynamics->control_dof(), // rows
+            m_control_dof, // rows
             m_steps // cols
         );
     };
@@ -321,6 +333,9 @@ private:
 
     /// Keeps track of individual cumulative cost of dynamics simulation rollouts.
     std::vector<std::unique_ptr<Cost>> m_cost;
+
+    /// Barrier to wait for 
+    std::vector<std::future<void>> m_futures;
 
     /// The random number generator to use in the normal distribution.
     Gaussian m_gaussian;

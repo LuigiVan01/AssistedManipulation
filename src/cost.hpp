@@ -49,6 +49,10 @@ public:
         return m_model;
     }
 
+    inline std::unique_ptr<Cost> copy() {
+        return std::make_unique<Cost>(new Cost(std::move(m_model->copy())));
+    }
+
 private:
 
     /**

@@ -469,6 +469,17 @@ public:
 
     std::tuple<Eigen::Vector3d, Eigen::Quaterniond> end_effector();
 
+    inline std::unique_ptr<Model> copy()
+    {
+        auto model = std::make_unique<pinocchio::Model>(*m_model);
+        auto data = std::make_unique<pinocchio::Data>(*model);
+        return std::make_unique<Model>(new Model(
+            std::move(model),
+            std::move(data),
+            m_end_effector_index
+        ));
+    }
+
 private:
 
     Model() = default;
