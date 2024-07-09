@@ -202,6 +202,31 @@ class Trajectory
 {
 public:
 
+    /**
+     * @brief A rollout stores the noise applied to the current optimal
+     * trajectory, and a measure of how good the noise is.
+     */
+    struct Rollout
+    {
+        /**
+         * @brief Create a new rollout.
+         * 
+         * @param control_dof The number of rows of noise.
+         * @param steps The number of columns of noise.
+         */
+        Rollout(std::size_t control_dof, std::size_t steps)
+            : noise(control_dof, steps)
+            , cost(0.0)
+        {}
+
+        /// The noise applied to the optimal rollout. Has `control_dof` number of
+        /// rows and `steps` number of columns.
+        Eigen::MatrixXd noise;
+
+        /// The cost of the optimal rollout.
+        double cost;
+    };
+
     /// The number of always available precomputed rollouts. These are the zero
     /// control sample and negative of the previous optimal trajectory.
     static const constexpr std::int64_t s_static_rollouts = 2;
@@ -250,23 +275,8 @@ public:
      * @return The noise of the rollout.
      */
     inline auto get_rollout(std::int64_t rollout) {
-        return m_rollouts.block(
-            rollout * m_control_dof, // start row
-            0, // start col
-            m_control_dof, // rows
-            m_steps // cols
-        );
+        return m_rollouts[rollout];
     };
-
-    /**
-     * @brief Get the cost of a rollout.
-     * 
-     * @param rollout The rollout to get the cost of.
-     * @returns The cost of the rollout.
-     */
-    inline double get_cost(std::int64_t rollout) const {
-        return m_costs[rollout];
-    }
 
     /**
      * @brief Get the optimal trajectory starting at the last update time.
@@ -334,17 +344,13 @@ private:
     void rollout();
 
     /**
-     * @brief Rollout trajectories from [start, stop).
+     * @brief Rollout from the current state.
      * 
-     * For each rollout in the range [start, stop), adds the noise of the given
-     * rollout to the optimal trajectory, and simulates it. The cumulative cost
-     * of the rollout is stored.
-     * 
-     * @param thread The identifier of the thread, for accessing thread data.
-     * @param start The rollout from which to start, inclusive.
-     * @param stop The rollout to stop at, exclusive.
+     * @param rollout The rollout to store data in.
+     * @param dynamics The dynamics object to use for rolling out.
+     * @param cost The objective function to use to calculate rollout cost.
      */
-    void rollout(int thread, int start, int stop);
+    void rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost);
 
     /**
      * @brief Updates the optimal control trajectory.
@@ -405,10 +411,7 @@ private:
     double m_last_rollout_time;
 
     /// The control parameters applied at each step in the rollouts.
-    Eigen::MatrixXd m_rollouts;
-
-    /// The cost of each rollout.
-    Eigen::VectorXd m_costs;
+    std::vector<Rollout> m_rollouts;
 
     /// The weight of each rollout. The higher the better.
     Eigen::VectorXd m_weights;

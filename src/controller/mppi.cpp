@@ -97,9 +97,8 @@ Trajectory::Trajectory(
   , m_control_dof(dynamics->control_dof())
   , m_rollout_state(state)
   , m_last_rollout_time(0.0)
-  , m_rollouts(configuration.rollouts * dynamics->control_dof(), steps) // (rows, cols) ...
-  , m_costs(configuration.rollouts, 1)
-  , m_weights(configuration.rollouts, 1)
+  , m_rollouts(configuration.rollouts, Rollout(dynamics->control_dof(), steps))
+  , m_weights(configuration.rollouts, 1) // (rows, cols) ...
   , m_gradient(dynamics->control_dof(), steps)
   , m_optimal_control_shifted(dynamics->control_dof(), steps)
   , m_optimal_control(dynamics->control_dof(), steps)
@@ -107,10 +106,13 @@ Trajectory::Trajectory(
   , m_thread_pool(configuration.threads)
 {
     m_optimal_control.setZero();
-    m_rollouts.setZero();
-    m_costs.setZero();
     m_weights.setZero();
     m_gradient.setZero();
+
+    // Set the initial gaussian noise to zero.
+    for (auto &rollout : m_rollouts) {
+        rollout.noise.setZero();
+    }
 
     // Initialise thread data.
     for (unsigned int i = 0; i < configuration.threads; i++) {
@@ -156,9 +158,9 @@ void Trajectory::sample(double time)
     // Reset to random noise if all trajectories are out of date.
     if (m_shift_by >= m_steps) {
         for (std::int64_t index = s_static_rollouts; index < m_configuration.rollouts; ++index) {
-            auto rollout = get_rollout(index);
+            Rollout &rollout = m_rollouts[index];
             for (int i = 0; i < m_steps; i++)
-                rollout.col(i) = m_gaussian();
+                rollout.noise.col(i) = m_gaussian();
         }
         return;
     }
@@ -171,7 +173,7 @@ void Trajectory::sample(double time)
         m_ordered_rollouts.begin(),
         m_ordered_rollouts.end(),
         [this](std::int64_t left, std::int64_t right) {
-            return m_costs[left] < m_costs[right];
+            return m_rollouts[left].cost < m_rollouts[right].cost;
         }
     );
 
@@ -184,29 +186,29 @@ void Trajectory::sample(double time)
     std::span resample = indexes.last(m_ordered_rollouts.size() - keep.size());
 
     for (std::int64_t index : keep) {
-        auto rollout = get_rollout(index);
+        Rollout &rollout = m_rollouts[index];
 
         // Shift the rollout noise to align with current time.
-        rollout.leftCols(m_shifted) = rollout.rightCols(m_shifted).eval();
+        rollout.noise.leftCols(m_shifted) = rollout.noise.rightCols(m_shifted).eval();
 
         // Add noise to the rest of the rollout.
         for (int i = m_shifted; i < m_steps; i++)
-            rollout.col(i) = m_gaussian();
+            rollout.noise.col(i) = m_gaussian();
     }
 
     for (std::int64_t index : resample) {
-        auto rollout = get_rollout(index);
+        Rollout &rollout = m_rollouts[index];
 
         // Add noise to the last control for the rest of the rollout.
         for (int i = 0; i < m_steps; i++)
-            rollout.col(i) = m_gaussian();
+            rollout.noise.col(i) = m_gaussian();
     }
 
     // The zero noise sample is always the first element, that is untouched.
     // get_rollout(0).setZero();
 
     // Sample negative the previous optimal noise.
-    get_rollout(1) = -m_gradient;
+    m_rollouts[1].noise = -m_gradient;
 }
 
 void Trajectory::rollout()
@@ -220,7 +222,7 @@ void Trajectory::rollout()
     );
 
     int start = 0;
-    for (unsigned int i = 0; i < m_configuration.threads; i++) {
+    for (unsigned int thread = 0; thread < m_configuration.threads; thread++) {
         int stop = start + each_thread;
 
         // If there are threads to distribute.
@@ -233,12 +235,14 @@ void Trajectory::rollout()
         if (start == stop)
             break;
 
-        m_futures[i] = m_thread_pool.enqueue(
-            [this, i, start, stop]() {
-                return rollout(i, start, stop);
+        // Rollout trajectories from [start, stop)
+        auto lambda = [this, thread, start, stop]() {
+            for (int i = start; i < stop; i++) {
+                rollout(m_rollouts[i], *m_dynamics[thread], *m_cost[thread]);
             }
-        );
+        };
 
+        m_futures[thread] = m_thread_pool.enqueue(lambda);
         start = stop;
     }
 
@@ -246,40 +250,35 @@ void Trajectory::rollout()
         future.get();
 }
 
-void Trajectory::rollout(int thread, int start, int stop)
+void Trajectory::rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost)
 {
-    auto &dynamics = m_dynamics[thread];
-    auto &cost = m_cost[thread];
+    Eigen::VectorXd state = m_rollout_state;
+    dynamics.set(state);
+    rollout.cost = 0.0;
 
-    for (int rollout = start; rollout < stop; rollout++) {
+    for (int step = 0; step < m_steps; ++step) {
 
-        Eigen::VectorXd state = m_rollout_state;
-        auto sample = get_rollout(rollout);
+        // Add the rollout noise to the optimal control.
+        Eigen::VectorXd control = (
+            m_optimal_control_shifted.col(step) +
+            rollout.noise.col(step)
+        );
 
-        dynamics->set(state);
-        m_costs[rollout] = 0.0;
+        double step_cost = (
+            std::pow(m_configuration.cost_discount_factor, step) *
+            cost.get(state, control, m_configuration.time_step)
+        );
 
-        for (int step = 0; step < m_steps; ++step) {
-
-            // Add the rollout noise to the optimal control.
-            Eigen::VectorXd control = m_optimal_control_shifted.col(step) + sample.col(step);
-
-            double step_cost = (
-                std::pow(m_configuration.cost_discount_factor, step) *
-                cost->get(state, control, m_configuration.time_step)
-            );
-
-            if (std::isnan(step_cost)) {
-                m_costs[m_steps] = NAN;
-                return;
-            }
-
-            // Cumulative running cost.
-            m_costs[rollout] += step_cost;
-
-            // Step the dynamics simulation.
-            state = dynamics->step(control, m_configuration.time_step);
+        if (std::isnan(step_cost)) {
+            rollout.cost = NAN;
+            return;
         }
+
+        // Cumulative running cost.
+        rollout.cost += step_cost;
+
+        // Step the dynamics simulation.
+        state = dynamics.step(control, m_configuration.time_step);
     }
 }
 
@@ -290,13 +289,15 @@ void Trajectory::optimise()
 
     // Get the minimum and maximum rollout cost.
     auto [it1, it2] = std::minmax_element(
-        m_costs.begin(),
-        m_costs.end(),
-        [](double a, double b) { return a < b ? true : std::isnan(b); }
+        m_rollouts.begin(),
+        m_rollouts.end(),
+        [](auto &left, auto &right) {
+            return left.cost < right.cost ? true : std::isnan(right.cost);
+        }
     );
 
-    minimum = *it1;
-    maximum = *it2;
+    minimum = it1->cost;
+    maximum = it2->cost;
 
     // For parameterisation of each cost.
     double difference = maximum - minimum;
@@ -307,12 +308,12 @@ void Trajectory::optimise()
     double total = 0.0;
 
     // Transform the weights to likelihoods.
-    for (std::int64_t rollout = 0; rollout < m_configuration.rollouts; ++rollout) {
-        double cost = m_costs[rollout];
+    for (std::int64_t i = 0; i < m_configuration.rollouts; ++i) {
+        double cost = m_rollouts[i].cost;
 
         // NaNs indicate a failed rollout and do not contribute anything. 
         if (std::isnan(cost)) {
-            m_weights[rollout] = 0.0;
+            m_weights[i] = 0.0;
             continue;
         }
 
@@ -321,7 +322,7 @@ void Trajectory::optimise()
         );
 
         total += likelihood;
-        m_weights[rollout] = likelihood;
+        m_weights[i] = likelihood;
     }
 
     // Normalise the likelihoods.
@@ -333,9 +334,9 @@ void Trajectory::optimise()
     );
 
     // The optimal trajectory is a linear combination of the noise samples.
-    m_gradient = get_rollout(0) * m_weights[0];
-    for (std::int64_t rollout = 1; rollout < m_configuration.rollouts; ++rollout)
-        m_gradient += get_rollout(rollout) * m_weights[rollout];
+    m_gradient = m_rollouts[0].noise * m_weights[0];
+    for (std::int64_t i = 1; i < m_configuration.rollouts; ++i)
+        m_gradient += m_rollouts[i].noise * m_weights[i];
 
     if (m_configuration.filter) {
         m_filter.reset(m_rollout_time);
