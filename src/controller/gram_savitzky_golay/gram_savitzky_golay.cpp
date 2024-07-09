@@ -4,7 +4,7 @@
 
 // https://gite.lirmm.fr/rpc/signal-processing/gram-savitzky-golay
 
-#include "filter/gram_savitzky_golay.h"
+#include "controller/gram_savitzky_golay/gram_savitzky_golay.h"
 #include <iostream>
 
 namespace gram_sg {

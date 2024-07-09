@@ -1,7 +1,7 @@
 #pragma once
 
-#include "mppi.hpp"
-#include "dynamics.hpp"
+#include "controller/mppi.hpp"
+#include "frankaridgeback/model.hpp"
 
 /**
  * @brief Cost function of the panda research 3 ridgeback assisted manipulation

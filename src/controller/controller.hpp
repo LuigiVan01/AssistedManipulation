@@ -2,7 +2,7 @@
 
 #include <Eigen/Eigen>
 
-#include "mppi.hpp"
+#include "controller/mppi.hpp"
 
 namespace controller {
 

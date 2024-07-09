@@ -8,7 +8,8 @@
 #include "raisim/RaisimServer.hpp"
 #include "raisim/World.hpp"
 
-#include "dynamics.hpp"
+#include "frankaridgeback/state.hpp"
+#include "frankaridgeback/control.hpp"
 
 /**
  * @brief Raisim simulator.
@@ -113,5 +114,3 @@ private:
 
     raisim::RaisimServer m_server;
 };
-
-void simulator_run(Controller *controller)

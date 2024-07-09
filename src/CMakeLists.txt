@@ -20,15 +20,17 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio
 
 add_executable(
     assistedmanipulation
-    tests/point.cpp
-    # main.cpp
-    mppi.cpp
-    # dynamics.cpp
-    # cost.cpp
-    controller.cpp
-    simulator.cpp
-    filter/filter.cpp
-    filter/gram_savitzky_golay.cpp
+    main.cpp
+    cost.cpp
+
+    controller/gram_savitzky_golay/gram_savitzky_golay.cpp
+    controller/controller.cpp
+    controller/filter.cpp
+    controller/mppi.cpp
+
+    frankaridgeback/dynamics.cpp
+    frankaridgeback/model.cpp
+    frankaridgeback/simulator.cpp
 )
 
 target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -46,7 +48,7 @@ endif ()
 # Install instructions
 
 install(TARGETS assistedmanipulation DESTINATION bin)
-install(DIRECTORY model DESTINATION bin)
+install(DIRECTORY frankaridgeback/model DESTINATION bin)
 
 # Copy runtime dlls on windows.
 if (WIN32)

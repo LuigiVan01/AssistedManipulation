@@ -3,10 +3,10 @@
 #include <cstdlib>
 #include <filesystem>
 
-#include "simulator.hpp"
-#include "controller.hpp"
+#include "frankaridgeback/simulator.hpp"
+#include "frankaridgeback/dynamics.hpp"
+#include "controller/controller.hpp"
 #include "cost.hpp"
-#include "dynamics.hpp"
 
 int main(int /* argc */, char*[])
 {

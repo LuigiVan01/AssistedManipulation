@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "gram_savitzky_golay.h"
+#include "controller/gram_savitzky_golay/gram_savitzky_golay.h"
 
 #include <deque>
 #include <iomanip>

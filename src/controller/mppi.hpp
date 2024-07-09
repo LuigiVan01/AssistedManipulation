@@ -9,9 +9,9 @@
 
 #include <Eigen/Eigen>
 
-#include "gaussian.hpp"
-#include "task.hpp"
-#include "filter/filter.hpp"
+#include "controller/gaussian.hpp"
+#include "controller/concurrency.hpp"
+#include "controller/filter.hpp"
 
 namespace mppi {
 
