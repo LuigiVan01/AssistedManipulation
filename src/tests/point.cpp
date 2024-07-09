@@ -68,6 +68,10 @@ public:
         return m_state;
     }
 
+    inline std::unique_ptr<mppi::Dynamics> copy() {
+        return std::make_unique<Dynamics>(m_mass, m_gravity, m_state);
+    }
+
     double m_mass;
     double m_gravity;
     Eigen::VectorXd m_state;
@@ -115,6 +119,10 @@ public:
         return cost;
     }
 
+    inline std::unique_ptr<mppi::Cost> copy() {
+        return std::make_unique<Cost>(m_target);
+    }
+
     Eigen::Vector3d m_target;
 };
 
@@ -137,15 +145,17 @@ int main()
         .trajectory = {
             .rollouts = 100,
             .keep_best_rollouts = 70,
-            .step_size = 0.05,
+            .time_step = 0.05,
             .horison = 0.25,
             .gradient_step = 1.0,
-            .gradient_minmax = 1.0,
             .cost_scale = 10.0,
-            .cost_discount_factor = 0.99,
+            .control_min = Eigen::Vector3d(-0.5, -0.5, -0.5),
+            .control_max = Eigen::Vector3d(0.5, 0.5, 0.5),
             .covariance = Eigen::Vector3d(0.1, 0.1, 0.1).asDiagonal(),
-            .control_default_last = true,
-            .control_default_value = Eigen::Vector3d::Zero()
+            .cost_discount_factor = 0.99,
+            .control_default = Eigen::Vector3d::Zero(),
+            .filter = std::nullopt,
+            .threads = 8
         },
         .initial_state = state,
     };
@@ -156,7 +166,7 @@ int main()
         return 1;
     }
 
-    int steps = (int)(configuration.trajectory.horison / configuration.trajectory.step_size);
+    int steps = (int)(configuration.trajectory.horison / configuration.trajectory.time_step);
     double timestep = 0.005;
 
     Dynamics sim {mass, gravity};

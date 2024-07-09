@@ -18,16 +18,16 @@ int main(int /* argc */, char*[])
         .cost = Cost::create(urdf),
         .trajectory = {
             .rollouts = 20,
-            .keep_best_rollouts = 12,
-            .step_size = 0.015,
-            .horison = 1.0,
+            .keep_best_rollouts = 10,
+            .time_step = 0.015,
+            .horison = 0.5,
             .gradient_step = 1.0,
             .cost_scale = 10.0,
             .cost_discount_factor = 1.0,
-            .covariance = FrankaRidgeback::Control{0.0, 0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 0.1, 0.1}.asDiagonal(),
-            .control_bound = true,
-            .control_min = FrankaRidgeback::Control{-0.2, -0.2, -0.2, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.05, -0.05},
-            .control_max = FrankaRidgeback::Control{0.2, 0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 0.05},
+            .covariance = FrankaRidgeback::Control{0.0, 0.0, 6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}.asDiagonal(),
+            .control_bound = false,
+            .control_min = FrankaRidgeback::Control{-0.2, -0.2, -0.2, -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.05, -0.05},
+            .control_max = FrankaRidgeback::Control{0.2, 0.2, 0.2, 5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 0.05},
             .control_default = FrankaRidgeback::Control::Zero(),
             .filter = mppi::Configuration::Filter{
                 .window = 10,
@@ -70,13 +70,17 @@ int main(int /* argc */, char*[])
         return 1;
     }
 
-    int steps = (int)(configuration.trajectory.horison / configuration.trajectory.step_size);
+    int steps = (int)(configuration.trajectory.horison / configuration.trajectory.time_step);
 
     FrankaRidgeback::Control control;
 
     for (;;) {
         Eigen::VectorXd state = sim->state();
-        controller->update(state, sim->time());
+
+        for (int i = 0; i < 10; i++) {
+            controller->update(state, sim->time());
+        }
+
         for (std::size_t i = 0; i < steps; i++) {
             raisim::TimedLoop(simulator.timestep * 1e6);
             controller->get(control, sim->time());

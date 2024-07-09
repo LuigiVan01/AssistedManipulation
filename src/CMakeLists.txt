@@ -20,11 +20,11 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio
 
 add_executable(
     assistedmanipulation
-    # tests/model.cpp
-    main.cpp
+    tests/point.cpp
+    # main.cpp
     mppi.cpp
-    dynamics.cpp
-    cost.cpp
+    # dynamics.cpp
+    # cost.cpp
     controller.cpp
     simulator.cpp
     filter/filter.cpp

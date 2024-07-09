@@ -20,21 +20,19 @@ namespace mppi {
  */
 struct Configuration
 {
-    /// The number of rollouts to perform on each time.
+    /// The number of rollouts to perform on each trajectory update.
     std::int64_t rollouts;
 
-    /// The number of best control trajectory rollouts to keep to warmstart the
-    // next control trajectory sampling phase (before rolling out).
+    /// The number of best rollouts to keep to warmstart the next rollout.
     std::int64_t keep_best_rollouts;
 
-    /// The time increment passed to the dynamics simulation when performing
-    /// rollouts in seconds.
-    double step_size;
+    /// The time step of the rollout dynamics simulations, in seconds.
+    double time_step;
 
-    /// The duration of time of each rollout in seconds.
+    /// The duration of time in each rollout, in seconds.
     double horison;
 
-    /// The factor by which the optimal policy is updated.
+    /// The factor by which the optimal policy is updated with the gradient.
     double gradient_step;
 
     /// Cost to likelihood mapping scaling.
@@ -58,11 +56,17 @@ struct Configuration
     /// The control to return when getting the trajectory past the horison.
     std::optional<Eigen::VectorXd> control_default;
 
+    /// Filter configuration.
     struct Filter {
+
+        /// The number of samples in the filter window.
         unsigned int window;
+
+        /// The order of the polynomial used to fit data.
         unsigned int order;
     };
 
+    /// If the trajectory should be filtered.
     std::optional<Filter> filter;
 
     /// The number of threads to use for concurrent work such as sampling and
@@ -71,9 +75,13 @@ struct Configuration
 };
 
 /**
- * @brief The dynamics class stores and updates the system state.
+ * @brief Parameterised system dynamics.
  * 
- * This class should be subclassed to implement dynamics.
+ * Parameterised meaning the whole dynamics state can be encoded by a finite
+ * vector of parameters. For example, a simple car can be parameterised by
+ * (x, y, yaw, vx, vy, omega).
+ * 
+ * Subclass to implement dynamics.
  */
 class Dynamics
 {
@@ -82,44 +90,53 @@ public:
     virtual ~Dynamics() = default;
 
     /**
-     * @brief Get the degrees of freedom of the system control input.
-     * @returns The degrees of freedom of the system control input.
+     * @brief Get the degrees of freedom for the dynamics control input.
+     * @returns The degrees of freedom of the dynamics control input.
      */
     virtual constexpr int control_dof() = 0;
 
     /**
-     * @brief Get the degrees of freedom of the system state.
-     * @returns The degrees of freedom of the system state.
+     * @brief Get the degrees of freedom of the dynamics state.
+     * @returns The degrees of freedom of the dynamics state.
      */
     virtual constexpr int state_dof() = 0;
 
     /**
-     * @brief Set the dynamics simulation to a given state.
+     * @brief Set the dynamics to a given parameterised state.
      * @param state The system state.
      */
     virtual void set(const Eigen::VectorXd &state) = 0;
 
     /**
-     * @brief Step the dynamics simulation.
-     * 
-     * This function updates the internal state returned by Dynamics::state().
+     * @brief Update the parameters of the dynamics state with a step in time,
+     * with a control input applied.
      * 
      * @param control The controls applied at the current state (before dt).
      * @param dt The change in time.
+     * 
+     * @returns The parameterised state of the system.
      */
-    virtual Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) = 0;
+    virtual Eigen::Ref<Eigen::VectorXd> step(
+        const Eigen::VectorXd &control,
+        double dt
+    ) = 0;
 
     /**
      * @brief Make a copy of this parameterised dynamics.
+     * 
+     * This function is used to make copies of the parameterised dynamics for
+     * each thread performing rollouts.
+     * 
      * @returns A std::unique_ptr to the parameterised dynamics copy.
      */
     virtual std::unique_ptr<Dynamics> copy() = 0;
 };
 
 /**
- * @brief The cost class stores and updates the cost of a rollout.
+ * @brief An objective function that rates how good a sequence of control inputs
+ * is.
  * 
- * This class should be subclassed to implement the objective function.
+ * Subclass to implement behaviour.
  */
 class Cost
 {
@@ -128,22 +145,22 @@ public:
     virtual ~Cost() = default;
 
     /**
-     * @brief Get the expected degrees of freedom of the system control input.
-     * @returns The expected degrees of freedom of the system control input.
+     * @brief Get the expected degrees of freedom of the dynamics control input.
+     * @returns The expected degrees of freedom of the dynamics control input.
      */
     virtual constexpr int control_dof() = 0;
 
     /**
-     * @brief Get the expected degrees of freedom of the system state.
-     * @returns The expected degrees of freedom of the system state.
+     * @brief Get the expected degrees of freedom of the dynamics state.
+     * @returns The expected degrees of freedom of the dynamics state.
      */
     virtual constexpr int state_dof() = 0;
 
     /**
-     * @brief Get the cost of a state and control input over dt.
+     * @brief Get the cost of a dynamics state with control input over dt.
      * 
-     * @param state The state of the system.
-     * @param control The control parameters applied to the state.
+     * @param state The state of the dynamics system.
+     * @param control The control parameters applied to the dynamics state.
      * @param dt The change in time.
      * 
      * @returns The cost of the step.
@@ -156,6 +173,10 @@ public:
 
     /**
      * @brief Make a copy of this objective function.
+     * 
+     * This function is used to make copies of the objective function for each
+     * thread performing rollouts.
+     * 
      * @returns A std::unique_ptr to the objective function copy.
      */
     virtual std::unique_ptr<Cost> copy() = 0;
@@ -205,15 +226,25 @@ public:
     );
 
     /**
-     * @brief Update the trajectory from a state and time.
+     * @brief Increments the generated trajectory towards the optimal one, given
+     * the current state and time.
      * 
-     * @param state The current state of the dynamics.
-     * @param time The current time in seconds.
+     * It is critical that this function is called with overlapping time
+     * horisons. The more updates a single time step receives, the better the
+     * control action at that time step is.
+     * 
+     * @param state The current state of the dynamics system.
+     * @param time The current time in seconds. Must be monotonic.
      */
     void update(const Eigen::Ref<Eigen::VectorXd> state, double time);
 
     /**
-     * @brief Get the noise of a rollout.
+     * @brief Get the noise trajectory of a rollout.
+     * 
+     * A block of data where each column is a vector with control dof elements.
+     * Each vector contains noise applied to the matching optimal control
+     * input for the given time step. The number of columns is equal to the
+     * number of time steps.
      * 
      * @param rollout The rollout to get the noise of.
      * @return The noise of the rollout.
@@ -296,15 +327,22 @@ private:
      */
     void sample(double time);
 
+    /**
+     * @brief Distributes rollout calculations amongst worker threads, and waits
+     * for them to complete.
+     */
     void rollout();
 
     /**
-     * @brief Rollout a sampled trajectory.
+     * @brief Rollout trajectories from [start, stop).
      * 
-     * Adds the noise of the given rollout to the optimal trajectory, and
-     * simulates it. The cumulative cost of the rollout is stored.
+     * For each rollout in the range [start, stop), adds the noise of the given
+     * rollout to the optimal trajectory, and simulates it. The cumulative cost
+     * of the rollout is stored.
      * 
-     * @param index The rollout to perform.
+     * @param thread The identifier of the thread, for accessing thread data.
+     * @param start The rollout from which to start, inclusive.
+     * @param stop The rollout to stop at, exclusive.
      */
     void rollout(int thread, int start, int stop);
 
@@ -316,6 +354,8 @@ private:
      * 
      * Creates a linear combination of all rollout noise, using the normalised
      * likelihoods as the weights, to produce the optimal rollout noise.
+     * 
+     * Optionally smooth filters the optimal noise.
      * 
      * Uses the optimal rollout noise to gradient step the optimal control
      * trajectory.
@@ -388,6 +428,7 @@ private:
     /// Buffer to store rollout indexes before sorting them by cost.
     std::vector<std::int64_t> m_ordered_rollouts;
 
+    /// The smoothing filter used on the optimal control noise, if enabled.
     SavitzkyGolayFilter m_filter;
 };
 

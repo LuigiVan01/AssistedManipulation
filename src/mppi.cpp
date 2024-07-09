@@ -67,7 +67,7 @@ std::unique_ptr<Trajectory> Trajectory::create(
     configured.rollouts += s_static_rollouts;
 
     // Number of time steps per rollout.
-    int steps = std::ceil(configured.horison / configured.step_size);
+    int steps = std::ceil(configured.horison / configured.time_step);
 
     return std::unique_ptr<Trajectory>(
         new Trajectory(
@@ -112,6 +112,7 @@ Trajectory::Trajectory(
     m_weights.setZero();
     m_gradient.setZero();
 
+    // Initialise thread data.
     for (unsigned int i = 0; i < configuration.threads; i++) {
         m_dynamics[i] = dynamics->copy();
         m_cost[i] = cost->copy();
@@ -124,7 +125,7 @@ Trajectory::Trajectory(
             configuration.filter->window,
             configuration.filter->order,
             0,
-            configuration.step_size
+            configuration.time_step
         );
     }
 }
@@ -143,7 +144,7 @@ void Trajectory::sample(double time)
 {
     // The number of time steps to shift the optimal control and best sampled
     // trajectories forward by, to align them with the current time.
-    m_shift_by = (std::int64_t)((time - m_last_rollout_time) / m_configuration.step_size);
+    m_shift_by = (std::int64_t)((time - m_last_rollout_time) / m_configuration.time_step);
 
     // The number of columns to shift back.
     m_shifted = m_steps - m_shift_by;
@@ -179,6 +180,9 @@ void Trajectory::sample(double time)
     // Rollouts to keep.
     std::span keep = indexes.first(m_configuration.keep_best_rollouts);
 
+    // Rollouts to resample.
+    std::span resample = indexes.last(m_ordered_rollouts.size() - keep.size());
+
     for (std::int64_t index : keep) {
         auto rollout = get_rollout(index);
 
@@ -189,9 +193,6 @@ void Trajectory::sample(double time)
         for (int i = m_shifted; i < m_steps; i++)
             rollout.col(i) = m_gaussian();
     }
-
-    // Rollouts to resample.
-    std::span resample = indexes.last(m_ordered_rollouts.size() - keep.size());
 
     for (std::int64_t index : resample) {
         auto rollout = get_rollout(index);
@@ -265,7 +266,7 @@ void Trajectory::rollout(int thread, int start, int stop)
 
             double step_cost = (
                 std::pow(m_configuration.cost_discount_factor, step) *
-                cost->get(state, control, m_configuration.step_size)
+                cost->get(state, control, m_configuration.time_step)
             );
 
             if (std::isnan(step_cost)) {
@@ -277,7 +278,7 @@ void Trajectory::rollout(int thread, int start, int stop)
             m_costs[rollout] += step_cost;
 
             // Step the dynamics simulation.
-            state = dynamics->step(control, m_configuration.step_size);
+            state = dynamics->step(control, m_configuration.time_step);
         }
     }
 }
@@ -331,7 +332,7 @@ void Trajectory::optimise()
         [total](double likelihood){ return likelihood / total; }
     );
 
-    // The optimal trajectory is the weighted samples.
+    // The optimal trajectory is a linear combination of the noise samples.
     m_gradient = get_rollout(0) * m_weights[0];
     for (std::int64_t rollout = 1; rollout < m_configuration.rollouts; ++rollout)
         m_gradient += get_rollout(rollout) * m_weights[rollout];
@@ -342,14 +343,14 @@ void Trajectory::optimise()
         for (int i = 0; i < m_steps; i++) {
             m_filter.add_measurement(
                 m_gradient.col(i),
-                m_rollout_time + i * m_configuration.step_size
+                m_rollout_time + i * m_configuration.time_step
             );
         }
 
         for (int i = 0; i < m_steps; i++) {
             m_filter.apply(
                 m_gradient.col(i),
-                m_rollout_time + i * m_configuration.step_size
+                m_rollout_time + i * m_configuration.time_step
             );
         }
     }
@@ -373,7 +374,7 @@ void Trajectory::get(Eigen::Ref<Eigen::VectorXd> control, double time)
     assert(time >= m_last_rollout_time);
 
     // Steps into the current horison.
-    double t = (time - m_last_rollout_time) / m_configuration.step_size;
+    double t = (time - m_last_rollout_time) / m_configuration.time_step;
 
     // Round down to integer.
     int lower = (int)t;

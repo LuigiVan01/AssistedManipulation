@@ -113,3 +113,5 @@ private:
 
     raisim::RaisimServer m_server;
 };
+
+void simulator_run(Controller *controller)

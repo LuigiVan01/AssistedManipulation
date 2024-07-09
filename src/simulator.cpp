@@ -72,7 +72,7 @@ Simulator::Simulator(
 
 Simulator::~Simulator()
 {
-    m_server.killServer();
+    // m_server.killServer();
 }
 
 void Simulator::set(FrankaRidgeback::State &state)
