@@ -19,21 +19,22 @@ int main(int /* argc */, char*[])
         .trajectory = {
             .rollouts = 20,
             .keep_best_rollouts = 10,
-            .time_step = 0.015,
-            .horison = 0.5,
+            .time_step = 0.1,
+            .horison = 1.0,
             .gradient_step = 1.0,
             .cost_scale = 10.0,
             .cost_discount_factor = 1.0,
-            .covariance = FrankaRidgeback::Control{0.0, 0.0, 6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}.asDiagonal(),
+            .covariance = FrankaRidgeback::Control{0.0, 0.0, 0.2, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 0.0, 0.0}.asDiagonal(),
             .control_bound = false,
             .control_min = FrankaRidgeback::Control{-0.2, -0.2, -0.2, -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.05, -0.05},
             .control_max = FrankaRidgeback::Control{0.2, 0.2, 0.2, 5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 0.05},
             .control_default = FrankaRidgeback::Control::Zero(),
-            .filter = mppi::Configuration::Filter{
-                .window = 10,
-                .order = 1
-            },
-            .threads = 20
+            .filter = std::nullopt,
+            // mppi::Configuration::Filter{
+            //     .window = 10,
+            //     .order = 1
+            // },
+            .threads = 12
         },
         .initial_state = FrankaRidgeback::State::Zero()
     };
@@ -78,6 +79,7 @@ int main(int /* argc */, char*[])
         Eigen::VectorXd state = sim->state();
 
         for (int i = 0; i < 10; i++) {
+            controller->update(state, sim->time());
             controller->update(state, sim->time());
         }
 

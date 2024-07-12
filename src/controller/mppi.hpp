@@ -432,7 +432,7 @@ private:
     std::vector<std::int64_t> m_ordered_rollouts;
 
     /// The smoothing filter used on the optimal control noise, if enabled.
-    SavitzkyGolayFilter m_filter;
+    SavitzkyGolayFilter m_smoothing_filter;
 };
 
 } // namespace mppi

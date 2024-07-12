@@ -3,6 +3,7 @@
 #include <cmath>
 #include <numeric>
 #include <span>
+#include <chrono>
 
 namespace mppi {
 
@@ -121,7 +122,7 @@ Trajectory::Trajectory(
     }
 
     if (configuration.filter) {
-        m_filter = SavitzkyGolayFilter(
+        m_smoothing_filter = SavitzkyGolayFilter(
             steps,
             dynamics->control_dof(),
             configuration.filter->window,
@@ -134,12 +135,22 @@ Trajectory::Trajectory(
 
 void Trajectory::update(const Eigen::Ref<Eigen::VectorXd> state, double time)
 {
+    // using namespace std::chrono;
+
     m_rollout_state = state;
     m_rollout_time = time;
 
+    // auto start = steady_clock::now();
     sample(time);
+    // std::cout << "sample: " << duration_cast<microseconds>(steady_clock::now() - start) << std::endl;
+
+    // start = steady_clock::now();
     rollout();
+    // std::cout << "rollout: " << duration_cast<microseconds>(steady_clock::now() - start) << std::endl;
+
+    // start = steady_clock::now();
     optimise();
+    // std::cout << "optimise: " << duration_cast<microseconds>(steady_clock::now() - start) << std::endl;
 }
 
 void Trajectory::sample(double time)
@@ -200,15 +211,16 @@ void Trajectory::sample(double time)
         Rollout &rollout = m_rollouts[index];
 
         // Add noise to the last control for the rest of the rollout.
-        for (int i = 0; i < m_steps; i++)
+        for (int i = 0; i < m_steps; i++) {
             rollout.noise.col(i) = m_gaussian();
+        }
     }
 
     // The zero noise sample is always the first element, that is untouched.
     // get_rollout(0).setZero();
 
     // Sample negative the previous optimal noise.
-    m_rollouts[1].noise = -m_gradient;
+    m_rollouts[1].noise = -m_optimal_control;
 }
 
 void Trajectory::rollout()
@@ -335,34 +347,38 @@ void Trajectory::optimise()
 
     // The optimal trajectory is a linear combination of the noise samples.
     m_gradient = m_rollouts[0].noise * m_weights[0];
-    for (std::int64_t i = 1; i < m_configuration.rollouts; ++i)
+    for (std::int64_t i = 1; i < m_configuration.rollouts; ++i) {
         m_gradient += m_rollouts[i].noise * m_weights[i];
-
-    if (m_configuration.filter) {
-        m_filter.reset(m_rollout_time);
-
-        for (int i = 0; i < m_steps; i++) {
-            m_filter.add_measurement(
-                m_gradient.col(i),
-                m_rollout_time + i * m_configuration.time_step
-            );
-        }
-
-        for (int i = 0; i < m_steps; i++) {
-            m_filter.apply(
-                m_gradient.col(i),
-                m_rollout_time + i * m_configuration.time_step
-            );
-        }
     }
 
     // Step in the direction of the gradient.
     m_optimal_control_shifted += m_gradient * m_configuration.gradient_step;
 
+    // Smoothing filter for rollouts.
+    if (m_configuration.filter) {
+        m_smoothing_filter.reset(m_rollout_time);
+
+        for (int i = 0; i < m_steps; i++) {
+            m_smoothing_filter.add_measurement(
+                m_optimal_control_shifted.col(i),
+                m_rollout_time + i * m_configuration.time_step
+            );
+        }
+
+        for (int i = 0; i < m_steps; i++) {
+            m_smoothing_filter.apply(
+                m_optimal_control_shifted.col(i),
+                m_rollout_time + i * m_configuration.time_step
+            );
+        }
+    }
+
     // Clip the optimal control.
-    m_optimal_control = m_optimal_control
-        .cwiseMin(m_configuration.control_min.replicate(1, m_steps))
-        .cwiseMax(m_configuration.control_max.replicate(1, m_steps));
+    if (m_configuration.control_bound) {
+        m_optimal_control_shifted = m_optimal_control_shifted
+            .cwiseMin(m_configuration.control_max.replicate(1, m_steps))
+            .cwiseMax(m_configuration.control_min.replicate(1, m_steps));
+    }
 
     // Update the optimal control under lock.
     std::scoped_lock lock(m_optimal_control_mutex);
