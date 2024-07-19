@@ -30,10 +30,6 @@ int main(int /* argc */, char*[])
             .control_max = FrankaRidgeback::Control{0.2, 0.2, 0.2, 5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 0.05},
             .control_default = FrankaRidgeback::Control::Zero(),
             .filter = std::nullopt,
-            // mppi::Configuration::Filter{
-            //     .window = 10,
-            //     .order = 1
-            // },
             .threads = 12
         },
         .initial_state = FrankaRidgeback::State::Zero()

@@ -1,0 +1,11 @@
+{
+  "name": "osqp",
+  "version": "1.0.0",
+  "homepage": "https://github.com/osqp/osqp",
+  "description": "The Operator Splitting QP Solver",
+  "license": "Apache-2.0",
+  "dependencies": [
+    {"name": "vcpkg-cmake", "host": true},
+    {"name": "vcpkg-cmake-config", "host": true}
+  ]
+}

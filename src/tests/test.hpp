@@ -1,6 +1,9 @@
 
-template<class Base>
+template<typename Base>
 class Test : public Base
 {
+public:
+
+private:
 
 };
