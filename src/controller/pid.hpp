@@ -18,6 +18,7 @@ public:
      * @param kp Proportional gain matrix.
      * @param kd Derivative gain matrix.
      * @param ki Integral gain matrix.
+     * @param reference The desired target of the controller.
      * @param minimum The minimum control output.
      * @param maximum The maximum control output.
      * 
@@ -28,6 +29,7 @@ public:
         Eigen::Ref<Eigen::VectorXd> kp,
         Eigen::Ref<Eigen::VectorXd> kd,
         Eigen::Ref<Eigen::VectorXd> ki,
+        Eigen::Ref<Eigen::VectorXd> reference,
         Eigen::Ref<Eigen::VectorXd> minimum,
         Eigen::Ref<Eigen::VectorXd> maximum,
         double time
@@ -36,8 +38,11 @@ public:
         , m_ki(ki)
         , m_minimum(minimum)
         , m_maximum(maximum)
+        , m_reference(reference) 
+        , m_error(kp.Zero()) // A vector of zeros with the correct dimension.
+        , m_last_error(kp.Zero())
+        , m_cumulative_error(kp.Zero())
         , m_last_time(time)
-        , m_cumulative_error(ki.Zero())
     {
         bool equal_dimensions = (
             kp.size() == kd.size() &&
@@ -106,20 +111,17 @@ public:
     )  {
         std::scoped_lock lock(m_mutex);
 
-        m_delta_time = time - m_last_time;
         m_error = m_reference - state;
+        m_cumulative_error += m_error;
 
-        // Proportional
-        control = m_kp * m_error;
+        // Runge kutta? Inaccuracy of small number division?
+        control = (
+            m_kp * m_error +
+            m_kd * (m_error - m_last_error) / (time - m_last_time) +
+            m_ki * m_cumulative_error
+        );
 
-        // Derivative
-        control += m_kd * (m_error - m_last_error) / m_delta_time;
         m_last_error = m_error;
-
-        // Integral
-        control += ;
-        m_cumulative_error += error;
-
         m_last_time = time;
     }
 
@@ -157,7 +159,4 @@ private:
 
     /// The time of the last update.
     double m_last_time;
-
-    /// The last change in time between updates.
-    double m_delta_time;
 };
