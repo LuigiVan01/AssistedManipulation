@@ -13,104 +13,105 @@
 
 /**
  * @brief Raisim simulator.
- * 
- * Note that the simulator uses the PD controller with the feed-forward torque
- * control method. This is because the base and the gripper use proportional
- * derivative control for their joints, whereas the arm uses feed-forward torque
- * commands.
- * 
- * @BUG: It is not possible to disable the PD control of the arm joints,
- * including setting the PD gains of the arm to zero. Therefore the torque
- * commands are also opposing the PD controller.
  */
 class Simulator
 {
 public:
 
+    /**
+     * @brief An actor interacts with the simulation.
+     */
+    class Actor
+    {
+    public:
+
+        /**
+         * @brief Perform an action in the world.
+         * @param handle The handle to the simulator to get data from.
+         */
+        virtual void act(Simulator *simulator) = 0;
+    };
+
+    /**
+     * @brief Simulator configuration.
+     */
     struct Configuration {
 
-        // The file name of the robot definition.
-        std::string urdf_filename;
-
         // The timestep of the simulation.
-        double timestep;
+        double time_step;
 
         // The gravitational acceleration.
         Eigen::Vector3d gravity;
-
-        // The initial state.
-        FrankaRidgeback::State initial_state;
-
-        // The proportional gain of the joint PD controller.
-        FrankaRidgeback::Control proportional_gain;
-
-        // The differential gain of the joint PD controller.
-        FrankaRidgeback::Control differential_gain;
     };
-
-    ~Simulator();
 
     /**
      * @brief Create a new instance of the simulator.
-     * 
-     * @param urdf_filename The filename of the robot definition file to load.
-     * 
      * @returns A pointer to the simulator on success, or nullptr on failure.
      */
     static std::unique_ptr<Simulator> create(const Configuration &configuration);
 
     /**
-     * @brief Step the simulation with a control action.
-     * @param control The control parameters to apply to the robot.
+     * @brief Add add an actor to the simulation.
+     * @param actor The actor.
      */
-    const FrankaRidgeback::State &step(FrankaRidgeback::Control &control);
-
-    /**
-     * @brief Reset the simulator to the initial state.
-     */
-    inline void set() {
-        set(m_configuration.initial_state);
+    inline void add_actor(const std::shared_ptr<Actor> &actor) {
+        m_actors.emplace_back(actor);
     }
 
     /**
-     * @brief Reset the simulator to a state.
-     * @param state The state to reset to.
+     * @brief Step the simulation.
      */
-    void set(FrankaRidgeback::State &state);
+    void step();
 
     /**
-     * @brief Get the current state in the simulation.
-     * @returns The current state.
+     * @brief Get a pointer to the simulator world.
      */
-    inline const FrankaRidgeback::State &state() {
-        return m_state;
+    raisim::World &get_world() {
+        return *m_world;
+    }
+
+    /**
+     * @brief Get a reference to the raisim server.
+     */
+    raisim::RaisimServer &get_server() {
+        return m_server;
     }
 
     /**
      * @brief Get the time in the simulation.
      * @returns The time elapsed in seconds.
      */
-    inline double time() {
+    double get_time() const {
         return m_time;
+    }
+
+    /**
+     * @brief Get the time step of each simulation update.
+     * @returns The change in time.
+     */
+    double get_time_step() const {
+        return m_configuration.time_step;
     }
 
 private:
 
     Simulator(
         const Configuration &configuration,
-        std::unique_ptr<raisim::World> &&world,
-        raisim::ArticulatedSystem *robot
+        std::unique_ptr<raisim::World> &&world
     );
 
+    /// The simulators configuration.
     Configuration m_configuration;
 
-    FrankaRidgeback::State m_state;
-
-    double m_time;
-
+    /// The simulated world.
     std::unique_ptr<raisim::World> m_world;
 
-    raisim::ArticulatedSystem *m_robot;
-
+    /// The server that can be connected to by the raisim viewer.
     raisim::RaisimServer m_server;
+
+    /// The actors in the simulation.
+    std::vector<std::shared_ptr<Actor>> m_actors;
+
+    /// The time in the simulation.
+    double m_time;
 };

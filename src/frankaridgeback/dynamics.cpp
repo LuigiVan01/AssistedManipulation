@@ -36,6 +36,9 @@ Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double d
     // Gripper, usually redundant.
     // m_state.gripper_position() = control.gripper_position();
 
+    // m_state.end_effector_force().setZero();
+    // m_state.end_effector_torque().setZero();
+
     return m_state;
 }
 

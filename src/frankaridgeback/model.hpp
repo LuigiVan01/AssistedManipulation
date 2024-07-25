@@ -21,19 +21,23 @@ class Model
 {
 public:
 
+    struct Configuration {
+
+        /// The filename of the URDF robot definition file to instantiate the
+        // model from.
+        std::string filename;
+
+        /// The name of the end effector frame.
+        std::string end_effector_frame;
+    };
+
     /**
      * @brief Create a new instance of the robot model.
      * 
-     * @param filename The filename of the URDF robot definition file to
-     * instantiate the model from.
-     * @param end_effector_frame The name of the end effector frame.
-     * 
+     * @param configuration The model configuration.
      * @return A pointer to the model on success, or nullptr on failure.
      */
-    static std::unique_ptr<Model> create(
-        const std::string &filename,
-        const std::string &end_effector_frame = "panda_grasp"
-    );
+    static std::unique_ptr<Model> create(Configuration &&configuration);
 
     /**
      * @brief Update the state of the model.

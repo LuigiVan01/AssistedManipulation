@@ -1,24 +1,29 @@
-#include "cost.hpp"
+#include "objectives/point.hpp"
 
 #include <iostream>
 #include <random>
 
-std::unique_ptr<Cost> Cost::create(const std::string &urdf)
+std::unique_ptr<TrackPoint> TrackPoint::create(Configuration &&configuration)
 {
-    auto model = FrankaRidgeback::Model::create(urdf);
+    auto model = FrankaRidgeback::Model::create(std::move(configuration.model));
     if (!model) {
         std::cout << "Failed to create dynamics model." << std::endl;
         return nullptr;
     }
 
-    return std::unique_ptr<Cost>(new Cost(std::move(model)));
+    return std::unique_ptr<TrackPoint>(
+        new TrackPoint(configuration.point, std::move(model))
+    );
 }
 
-Cost::Cost(std::unique_ptr<FrankaRidgeback::Model> &&model)
-    : m_model(std::move(model))
+TrackPoint::TrackPoint(
+    Eigen::Vector3d point,
+    std::unique_ptr<FrankaRidgeback::Model> &&model
+  ) : m_point(point)
+    , m_model(std::move(model))
 {}
 
-double Cost::get(
+double TrackPoint::get(
     const Eigen::VectorXd & s,
     const Eigen::VectorXd & /*control */,
     double /*dt */

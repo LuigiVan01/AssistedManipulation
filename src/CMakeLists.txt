@@ -21,13 +21,15 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio
 add_executable(
     assistedmanipulation
     main.cpp
-    cost.cpp
+
+    objectives/point.cpp
 
     controller/gram_savitzky_golay/gram_savitzky_golay.cpp
     controller/controller.cpp
     controller/filter.cpp
     controller/mppi.cpp
 
+    frankaridgeback/actor.cpp
     frankaridgeback/dynamics.cpp
     frankaridgeback/model.cpp
     frankaridgeback/simulator.cpp

@@ -6,16 +6,14 @@
 
 namespace FrankaRidgeback {
 
-std::unique_ptr<Model> Model::create(
-    const std::string &filename,
-    const std::string &end_effector_frame
-) {
+std::unique_ptr<Model> Model::create(Configuration &&configuration)
+{
     // Open the file.
-    std::ifstream file {filename, std::ios::in};
+    std::ifstream file {configuration.filename, std::ios::in};
 
     // Check file exists and is readable.
     if (!file.is_open()) {
-        std::cerr << "failed to open file \"" << filename << "\" for model" << std::endl;
+        std::cerr << "failed to open file \"" << configuration.filename << "\" for model" << std::endl;
         return nullptr;
     }
 
@@ -25,7 +23,7 @@ std::unique_ptr<Model> Model::create(
     file.close();
 
     if (file.bad() || file.fail()) {
-        std::cerr << "failed to read file \"" << filename << "\" for model" << std::endl;
+        std::cerr << "failed to read file \"" << configuration.filename << "\" for model" << std::endl;
         return nullptr;
     }
 
@@ -41,7 +39,7 @@ std::unique_ptr<Model> Model::create(
         return nullptr;
     }
 
-    auto end_effector_index = model->getFrameId(end_effector_frame);
+    auto end_effector_index = model->getFrameId(configuration.end_effector_frame);
 
     return std::unique_ptr<Model>(
         new Model(

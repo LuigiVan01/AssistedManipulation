@@ -9,18 +9,20 @@ namespace FrankaRidgeback {
 /**
  * @brief The state of the robot.
  * 
- * @TODO: franka::RobotState?
- * 
- * The state is given by [x, y, yaw, theta1, theta2, theta3, theta4, theta5,
- * theta6, theta7, gripper_x, gripper_y, vx, vy, rotation/s, w1, w2, w3, w4, w5,
- * w6, w7, gripper_left_vx, gripper_right_vy, external_torque]
+ * The state is given by (position, velocity, end effector forces) as
+ * [
+ *     x, y, yaw, theta1, theta2, theta3, theta4, theta5, theta6, theta7, gripper_x, gripper_y,
+ *     vx, vy, rotation/s, w1, w2, w3, w4, w5, w6, w7, gripper_left_vx, gripper_right_vy,
+ *     fx, fy, fz, tau_x, tau_y, tau_z
+ * ]
  * 
  * Units:
  * - Position in metres
- * - Velocities in metres per second.
- * - Torque in Newton metres.
  * - Angles in radians.
+ * - Velocities in metres per second.
  * - Angular velocity in radians per second.
+ * - Force in Newtons.
+ * - Torque in Newton metres.
  * 
  * The base is omnidirectional, meaning vx and vy are independent from
  * each other, and both are relative to the yaw of the robot.
@@ -193,17 +195,32 @@ struct State : public Eigen::Vector<double, DoF::STATE>
     }
 
     /**
-     * @brief Get the external torque.
+     * @brief Get the measured end effector forces.
      * 
-     * Slice of the last n = <DoF::EXTERNAL_TORQUE> elements.
+     * Slice of length <DoF::EXTERNAL_FORCE> starting at index (2 * DoF::JOINTS)
      * 
-     * @returns The external torque applied to the end effector.
+     * @returns The end effector force [fx, fy, fz]
      */
-    inline auto external_torque() {
+    inline auto end_effector_force() {
+        return segment<DoF::EXTERNAL_FORCE>(2 * DoF::JOINTS);
+    }
+
+    inline const auto end_effector_force() const {
+        return segment<DoF::EXTERNAL_FORCE>(2 * DoF::JOINTS);
+    }
+
+    /**
+     * @brief Get the measured end effector torque.
+     * 
+     * Slice of the last <DoF::EXTERNAL_TORQUE> elements.
+     * 
+     * @returns The end effector torque [tau_x, tau_y, tau_z]
+     */
+    inline auto end_effector_torque() {
         return tail<DoF::EXTERNAL_TORQUE>();
     }
 
-    inline const auto external_torque() const {
+    inline const auto end_effector_torque() const {
         return tail<DoF::EXTERNAL_TORQUE>();
     }
 };
