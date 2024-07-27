@@ -71,7 +71,7 @@ public:
      * @param robot Pointer to the robot.
      * @param time The time in the simulation.
      */
-    inline void act(Simulator::Handle *simulator) override
+    inline void act(Simulator *simulator) override
     {
         Eigen::Vector3d position = m_configuration.robot->getFrames()[m_frame_index].position;
         m_pid.update(position, m_force, simulator->get_time());

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <Eigen/Eigen>
 
 #include "controller/mppi.hpp"
@@ -24,6 +25,9 @@ struct Configuration {
 
     /// The initial state of the system.
     Eigen::VectorXd initial_state;
+
+    /// Location to log to.
+    std::optional<std::filesystem::path> log_folder;
 };
 
 /**

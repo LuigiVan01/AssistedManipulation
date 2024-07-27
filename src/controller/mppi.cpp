@@ -266,6 +266,7 @@ void Trajectory::rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost)
 {
     Eigen::VectorXd state = m_rollout_state;
     dynamics.set(state);
+    cost.reset();
     rollout.cost = 0.0;
 
     for (int step = 0; step < m_steps; ++step) {

@@ -157,18 +157,23 @@ public:
     virtual constexpr int state_dof() = 0;
 
     /**
+     * @brief Reset the cost.
+     */
+    virtual void reset() = 0;
+
+    /**
      * @brief Get the cost of a dynamics state with control input over dt.
      * 
      * @param state The state of the dynamics system.
      * @param control The control parameters applied to the dynamics state.
-     * @param dt The change in time.
+     * @param time The current time.
      * 
      * @returns The cost of the step.
      */
     virtual double get(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
-        double dt
+        double time
     ) = 0;
 
     /**

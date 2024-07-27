@@ -41,14 +41,14 @@ public:
      * 
      * @param state The state of the system.
      * @param control The control parameters applied to the state.
-     * @param dt The change in time.
+     * @param time The current time.
      * 
      * @returns The cost of the step.
      */
     double get(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
-        double dt
+        double time
     ) override;
 
     std::unique_ptr<FrankaRidgeback::Model> &model() {
