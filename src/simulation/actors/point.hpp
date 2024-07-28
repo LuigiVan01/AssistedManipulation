@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "controller/pid.hpp"
-#include "frankaridgeback/simulator.hpp"
+#include "simulator.hpp"
 
 /**
  * @brief An actor that attempts to force a frame to a point in space using PID.

@@ -1,4 +1,4 @@
-#include "objectives/point.hpp"
+#include "objective/point.hpp"
 
 #include <iostream>
 #include <random>

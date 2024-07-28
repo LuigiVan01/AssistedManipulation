@@ -1,8 +1,10 @@
 #pragma once
 
 #include "controller/pid.hpp"
-#include "frankaridgeback/simulator.hpp"
 #include "controller/controller.hpp"
+#include "frankaridgeback/control.hpp"
+#include "frankaridgeback/state.hpp"
+#include "simulation/simulator.hpp"
 
 /**
  * @brief 
@@ -47,16 +49,27 @@ public:
         FrankaRidgeback::Control differential_gain;
     };
 
+    /**
+     * @brief Create a franka-ridgeback actor.
+     * 
+     * @param configuration The configuration of the actor.
+     * @param simulator Pointer to the owning simulator.
+     * 
+     * @returns A pointer to the actor on success, or nullptr on failure.
+     */
     static std::shared_ptr<FrankaRidgebackActor> create(
         Configuration &&configuration,
-        Simulator &simulator
+        Simulator *simulator
     );
 
     /**
-     * @brief Perform an action in the world.
-     * @param handle The handle to the simulator to get data from.
+     * @brief Set the external end effector force for the next action only.
+     * 
+     * Keep calling this function to apply continuous forces.
+     * 
+     * @param force The force to apply to the end effector, in the world frame.
      */
-    void act(Simulator *simulator) override;
+    void set_end_effector_force(Eigen::Ref<Eigen::Vector3d> force);
 
     /**
      * @brief Get a pointer to the simulated articulated system.
@@ -68,32 +81,66 @@ public:
     /**
      * @brief Get the current robot simulated state.
      */
-    FrankaRidgeback::State state();
+    inline const FrankaRidgeback::State &state() {
+        return m_state;
+    }
 
 private:
 
+    friend class Simulator;
+
     FrankaRidgebackActor(
         Configuration &&configuration,
+        Simulator *simulator,
         std::unique_ptr<controller::Controller> &&controller,
         raisim::ArticulatedSystem *robot,
+        std::size_t end_effector_index,
         std::int64_t controller_countdown_max
     );
 
+    /**
+     * @brief Perform an action in the world.
+     * @param handle The handle to the simulator to get data from.
+     */
+    void act(Simulator *simulator) override;
+
+    /**
+     * @brief Update the state of the frankaridgeback actor after acting.
+     * @param simulator Pointer to the simulator to update state from.
+     */
+    void update(Simulator *simulator) override;
+
+    void get_end_effector_jacobian(Eigen::MatrixXd &J);
+
+    /**
+     * @brief Get the wrench on the end effectors body frame.
+     * @returns The external wrench. 
+     */
+    void get_end_effector_wrench(Eigen::VectorXd &wrench);
+
     Configuration m_configuration;
+
+    Simulator *m_simulator;
+
+    std::unique_ptr<controller::Controller> m_controller;
 
     /// The simulated articulated object, generated from the urdf file.
     raisim::ArticulatedSystem *m_robot;
 
-    std::unique_ptr<controller::Controller> m_controller;
+    std::int64_t m_end_effector_frame_index;
 
     std::int64_t m_controller_countdown;
 
     std::int64_t m_controller_countdown_max;
 
-    std::int64_t m_controller_substeps;
-
     /// The simulated state.
     FrankaRidgeback::State m_state;
+
+    bool m_external_force_applied;
+
+    Eigen::VectorXd m_external_joint_torques;
+
+    Eigen::MatrixXd m_contact_jacobian;
 
     /// The current control action.
     FrankaRidgeback::Control m_control;

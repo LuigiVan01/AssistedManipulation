@@ -22,17 +22,18 @@ add_executable(
     assistedmanipulation
     main.cpp
 
-    objectives/point.cpp
+    simulation/simulator.cpp
+    simulation/actors/frankaridgeback.cpp
+
+    objective/point.cpp
 
     controller/gram_savitzky_golay/gram_savitzky_golay.cpp
     controller/controller.cpp
     controller/filter.cpp
     controller/mppi.cpp
 
-    frankaridgeback/actor.cpp
     frankaridgeback/dynamics.cpp
     frankaridgeback/model.cpp
-    frankaridgeback/simulator.cpp
 )
 
 target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -26,6 +26,9 @@ Simulator::Simulator(
   , m_server(m_world.get())
 {
     m_server.launchServer();
+
+    auto sphere = m_server.addVisualSphere("sphere", 0.1);
+    sphere->setPosition(Eigen::Vector3d(1.0, 1.0, 1.0));
 }
 
 void Simulator::step()
@@ -38,4 +41,9 @@ void Simulator::step()
     // Simulate!
     m_server.integrateWorldThreadSafe();
     m_time += m_configuration.time_step;
+
+    // Update actor states.
+    for (auto &actor : m_actors) {
+        actor->update(this);
+    }
 }

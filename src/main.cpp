@@ -3,10 +3,10 @@
 #include <cstdlib>
 #include <filesystem>
 
-#include "frankaridgeback/simulator.hpp"
+#include "simulation/simulator.hpp"
+#include "simulation/actors/frankaridgeback.hpp"
+#include "simulation/actors/circle.hpp"
 #include "frankaridgeback/dynamics.hpp"
-#include "frankaridgeback/actor.hpp"
-#include "objectives/point.hpp"
 
 int main(int /* argc */, char*[])
 {
@@ -64,9 +64,9 @@ int main(int /* argc */, char*[])
             .initial_state = FrankaRidgeback::State::Zero(),
         },
         .controller_rate = 0.3,
-        .controller_substeps = 1,
+        .controller_substeps = 10,
         .urdf_filename = urdf,
-        .end_effector_frame = "panda_grasp",
+        .end_effector_frame = "panda_grasp_joint",
         .initial_state = FrankaRidgeback::State::Zero(),
         .proportional_gain = FrankaRidgeback::Control{
             0.0, 0.0, 0.0, // base
@@ -90,7 +90,11 @@ int main(int /* argc */, char*[])
         return 1;
     }
 
-    auto robot = FrankaRidgebackActor::create(std::move(configuration), *simulator);
+    auto robot = FrankaRidgebackActor::create(
+        std::move(configuration),
+        simulator.get()
+    );
+
     if (!robot) {
         std::cerr << "failed to create FrankaRidgebackActor actor" << std::endl;
         return 1;

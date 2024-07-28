@@ -8,9 +8,6 @@
 #include "raisim/RaisimServer.hpp"
 #include "raisim/World.hpp"
 
-#include "frankaridgeback/state.hpp"
-#include "frankaridgeback/control.hpp"
-
 /**
  * @brief Raisim simulator.
  */
@@ -30,6 +27,12 @@ public:
          * @param handle The handle to the simulator to get data from.
          */
         virtual void act(Simulator *simulator) = 0;
+
+        /**
+         * @brief Update the state of the actor after acting.
+         * @param simulator Pointer to the simulator to update state from.
+         */
+        virtual void update(Simulator *simulator) = 0;
     };
 
     /**

@@ -195,21 +195,6 @@ struct State : public Eigen::Vector<double, DoF::STATE>
     }
 
     /**
-     * @brief Get the measured end effector forces.
-     * 
-     * Slice of length <DoF::EXTERNAL_FORCE> starting at index (2 * DoF::JOINTS)
-     * 
-     * @returns The end effector force [fx, fy, fz]
-     */
-    inline auto end_effector_force() {
-        return segment<DoF::EXTERNAL_FORCE>(2 * DoF::JOINTS);
-    }
-
-    inline const auto end_effector_force() const {
-        return segment<DoF::EXTERNAL_FORCE>(2 * DoF::JOINTS);
-    }
-
-    /**
      * @brief Get the measured end effector torque.
      * 
      * Slice of the last <DoF::EXTERNAL_TORQUE> elements.

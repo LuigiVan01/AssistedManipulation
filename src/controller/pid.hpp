@@ -42,7 +42,7 @@ public:
      */
     inline PID(
         const Configuration &configuration,
-        Eigen::Ref<Eigen::VectorXd> reference,
+        Eigen::VectorXd reference,
         double time
       ) : m_kp(configuration.kp)
         , m_kd(configuration.kd)
