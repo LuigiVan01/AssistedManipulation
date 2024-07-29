@@ -268,7 +268,28 @@ public:
      */
     void update(const Eigen::Ref<Eigen::VectorXd> state, double time);
 
+    inline const auto &get_gradient() {
+        return m_gradient;
+    }
+
+    inline const auto &get_rollouts() {
+        return m_rollouts;
+    }
+
+    inline const auto &get_optimal_rollout() {
+        return m_optimal_control;
+    }
+
+    inline const auto &get_costs() {
+        return m_costs;
+    }
+
+    // inline const auto &get_update_delta() {
+    //     return m_update_delta;
+    // }
+
     /**
+     * 
      * @brief Get the noise trajectory of a rollout.
      * 
      * A block of data where each column is a vector with control dof elements.

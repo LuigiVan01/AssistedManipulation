@@ -72,27 +72,3 @@ private:
 
     std::fstream m_stream;
 };
-
-class ControllerLogger
-{
-public:
-
-    struct Configuration {
-
-        std::string folder;
-    };
-
-    inline std::unique_ptr<ControllerLogger> create(Configuration &&configuration)
-    {
-        return std::unique_ptr<ControllerLogger>(
-            new ControllerLogger
-        );
-    }
-
-    void log();
-
-private:
-
-    std::unique_ptr<CSVLogger> m_
-
-};
