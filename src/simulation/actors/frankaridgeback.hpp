@@ -1,7 +1,7 @@
 #pragma once
 
 #include "controller/pid.hpp"
-#include "controller/controller.hpp"
+#include "controller/mppi.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
 #include "simulation/simulator.hpp"
@@ -25,12 +25,12 @@ public:
     struct Configuration {
 
         /// The controller configuration.
-        controller::Configuration controller;
+        mppi::Trajectory::Configuration mppi;
 
         /// The period of time between the controller updates.
         double controller_rate;
 
-        /// The number of updates of the controller each update.
+        /// The number of controller updates each update.
         std::int64_t controller_substeps;
 
         /// The file name of the robot definition.
@@ -74,15 +74,19 @@ public:
     /**
      * @brief Get a pointer to the simulated articulated system.
      */
-    inline const raisim::ArticulatedSystem *robot() const {
+    inline const raisim::ArticulatedSystem *get_robot() const {
         return m_robot;
     }
 
     /**
      * @brief Get the current robot simulated state.
      */
-    inline const FrankaRidgeback::State &state() {
+    inline const FrankaRidgeback::State &get_state() const {
         return m_state;
+    }
+
+    inline const mppi::Trajectory &get_controller() const {
+        return *m_controller;
     }
 
 private:
@@ -92,7 +96,7 @@ private:
     FrankaRidgebackActor(
         Configuration &&configuration,
         Simulator *simulator,
-        std::unique_ptr<controller::Controller> &&controller,
+        std::unique_ptr<mppi::Trajectory> &&controller,
         raisim::ArticulatedSystem *robot,
         std::size_t end_effector_index,
         std::int64_t controller_countdown_max
@@ -122,7 +126,7 @@ private:
 
     Simulator *m_simulator;
 
-    std::unique_ptr<controller::Controller> m_controller;
+    std::unique_ptr<mppi::Trajectory> m_controller;
 
     /// The simulated articulated object, generated from the urdf file.
     raisim::ArticulatedSystem *m_robot;

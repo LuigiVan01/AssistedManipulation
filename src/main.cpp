@@ -7,6 +7,7 @@
 #include "simulation/actors/frankaridgeback.hpp"
 #include "simulation/actors/circle.hpp"
 #include "frankaridgeback/dynamics.hpp"
+#include "logging/mppi.hpp"
 
 int main(int /* argc */, char*[])
 {
@@ -102,8 +103,20 @@ int main(int /* argc */, char*[])
 
     simulator->add_actor(robot);
 
+    MPPILogger::Configuration logger_config {
+        .costs = CSVLogger::create("costs"),
+        .weights = nullptr,
+        .gradient = nullptr,
+        .optimal_rollout = nullptr,
+        .optimal_cost = nullptr,
+        .update_time = nullptr
+    };
+
+    auto logger = MPPILogger::create(std::move(logger_config));
+
     for (;;) {
         raisim::TimedLoop(simulator->get_time_step() * 1e6);
         simulator->step();
+        logger->log(robot->get_controller().get_trajectory());
     }
 }

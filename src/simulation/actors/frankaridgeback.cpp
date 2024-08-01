@@ -6,9 +6,9 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
 ) {
     using namespace controller;
 
-    auto controller = Controller::create(std::move(configuration.controller));
+    auto controller = mppi::Trajectory::create(configuration.mppi);
     if (!controller) {
-        std::cerr << "failed to create FrankaRidgebackActor controller" << std::endl;
+        std::cerr << "failed to create FrankaRidgebackActor mppi" << std::endl;
         return nullptr;
     }
 
@@ -87,7 +87,7 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
 FrankaRidgebackActor::FrankaRidgebackActor(
     Configuration &&configuration,
     Simulator *simulator,
-    std::unique_ptr<controller::Controller> &&controller,
+    std::unique_ptr<mppi::Trajectory> &&controller,
     raisim::ArticulatedSystem *robot,
     std::size_t end_effector_index,
     std::int64_t controller_countdown_max
@@ -105,6 +105,8 @@ FrankaRidgebackActor::FrankaRidgebackActor(
 {
     m_external_joint_torques.setZero();
     m_contact_jacobian.setZero();
+
+    FrankaRidgeback::State state = m_configuration.mppi.initial_state;
 
     m_robot->setState(
         m_configuration.initial_state.position(),

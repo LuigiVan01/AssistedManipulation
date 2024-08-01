@@ -8,107 +8,103 @@
 namespace mppi {
 
 std::unique_ptr<Trajectory> Trajectory::create(
-    Dynamics *dynamics,
-    Cost *cost,
-    const Configuration &configuration,
-    const Eigen::Ref<Eigen::VectorXd> state
+    const Configuration &configuration
 ) {
-    // Copy configuration to make changes without affecting one passed in.
-    Configuration configured = configuration;
-
     // Ensure dynamics and cost expect the same control.
-    if (dynamics->control_dof() != cost->control_dof()) {
-        std::cerr << "controller dynamics control dof " << dynamics->control_dof()
-                  << " != cost control dof " << cost->control_dof() << std::endl;
-        return nullptr;
-    }
-
-    // Ensure dynamics and cost expect the same state.
-    if (dynamics->state_dof() != cost->state_dof()) {
-        std::cerr << "controller dynamics state dof " << dynamics->state_dof()
-                  << " != cost state dof " << cost->state_dof() << std::endl;
-        return nullptr;
-    }
-
-    if (configured.control_min.size() != dynamics->control_dof() ||
-        configured.control_max.size() != dynamics->control_dof()) {
-        std::cerr << "controller maximum and minimum must have length "
-                  << dynamics->control_dof() << std::endl;
-        return nullptr;
-    }
-
-    if (configured.covariance.rows() != configured.covariance.cols()) {
-        std::cerr << "controller covariance matrix not square" << std::endl;
-        return nullptr;
-    }
-
-    if (configured.covariance.rows() != dynamics->control_dof()) {
-        std::cerr << "controller sample variance dof " << configured.covariance.rows()
-                  << " != dynamics and cost control dof " <<  dynamics->control_dof()
+    if (configuration.dynamics->control_dof() != configuration.cost->control_dof()) {
+        std::cerr << "controller dynamics control dof "
+                  << configuration.dynamics->control_dof()
+                  << " != cost control dof "
+                  << configuration.cost->control_dof()
                   << std::endl;
         return nullptr;
     }
 
-    if (configured.rollouts < 1) {
+    // Ensure dynamics and cost expect the same state.
+    if (configuration.dynamics->state_dof() != configuration.cost->state_dof()) {
+        std::cerr << "controller dynamics state dof "
+                  << configuration.dynamics->state_dof()
+                  << " != cost state dof "
+                  << configuration.cost->state_dof()
+                  << std::endl;
+        return nullptr;
+    }
+
+    if (configuration.control_min.size() != configuration.dynamics->control_dof() ||
+        configuration.control_max.size() != configuration.dynamics->control_dof()) {
+        std::cerr << "controller maximum and minimum must have length "
+                  << configuration.dynamics->control_dof() << std::endl;
+        return nullptr;
+    }
+
+    if (configuration.covariance.rows() != configuration.covariance.cols()) {
+        std::cerr << "controller covariance matrix not square" << std::endl;
+        return nullptr;
+    }
+
+    if (configuration.covariance.rows() != configuration.dynamics->control_dof()) {
+        std::cerr << "controller sample variance dof " << configuration.covariance.rows()
+                  << " != dynamics and cost control dof " <<  configuration.dynamics->control_dof()
+                  << std::endl;
+        return nullptr;
+    }
+
+    if (configuration.rollouts < 1) {
         std::cerr << "trajectory rollouts must be greater than zero" << std::endl;
         return nullptr;
     }
 
-    if (configured.keep_best_rollouts < 0) {
+    if (configuration.keep_best_rollouts < 0) {
         std::cerr << "trajectory cached rollouts cannot be less than zero" << std::endl;
         return nullptr;
     }
 
-    if (configured.threads <= 0) {
+    if (configuration.threads <= 0) {
         std::cerr << "trajectory threads must be positive nonzero" << std::endl;
         return nullptr;
     }
 
-    // Count the zero and negative sample in the number of rollouts.
-    configured.rollouts += s_static_rollouts;
-
-    // Number of time steps per rollout.
-    int steps = std::ceil(configured.horison / configured.time_step);
-
-    return std::unique_ptr<Trajectory>(
-        new Trajectory(
-            dynamics,
-            cost,
-            configured,
-            state,
-            steps
-        )
-    );
+    return std::unique_ptr<Trajectory>(new Trajectory(configuration));
 }
 
-Trajectory::Trajectory(
-    Dynamics *dynamics,
-    Cost *cost,
-    const Configuration &configuration,
-    const Eigen::Ref<Eigen::VectorXd> state,
-    int steps
-) noexcept
-  : m_configuration(configuration)
+Trajectory::Trajectory(const Configuration &configuration) noexcept
+  : m_step_count(std::ceil(configuration.horison / configuration.time_step))
+  , m_time_step(configuration.time_step)
+  , m_rollout_count(configuration.rollouts + s_static_rollouts)
+  , m_thread_count(configuration.threads)
+  , m_state_dof(configuration.dynamics->state_dof())
+  , m_control_dof(configuration.dynamics->control_dof())
+  , m_update_last(0)
+  , m_update_duration(0)
+  , m_update_count(0)
+  , m_thread_pool(configuration.threads)
   , m_dynamics(configuration.threads)
   , m_cost(configuration.threads)
   , m_futures(configuration.threads)
   , m_gaussian(configuration.covariance)
-  , m_steps(steps)
-  , m_state_dof(dynamics->state_dof())
-  , m_control_dof(dynamics->control_dof())
-  , m_rollout_state(state)
+  , m_rollout_state(configuration.initial_state)
+  , m_rollout_time(0.0)
   , m_last_rollout_time(0.0)
-  , m_rollouts(configuration.rollouts, Rollout(dynamics->control_dof(), steps))
-  , m_weights(configuration.rollouts, 1) // (rows, cols) ...
-  , m_gradient(dynamics->control_dof(), steps)
-  , m_optimal_control_shifted(dynamics->control_dof(), steps)
-  , m_optimal_control(dynamics->control_dof(), steps)
-  , m_ordered_rollouts(configuration.rollouts - s_static_rollouts)
-  , m_thread_pool(configuration.threads)
+  , m_cost_discount_factor(configuration.cost_discount_factor)
+  , m_cost_scale(configuration.cost_scale)
+  , m_shift_by(0)
+  , m_shifted(0)
+  , m_rollouts(m_rollout_count, Rollout(configuration.dynamics->control_dof(), m_step_count))
+  , m_weights(m_rollout_count, 1) // (rows, cols) ...
+  , m_gradient(configuration.dynamics->control_dof(), m_step_count)
+  , m_gradient_step(configuration.gradient_step)
+  , m_optimal_control_shifted(configuration.dynamics->control_dof(), m_step_count)
+  , m_optimal_control(configuration.dynamics->control_dof(), m_step_count)
+  , m_keep_best_rollouts(configuration.keep_best_rollouts)
+  , m_ordered_rollouts(configuration.rollouts)
+  , m_bound_control(configuration.control_bound)
+  , m_control_min(configuration.control_min)
+  , m_control_max(configuration.control_max)
+  , m_control_default(configuration.control_default)
 {
-    m_optimal_control.setZero();
     m_weights.setZero();
     m_gradient.setZero();
+    m_optimal_control.setZero();
 
     // Set the initial gaussian noise to zero.
     for (auto &rollout : m_rollouts) {
@@ -117,14 +113,14 @@ Trajectory::Trajectory(
 
     // Initialise thread data.
     for (unsigned int i = 0; i < configuration.threads; i++) {
-        m_dynamics[i] = dynamics->copy();
-        m_cost[i] = cost->copy();
+        m_dynamics[i] = configuration.dynamics->copy();
+        m_cost[i] = configuration.cost->copy();
     }
 
     if (configuration.filter) {
         m_smoothing_filter = SavitzkyGolayFilter(
-            steps,
-            dynamics->control_dof(),
+            m_step_count,
+            m_control_dof,
             configuration.filter->window,
             configuration.filter->order,
             0,
@@ -135,48 +131,48 @@ Trajectory::Trajectory(
 
 void Trajectory::update(const Eigen::Ref<Eigen::VectorXd> state, double time)
 {
-    // using namespace std::chrono;
+    using namespace std::chrono;
 
     m_rollout_state = state;
     m_rollout_time = time;
 
-    // auto start = steady_clock::now();
+    auto start = steady_clock::now();
+
     sample(time);
-    // std::cout << "sample: " << duration_cast<microseconds>(steady_clock::now() - start) << std::endl;
-
-    // start = steady_clock::now();
     rollout();
-    // std::cout << "rollout: " << duration_cast<microseconds>(steady_clock::now() - start) << std::endl;
-
-    // start = steady_clock::now();
     optimise();
-    // std::cout << "optimise: " << duration_cast<microseconds>(steady_clock::now() - start) << std::endl;
+
+    m_update_duration = std::chrono::duration<double>(steady_clock::now() - start).count();
+    m_update_last = time;
+    ++m_update_count;
 }
 
 void Trajectory::sample(double time)
 {
     // The number of time steps to shift the optimal control and best sampled
     // trajectories forward by, to align them with the current time.
-    m_shift_by = (std::int64_t)((time - m_last_rollout_time) / m_configuration.time_step);
+    m_shift_by = (std::int64_t)((time - m_last_rollout_time) / m_time_step);
 
     // The number of columns to shift back.
-    m_shifted = m_steps - m_shift_by;
+    m_shifted = m_step_count - m_shift_by;
 
     // Shift the the optimal control to align with the current time.
     m_optimal_control_shifted.leftCols(m_shifted) = m_optimal_control.rightCols(m_shifted).eval();
     m_optimal_control_shifted.rightCols(m_shift_by) = m_optimal_control.rightCols(1).replicate(1, m_shift_by);
 
     // Reset to random noise if all trajectories are out of date.
-    if (m_shift_by >= m_steps) {
-        for (std::int64_t index = s_static_rollouts; index < m_configuration.rollouts; ++index) {
+    if (m_shift_by >= m_step_count) {
+        for (std::int64_t index = s_static_rollouts; index < m_rollout_count; ++index) {
             Rollout &rollout = m_rollouts[index];
-            for (int i = 0; i < m_steps; i++)
+            for (int i = 0; i < m_step_count; i++)
                 rollout.noise.col(i) = m_gaussian();
         }
         return;
     }
 
-    // Regenerate indexes of rollouts. 
+    // Regenerate indexes of rollouts to sort by cost as 2, 2 + 1, 2 + 2, ...
+    // Where index 0 is zero sampled noise and index 1 is the negative gradient
+    // that are always kept.
     std::iota(m_ordered_rollouts.begin(), m_ordered_rollouts.end(), s_static_rollouts);
 
     // Sort indexes by rollout cost.
@@ -191,7 +187,7 @@ void Trajectory::sample(double time)
     std::span indexes {m_ordered_rollouts};
 
     // Rollouts to keep.
-    std::span keep = indexes.first(m_configuration.keep_best_rollouts);
+    std::span keep = indexes.first(m_keep_best_rollouts);
 
     // Rollouts to resample.
     std::span resample = indexes.last(m_ordered_rollouts.size() - keep.size());
@@ -203,7 +199,7 @@ void Trajectory::sample(double time)
         rollout.noise.leftCols(m_shifted) = rollout.noise.rightCols(m_shifted).eval();
 
         // Add noise to the rest of the rollout.
-        for (int i = m_shifted; i < m_steps; i++)
+        for (int i = m_shifted; i < m_step_count; i++)
             rollout.noise.col(i) = m_gaussian();
     }
 
@@ -211,7 +207,7 @@ void Trajectory::sample(double time)
         Rollout &rollout = m_rollouts[index];
 
         // Add noise to the last control for the rest of the rollout.
-        for (int i = 0; i < m_steps; i++) {
+        for (int i = 0; i < m_step_count; i++) {
             rollout.noise.col(i) = m_gaussian();
         }
     }
@@ -228,13 +224,10 @@ void Trajectory::rollout()
     // Get the rounded down number rollouts per thread, and the remaining
     // rollouts to distribute between the threads. The rollouts to distribute
     // will always be less than the number of threads.
-    auto [each_thread, distribute] = std::div(
-        m_configuration.rollouts,
-        m_configuration.threads
-    );
+    auto [each_thread, distribute] = std::div(m_rollout_count, m_thread_count);
 
     int start = 0;
-    for (unsigned int thread = 0; thread < m_configuration.threads; thread++) {
+    for (unsigned int thread = 0; thread < m_thread_count; thread++) {
         int stop = start + each_thread;
 
         // If there are threads to distribute.
@@ -269,7 +262,7 @@ void Trajectory::rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost)
     cost.reset();
     rollout.cost = 0.0;
 
-    for (int step = 0; step < m_steps; ++step) {
+    for (int step = 0; step < m_step_count; ++step) {
 
         // Add the rollout noise to the optimal control.
         Eigen::VectorXd control = (
@@ -278,8 +271,8 @@ void Trajectory::rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost)
         );
 
         double step_cost = (
-            std::pow(m_configuration.cost_discount_factor, step) *
-            cost.get(state, control, m_configuration.time_step)
+            std::pow(m_cost_discount_factor, step) *
+            cost.get(state, control, m_time_step)
         );
 
         if (std::isnan(step_cost)) {
@@ -291,7 +284,7 @@ void Trajectory::rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost)
         rollout.cost += step_cost;
 
         // Step the dynamics simulation.
-        state = dynamics.step(control, m_configuration.time_step);
+        state = dynamics.step(control, m_time_step);
     }
 }
 
@@ -321,7 +314,7 @@ void Trajectory::optimise()
     double total = 0.0;
 
     // Transform the weights to likelihoods.
-    for (std::int64_t i = 0; i < m_configuration.rollouts; ++i) {
+    for (std::int64_t i = 0; i < m_rollout_count; ++i) {
         double cost = m_rollouts[i].cost;
 
         // NaNs indicate a failed rollout and do not contribute anything. 
@@ -331,7 +324,7 @@ void Trajectory::optimise()
         }
 
         double likelihood = std::exp(
-            -m_configuration.cost_scale * (cost - minimum) / difference
+            -m_cost_scale * (cost - minimum) / difference
         );
 
         total += likelihood;
@@ -348,37 +341,37 @@ void Trajectory::optimise()
 
     // The optimal trajectory is a linear combination of the noise samples.
     m_gradient = m_rollouts[0].noise * m_weights[0];
-    for (std::int64_t i = 1; i < m_configuration.rollouts; ++i) {
+    for (std::int64_t i = 1; i < m_rollout_count; ++i) {
         m_gradient += m_rollouts[i].noise * m_weights[i];
     }
 
     // Step in the direction of the gradient.
-    m_optimal_control_shifted += m_gradient * m_configuration.gradient_step;
+    m_optimal_control_shifted += m_gradient * m_gradient_step;
 
     // Smoothing filter for rollouts.
-    if (m_configuration.filter) {
-        m_smoothing_filter.reset(m_rollout_time);
+    if (m_smoothing_filter) {
+        m_smoothing_filter->reset(m_rollout_time);
 
-        for (int i = 0; i < m_steps; i++) {
-            m_smoothing_filter.add_measurement(
+        for (int i = 0; i < m_step_count; i++) {
+            m_smoothing_filter->add_measurement(
                 m_optimal_control_shifted.col(i),
-                m_rollout_time + i * m_configuration.time_step
+                m_rollout_time + i * m_time_step
             );
         }
 
-        for (int i = 0; i < m_steps; i++) {
-            m_smoothing_filter.apply(
+        for (int i = 0; i < m_step_count; i++) {
+            m_smoothing_filter->apply(
                 m_optimal_control_shifted.col(i),
-                m_rollout_time + i * m_configuration.time_step
+                m_rollout_time + i * m_time_step
             );
         }
     }
 
     // Clip the optimal control.
-    if (m_configuration.control_bound) {
+    if (m_bound_control) {
         m_optimal_control_shifted = m_optimal_control_shifted
-            .cwiseMin(m_configuration.control_max.replicate(1, m_steps))
-            .cwiseMax(m_configuration.control_min.replicate(1, m_steps));
+            .cwiseMin(m_control_max.replicate(1, m_step_count))
+            .cwiseMax(m_control_min.replicate(1, m_step_count));
     }
 
     // Update the optimal control under lock.
@@ -392,7 +385,7 @@ void Trajectory::get(Eigen::Ref<Eigen::VectorXd> control, double time)
     assert(time >= m_last_rollout_time);
 
     // Steps into the current horison.
-    double t = (time - m_last_rollout_time) / m_configuration.time_step;
+    double t = (time - m_last_rollout_time) / m_time_step;
 
     // Round down to integer.
     int lower = (int)t;
@@ -402,9 +395,9 @@ void Trajectory::get(Eigen::Ref<Eigen::VectorXd> control, double time)
 
     // Past the end of the trajectory. Return the specified default control
     // parameters.
-    if (upper >= m_steps) {
-        if (m_configuration.control_default)
-            control = m_configuration.control_default.value();
+    if (upper >= m_step_count) {
+        if (m_control_default)
+            control = m_control_default.value();
         else
             control = m_optimal_control.rightCols(1);
         return;

@@ -174,4 +174,4 @@ private:
     double m_last_time;
 };
 
-}
+} // namespace controller
