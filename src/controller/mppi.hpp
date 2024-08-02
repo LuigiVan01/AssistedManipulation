@@ -272,6 +272,14 @@ public:
      */
     void update(const Eigen::Ref<Eigen::VectorXd> state, double time);
 
+    inline double get_state_dof() const {
+        return m_state_dof;
+    }
+
+    inline double get_control_dof() const {
+        return m_control_dof;
+    }
+
     inline double get_time_step() const {
         return m_time_step;
     }
@@ -290,6 +298,10 @@ public:
 
     inline std::size_t get_update_count() const {
         return m_update_count;
+    }
+
+    inline std::size_t get_rollout_count() const {
+        return m_rollout_count;
     }
 
     inline const auto &get_weights() const {

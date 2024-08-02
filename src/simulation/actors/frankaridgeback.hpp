@@ -85,8 +85,8 @@ public:
         return m_state;
     }
 
-    inline const mppi::Trajectory &get_controller() const {
-        return *m_controller;
+    inline const mppi::Trajectory &get_trajectory() const {
+        return *m_trajectory;
     }
 
 private:
@@ -126,16 +126,16 @@ private:
 
     Simulator *m_simulator;
 
-    std::unique_ptr<mppi::Trajectory> m_controller;
+    std::unique_ptr<mppi::Trajectory> m_trajectory;
 
     /// The simulated articulated object, generated from the urdf file.
     raisim::ArticulatedSystem *m_robot;
 
     std::int64_t m_end_effector_frame_index;
 
-    std::int64_t m_controller_countdown;
+    std::int64_t m_trajectory_countdown;
 
-    std::int64_t m_controller_countdown_max;
+    std::int64_t m_trajectory_countdown_max;
 
     /// The simulated state.
     FrankaRidgeback::State m_state;

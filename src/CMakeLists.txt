@@ -25,15 +25,20 @@ add_executable(
     simulation/simulator.cpp
     simulation/actors/frankaridgeback.cpp
 
-    objective/point.cpp
-
     controller/gram_savitzky_golay/gram_savitzky_golay.cpp
-    controller/controller.cpp
     controller/filter.cpp
     controller/mppi.cpp
 
     frankaridgeback/dynamics.cpp
     frankaridgeback/model.cpp
+    frankaridgeback/objective/point.cpp
+
+    logging/mppi.cpp
+)
+
+add_executable(
+    test
+    tests/main.cpp
 )
 
 target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -51,6 +56,7 @@ endif ()
 # Install instructions
 
 install(TARGETS assistedmanipulation DESTINATION bin)
+install(TARGETS test DESTINATION bin)
 install(DIRECTORY frankaridgeback/model DESTINATION bin)
 
 # Copy runtime dlls on windows.

@@ -93,11 +93,11 @@ FrankaRidgebackActor::FrankaRidgebackActor(
     std::int64_t controller_countdown_max
 ) : m_configuration(std::move(configuration))
   , m_simulator(simulator)
-  , m_controller(std::move(controller))
+  , m_trajectory(std::move(controller))
   , m_robot(robot)
   , m_end_effector_frame_index(end_effector_index)
-  , m_controller_countdown(0) // Update on first step.
-  , m_controller_countdown_max(controller_countdown_max)
+  , m_trajectory_countdown(0) // Update on first step.
+  , m_trajectory_countdown_max(controller_countdown_max)
   , m_state(FrankaRidgeback::State::Zero())
   , m_external_force_applied(false)
   , m_external_joint_torques(FrankaRidgeback::DoF::JOINTS)
@@ -134,15 +134,15 @@ void FrankaRidgebackActor::act(Simulator *simulator)
 
     // Update the controller every couple of time steps, depending on the
     // controller update rate.
-    if (--m_controller_countdown <= 0) {
-        m_controller_countdown = m_controller_countdown_max;
+    if (--m_trajectory_countdown <= 0) {
+        m_trajectory_countdown = m_trajectory_countdown_max;
 
         for (int i = 0; i < m_configuration.controller_substeps; i++)
-            m_controller->update(m_state, simulator->get_time());
+            m_trajectory->update(m_state, simulator->get_time());
     }
 
     // Get the controls to apply to the robot joints for the current time.
-    m_controller->get(m_control, simulator->get_time());
+    m_trajectory->get(m_control, simulator->get_time());
 
     // m_control.base_velocity() << 1.0, 0.0;
     // m_control.base_angular_velocity() << 1.0;

@@ -57,10 +57,10 @@ public:
 
     inline Eigen::Vector3d operator()(double time) const
     {
-        return m_origin + m_point * Eigen::AngleAxisd(
+        return m_origin + Eigen::AngleAxisd(
             time * m_angular_velocity,
             m_axis
-        );
+        ) * m_point;
     }
 
 private:

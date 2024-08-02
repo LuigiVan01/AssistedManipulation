@@ -1,4 +1,4 @@
-#include "objective/point.hpp"
+#include "frankaridgeback/objective/point.hpp"
 
 #include <iostream>
 #include <random>

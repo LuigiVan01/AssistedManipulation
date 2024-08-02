@@ -7,6 +7,7 @@
 #include "simulation/actors/frankaridgeback.hpp"
 #include "simulation/actors/circle.hpp"
 #include "frankaridgeback/dynamics.hpp"
+#include "frankaridgeback/objective/point.hpp"
 #include "logging/mppi.hpp"
 
 int main(int /* argc */, char*[])
@@ -25,7 +26,7 @@ int main(int /* argc */, char*[])
     std::string urdf = (cwd / "model/robot.urdf").string();
 
     FrankaRidgebackActor::Configuration configuration {
-        .controller = {
+        .mppi = {
             .dynamics = FrankaRidgeback::Dynamics::create(),
             .cost = TrackPoint::create({
                 .point = Eigen::Vector3d(1.0, 1.0, 1.0),
@@ -34,35 +35,33 @@ int main(int /* argc */, char*[])
                     .end_effector_frame = "panda_grasp"
                 }
             }),
-            .trajectory = {
-                .rollouts = 20,
-                .keep_best_rollouts = 10,
-                .time_step = 0.1,
-                .horison = 1.0,
-                .gradient_step = 1.0,
-                .cost_scale = 10.0,
-                .cost_discount_factor = 1.0,
-                .covariance = FrankaRidgeback::Control{
-                    0.0, 0.0, 0.2, // base
-                    10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
-                    0.0, 0.0 // gripper
-                }.asDiagonal(),
-                .control_bound = false,
-                .control_min = FrankaRidgeback::Control{
-                    -0.2, -0.2, -0.2, // base
-                    -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, //arm
-                    -0.05, -0.05 // gripper
-                },
-                .control_max = FrankaRidgeback::Control{
-                    0.2, 0.2, 0.2, // base
-                    5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // arm
-                    0.05, 0.05 // gripper
-                },
-                .control_default = FrankaRidgeback::Control::Zero(),
-                .filter = std::nullopt,
-                .threads = 12
-            },
             .initial_state = FrankaRidgeback::State::Zero(),
+            .rollouts = 20,
+            .keep_best_rollouts = 10,
+            .time_step = 0.1,
+            .horison = 1.0,
+            .gradient_step = 1.0,
+            .cost_scale = 10.0,
+            .cost_discount_factor = 1.0,
+            .covariance = FrankaRidgeback::Control{
+                0.0, 0.0, 0.2, // base
+                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                0.0, 0.0 // gripper
+            }.asDiagonal(),
+            .control_bound = false,
+            .control_min = FrankaRidgeback::Control{
+                -0.2, -0.2, -0.2, // base
+                -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, //arm
+                -0.05, -0.05 // gripper
+            },
+            .control_max = FrankaRidgeback::Control{
+                0.2, 0.2, 0.2, // base
+                5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // arm
+                0.05, 0.05 // gripper
+            },
+            .control_default = FrankaRidgeback::Control::Zero(),
+            .filter = std::nullopt,
+            .threads = 12
         },
         .controller_rate = 0.3,
         .controller_substeps = 10,
@@ -81,13 +80,13 @@ int main(int /* argc */, char*[])
         },
     };
 
-    if (!configuration.controller.cost) {
-        std::cerr << "failed to create controller cost" << std::endl;
+    if (!configuration.mppi.cost) {
+        std::cerr << "failed to create mppi cost" << std::endl;
         return 1;
     }
 
-    if (!configuration.controller.dynamics) {
-        std::cerr << "failed to create controller dynamics" << std::endl;
+    if (!configuration.mppi.dynamics) {
+        std::cerr << "failed to create mppi dynamics" << std::endl;
         return 1;
     }
 
@@ -103,20 +102,18 @@ int main(int /* argc */, char*[])
 
     simulator->add_actor(robot);
 
-    MPPILogger::Configuration logger_config {
-        .costs = CSVLogger::create("costs"),
-        .weights = nullptr,
-        .gradient = nullptr,
-        .optimal_rollout = nullptr,
-        .optimal_cost = nullptr,
-        .update_time = nullptr
-    };
+    auto logger = logger::MPPI::create(logger::MPPI::Configuration{
+        .folder = cwd / "mppi",
+        .trajectory = &robot->get_trajectory()
+    });
 
-    auto logger = MPPILogger::create(std::move(logger_config));
+    if (!logger) {
+        return 1;
+    }
 
     for (;;) {
         raisim::TimedLoop(simulator->get_time_step() * 1e6);
         simulator->step();
-        logger->log(robot->get_controller().get_trajectory());
+        logger->log(robot->get_trajectory());
     }
 }
