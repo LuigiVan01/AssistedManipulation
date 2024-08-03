@@ -26,7 +26,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/install/bin/test.exe",
-            "args": ["-abc"],
+            "args": ["-abc", "-efg", "--x", "y", "--abc", "acfasdf"],
             "environment": [
                 {
                     "name": "RAISIM_ACTIVATION",

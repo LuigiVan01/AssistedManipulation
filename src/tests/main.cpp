@@ -1,142 +1,110 @@
-#include <cstdlib>
-#include <csignal>
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
 #include <optional>
+#include <vector>
 
-class Args
+#include "tests/test.hpp"
+
+/**
+ * @brief Parse command line arguments.
+ * 
+ * @param argc The number of command line arguments.
+ * @param argv The command line arguments to parse.
+ * 
+ * @returns A tuple containing if the parse succeeded, the parsed flags, and the
+ * parsed keyword arguments.
+ */
+std::tuple<
+    bool,
+    std::unordered_set<char>,
+    std::unordered_map<std::string, std::vector<std::string>>
+>
+parse(int argc, char **argv)
 {
-public:
+    std::unordered_set<char> flags;
+    std::unordered_map<std::string, std::vector<std::string>> args;
 
-    static inline std::optional<Args> parse(int argc, char **argv)
-    {
-        // Ignore program executable.
-        argv += 1;
-        argc -= 1;
+    int state = 0;
+    std::string key;
 
-        Args args;
-        if (args.init(argc, argv))
-            return args;
-        return std::nullopt;
-    }
+    for (int i = 0; i < argc; i++) {
+        char *arg = argv[i];
 
-    inline bool get_flag(char flag) {
-        m_flags.contains(flag);
-    }
+        for (char *c = arg; c && *c;) {
+            switch (state)
+            {
+                case 0: {
+                    // Expect all arguments to begin with a dash.
+                    if (*c != '-')
+                        return std::make_tuple(false, flags, args);
 
-    inline const std::unordered_set<char> &get_flags() {
-        return m_flags;
-    }
+                    c++;
+                    state = 1;
+                    continue;
+                }
 
-    inline std::optional<std::string> get_arg(const std::string &arg)
-    {
-        if (!m_args.contains(arg))
-            return m_args[arg];
-        return std::nullopt;
-    }
+                case 1: {
+                    // If there is a second dash, interpret as a key.
+                    if (*c == '-') {
+                        c++;
+                        state = 2;
+                        continue;
+                    }
 
-    inline const std::unordered_map<std::string, std::string> &get_args() {
-        return m_args;
-    }
+                    // Otherwise all subsequent characters are flags.
+                    for (; *c; c++)
+                        flags.emplace(*c);
 
-private:
+                    state = 0;
+                    break;
+                }
 
-    enum State {
-        INIT,
-        FLAG,
-        KEY,
-        VALUE,
-        BAD,
-    };
+                case 2: {
+                    // Get the key, expect a value.
+                    key = std::string(c);
+                    state = 3;
+                    c = nullptr;
+                    break;
+                }
 
-    Args()
-        : m_state(INIT)
-    {}
+                case 3: {
+                    auto value = std::string(c);
 
-    bool init(int argc, char **argv)
-    {
-        for (int i = 0; i < argc; i++) {
-            char *arg = argv[i];
+                    // Add the value to the vector for this key.
+                    auto it = args.find(key);
+                    if (it == args.end())
+                        args[key] = {value};
+                    else
+                        it->second.push_back(value);
 
-            for (char *c = arg; *c; ++c) {
-                switch (m_state)
-                {
-                    case INIT:  handle_init(c); continue;
-                    case FLAG:  handle_flag(c); continue;
-                    case KEY:   handle_key(c); break;
-                    case VALUE: handle_value(c); break;
-                    case BAD:   return false;
+                    state = 0;
+                    c = nullptr;
+                    break;
                 }
             }
         }
     }
 
-    inline void handle_init(char *c)
-    {
-        if (*c != '-') {
-            m_state = BAD;
-        }
-        else {
-            m_state = FLAG;
-        }
-    }
-
-    inline void handle_flag(char *c)
-    {
-        if (*c == '-') {
-            m_state = KEY;
-            return;
-        }
-
-        for (char *flag = c; *flag; ++flag)
-            m_flags.emplace(*flag);
-
-        m_state = INIT;
-    }
-
-    inline void handle_key(char *c)
-    {
-        m_key = std::string(c);
-        m_state = VALUE;
-    }
-
-    inline void handle_value(char *c)
-    {
-        m_args.emplace(std::make_pair(m_key, std::string(c)));
-        m_state = INIT;
-    }
-
-    State m_state;
-
-    std::string m_key;
-
-    std::unordered_set<char> m_flags;
-
-    std::unordered_map<std::string, std::string> m_args;
-};
-
-void interrupt_handler(int signal)
-{
-
+    return std::make_tuple(true, flags, args);
 }
 
 int main(int argc, char **argv)
 {
-    std::signal(SIGINT, interrupt_handler);
+    // Ignore executable name.
+    argc -= 1;
+    argv += 1;
 
-    auto args = Args::parse(argc, argv);
-    if (!args) {
+    auto [success, flags, args] = parse(argc, argv);
+    if (!success) {
         std::cerr << "invalid command line arguments" << std::endl;
         return 1;
     }
 
-    for (auto x : args->get_flags())
-        std::cout << "flag " << x << std::endl;
-
-    for (auto [x, y] : args->get_args())
-        std::cout << "key value " << x << ":" << y << std::endl;
-
-    return 0;
+    auto it = args.find("test");
+    if (it == args.end())
+        return (int)TestSuite::run();
+    else
+        return (int)TestSuite::run(it->second);
 }

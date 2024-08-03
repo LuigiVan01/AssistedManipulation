@@ -1,59 +1,119 @@
-#include <filesystem>
-#include <iostream>
+#include "tests/reach.hpp"
 
-#include "simulator.hpp"
-#include "dynamics.hpp"
-
-// std::cout << "creating simulator" << std::endl;
-// Simulator::Configuration simulator {
-//     .urdf_filename = urdf,
-//     .timestep = 0.005,
-//     .gravity = {0.0, 0.0, 9.81},
-//     .initial_state = configuration.initial_state,
-//     .proportional_gain = FrankaRidgeback::Control::Zero(),
-//     .differential_gain = FrankaRidgeback::Control::Zero()
-// };
-
-// std::unique_ptr<Simulator> simulator = Simulator::create(simulator);
-
-int main()
+std::unique_ptr<TestBase> ReachForPoint::create()
 {
-    using namespace FrankaRidgeback;
+    std::unique_ptr<Simulator> simulator = Simulator::create({
+        .time_step = 0.005,
+        .gravity = {0.0, 0.0, 9.81}
+    });
+
+    if (!simulator) {
+        std::cerr << "failed to create simulator" << std::endl;
+        return nullptr;
+    }
 
     auto cwd = std::filesystem::current_path();
     std::string urdf = (cwd / "model/robot.urdf").string();
 
-    Eigen::Vector3d pos;
-    Eigen::Quaterniond ori;
+    FrankaRidgebackActor::Configuration configuration {
+        .mppi = {
+            .dynamics = FrankaRidgeback::Dynamics::create(),
+            .cost = TrackPoint::create({
+                .point = Eigen::Vector3d(1.0, 1.0, 1.0),
+                .model = {
+                    .filename = urdf,
+                    .end_effector_frame = "panda_grasp"
+                }
+            }),
+            .initial_state = FrankaRidgeback::State::Zero(),
+            .rollouts = 20,
+            .keep_best_rollouts = 10,
+            .time_step = 0.1,
+            .horison = 1.0,
+            .gradient_step = 1.0,
+            .cost_scale = 10.0,
+            .cost_discount_factor = 1.0,
+            .covariance = FrankaRidgeback::Control{
+                0.0, 0.0, 0.2, // base
+                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                0.0, 0.0 // gripper
+            }.asDiagonal(),
+            .control_bound = false,
+            .control_min = FrankaRidgeback::Control{
+                -0.2, -0.2, -0.2, // base
+                -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, //arm
+                -0.05, -0.05 // gripper
+            },
+            .control_max = FrankaRidgeback::Control{
+                0.2, 0.2, 0.2, // base
+                5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // arm
+                0.05, 0.05 // gripper
+            },
+            .control_default = FrankaRidgeback::Control::Zero(),
+            .filter = std::nullopt,
+            .threads = 12
+        },
+        .controller_rate = 0.3,
+        .controller_substeps = 10,
+        .urdf_filename = urdf,
+        .end_effector_frame = "panda_grasp_joint",
+        .initial_state = FrankaRidgeback::State::Zero(),
+        .proportional_gain = FrankaRidgeback::Control{
+            0.0, 0.0, 0.0, // base
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
+            100.0, 100.0 //gripper
+        },
+        .differential_gain = FrankaRidgeback::Control{
+            1000.0, 1000.0, 1.0, // base
+            10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+            50.0, 50.0 // gripper
+        },
+    };
 
-    State state = State::Zero();
+    if (!configuration.mppi.cost) {
+        std::cerr << "failed to create mppi cost" << std::endl;
+        return nullptr;
+    }
 
-    auto dynamics = Dynamics::create();
-    auto model = Model::create(urdf);
+    if (!configuration.mppi.dynamics) {
+        std::cerr << "failed to create mppi dynamics" << std::endl;
+        return nullptr;
+    }
 
-    // Get the end effector position.
-    state = State::Zero();
-    model->set(state);
-    std::tie(pos, ori) = model->end_effector();
-    std::cout << "x to 0.0:" << std::endl;
-    std::cout << "    end effector: " << pos.transpose() << std::endl;
+    auto robot = FrankaRidgebackActor::create(
+        std::move(configuration),
+        simulator.get()
+    );
 
-    // Get the end effector position.
-    state(0) = 10.0;
-    model->set(state);
-    std::tie(pos, ori) = model->end_effector();
-    std::cout << "x to 10.0:" << std::endl;
-    std::cout << "    end effector: " << pos.transpose() << std::endl;
+    if (!robot) {
+        std::cerr << "failed to create FrankaRidgebackActor actor" << std::endl;
+        return nullptr;
+    }
 
-    std::cout << "vx to 1 after 1 second:" << std::endl;
-    Control control = Control::Zero();
-    control(0) = 1.0;
-    dynamics->set(state);
-    dynamics->step(control, 1.0);
-    std::cout << "    state: " << pos.transpose() << std::endl;
-    model->set(dynamics->get());
-    std::tie(pos, ori) = model->end_effector();
-    std::cout << "    end effector: " << pos.transpose() << std::endl;
+    simulator->add_actor(robot);
 
-    return 0;
+    auto logger = logger::MPPI::create(logger::MPPI::Configuration{
+        .folder = cwd / "mppi",
+        .trajectory = &robot->get_trajectory()
+    });
+
+    if (!logger) {
+        return nullptr;
+    }
+
+    auto test = std::unique_ptr<ReachForPoint>(new ReachForPoint());
+    test->m_simulator = std::move(simulator);
+    test->m_robot = std::move(robot);
+    test->m_mppi_logger = std::move(logger);
+
+    return test; 
+}
+
+void ReachForPoint::run()
+{
+    for (;;) {
+        raisim::TimedLoop(simulator->get_time_step() * 1e6);
+        simulator->step();
+        logger->log(robot->get_trajectory());
+    }
 }

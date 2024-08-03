@@ -19,8 +19,9 @@ find_package(raisim CONFIG REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio_INCLUDE_DIRS})
 
 add_executable(
-    assistedmanipulation
-    main.cpp
+    test
+    tests/main.cpp
+    tests/reach.cpp
 
     simulation/simulator.cpp
     simulation/actors/frankaridgeback.cpp
@@ -36,30 +37,24 @@ add_executable(
     logging/mppi.cpp
 )
 
-add_executable(
-    test
-    tests/main.cpp
-)
+target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_include_directories(assistedmanipulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(assistedmanipulation PUBLIC raisim::raisim pinocchio::pinocchio)
+target_link_libraries(test PUBLIC raisim::raisim pinocchio::pinocchio)
 
 # Additional logic depending on the operating system.
 if (UNIX)
-    target_link_libraries(assistedmanipulation PUBLIC pthread)
+    target_link_libraries(test PUBLIC pthread)
 elseif (WIN32)
-    target_compile_options(assistedmanipulation PUBLIC /W3)
-    target_link_libraries(assistedmanipulation PUBLIC Ws2_32)
+    target_compile_options(test PUBLIC /W3)
+    target_link_libraries(test PUBLIC Ws2_32)
 endif ()
 
 # Install instructions
 
-install(TARGETS assistedmanipulation DESTINATION bin)
 install(TARGETS test DESTINATION bin)
 install(DIRECTORY frankaridgeback/model DESTINATION bin)
 
 # Copy runtime dlls on windows.
 if (WIN32)
-    install(FILES $<TARGET_RUNTIME_DLLS:assistedmanipulation> DESTINATION bin)
+    install(FILES $<TARGET_RUNTIME_DLLS:test> DESTINATION bin)
 endif ()
