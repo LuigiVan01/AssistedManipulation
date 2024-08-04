@@ -25,14 +25,30 @@ class CSV
 {
 public:
 
+    using Header = std::vector<std::string>;
+
     struct Configuration {
 
         /// The file to log to.
         std::filesystem::path path;
 
         /// The csv column headers.
-        std::vector<std::string> header;
+        Header header;
     };
+
+    /**
+     * @brief Convenience function to make a CSV header.
+     * 
+     * @param args The elements of the header.
+     * @returns A vector of strings as the header 
+     */
+    template<typename... Args>
+    static inline Header make_header(Args... args)
+    {
+        Header header;
+        (push_header_element(header, std::forward<Args>(args))...);
+        return header;
+    }
 
     /**
      * @brief Create a new CSV logger.
@@ -124,6 +140,24 @@ private:
     inline CSV(std::fstream &&out)
         : m_stream(std::move(out))
     {}
+
+    /**
+     * @brief Push a string to a header.
+     */
+    static inline void push_header_element(Header &header, std::string string) {
+        header.push_back(string);
+    }
+
+    /**
+     * @brief Push an iterable of strings to a header.
+     */
+    template<typename T>
+    static inline void push_header_element(Header &header, const T &iterable)
+        requires Iterable<T>
+    {
+        for (auto &element : iterable)
+            header.push_back(string);
+    }
 
     /**
      * @brief Write an iterable to the file, comma separated.

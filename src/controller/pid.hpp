@@ -70,6 +70,41 @@ public:
     }
 
     /**
+     * @brief Update the control to apply to the current observed state.
+     * 
+     * Both the state and control must have the same dimensions as the pid
+     * parameters.
+     * 
+     * @param state The observed state of the system.
+     * @param time The current time in seconds.
+     */
+    inline void update(Eigen::Ref<Eigen::VectorXd> state, double time) {
+        double dt = time - m_last_time;
+        auto error = m_reference - state;
+
+        // Runge kutta? Inaccuracy of small number division?
+
+        // Calculate control and saturate.
+        m_control = (
+            m_kp * error +
+            m_kd * (error - m_last_error) / dt +
+            m_ki * m_cumulative_error
+        ).cwiseMin(m_maximum).cwiseMax(m_minimum);
+
+        // Calculate saturation per degree of freedom.
+        m_saturation = (
+            m_control.array() < m_maximum.array() &&
+            m_control.array() > m_minimum.array()
+        ).cast<double>();
+
+        // Accumulate error only if not saturated (anti windup).
+        m_cumulative_error += error * dt * m_saturation;
+
+        m_last_error = error;
+        m_last_time = time;
+    }
+
+    /**
      * @brief Updated the desired reference state of the pid controller.
      * @param state The desired reference state.
      */
@@ -101,44 +136,36 @@ public:
         m_ki = ki;
     }
 
-    /**
-     * @brief Update the control to apply to the current observed state.
-     * 
-     * Both the state and control must have the same dimensions as the pid
-     * parameters.
-     * 
-     * @param state The observed state of the system.
-     * @param control The output control to be set by this function.
-     * @param time The current time in seconds.
-     */
-    inline void update(
-        Eigen::Ref<Eigen::VectorXd> state,
-        Eigen::Ref<Eigen::VectorXd> control,
-        double time
-    ) {
-        double dt = time - m_last_time;
-        m_error = m_reference - state;
+    inline double get_time() const {
+        return m_last_time;
+    }
 
-        // Runge kutta? Inaccuracy of small number division?
+    inline const Eigen::VectorXd &get_reference() const {
+        return m_reference;
+    }
 
-        // Calculate control and saturate.
-        control = (
-            m_kp * m_error +
-            m_kd * (m_error - m_last_error) / dt +
-            m_ki * m_cumulative_error
-        ).cwiseMin(m_maximum).cwiseMax(m_minimum);
+    inline const Eigen::VectorXd &get_error() const {
+        return m_last_error;
+    }
 
-        // Calculate saturation per degree of freedom.
-        Eigen::MatrixXd not_saturated = (
-            control.array() < m_maximum.array() &&
-            control.array() > m_minimum.array()
-        ).cast<double>();
+    inline const Eigen::VectorXd &get_cumulative_error() const {
+        return m_cumulative_error;
+    }
 
-        // Accumulate error only if not saturated (anti windup).
-        m_cumulative_error += m_error * dt * not_saturated;
+    inline const Eigen::VectorXd &get_saturation() const {
+        return m_saturation;
+    }
 
-        m_last_error = m_error;
-        m_last_time = time;
+    inline const Eigen::VectorXd &get_proportional_gain() const {
+        return m_kp;
+    }
+
+    inline const Eigen::VectorXd &get_derivative_gain() const {
+        return m_kd;
+    }
+
+    inline const Eigen::VectorXd &get_integral_gain() const {
+        return m_ki;
     }
 
 private:
@@ -169,6 +196,12 @@ private:
 
     /// The cumulative error, for integral calculation.
     Eigen::VectorXd m_cumulative_error;
+
+    /// The control action of the last update.
+    Eigen::VectorXd m_control;
+
+    /// The control action of the last update.
+    Eigen::VectorXd m_saturation;
 
     /// The time of the last update.
     double m_last_time;

@@ -27,7 +27,7 @@ public:
      * @brief Create a new MPPI logger.
      * 
      * @param configuration The logger configuration.
-     * @returns A pointer to the MPPI logger on success or nullpr on failure.
+     * @returns A pointer to the MPPI logger on success or nullptr on failure.
      */
     static std::unique_ptr<MPPI> create(Configuration &&configuration);
 
