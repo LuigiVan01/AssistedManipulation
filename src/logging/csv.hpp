@@ -46,7 +46,7 @@ public:
     static inline Header make_header(Args... args)
     {
         Header header;
-        (push_header_element(header, std::forward<Args>(args))...);
+        (push_header_element(header, std::forward<Args>(args)), ...);
         return header;
     }
 
@@ -156,7 +156,7 @@ private:
         requires Iterable<T>
     {
         for (auto &element : iterable)
-            header.push_back(string);
+            header.push_back(element);
     }
 
     /**

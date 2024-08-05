@@ -7,7 +7,7 @@ std::unique_ptr<TrackPoint> TrackPoint::create(Configuration &&configuration)
 {
     auto model = FrankaRidgeback::Model::create(std::move(configuration.model));
     if (!model) {
-        std::cout << "Failed to create dynamics model." << std::endl;
+        std::cout << "failed to create dynamics model" << std::endl;
         return nullptr;
     }
 

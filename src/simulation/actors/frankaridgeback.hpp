@@ -74,7 +74,7 @@ public:
     /**
      * @brief Get a pointer to the simulated articulated system.
      */
-    inline const raisim::ArticulatedSystem *get_robot() const {
+    inline raisim::ArticulatedSystem *get_robot() {
         return m_robot;
     }
 

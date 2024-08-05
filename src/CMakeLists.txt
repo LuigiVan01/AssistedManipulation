@@ -20,8 +20,9 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio
 
 add_executable(
     test
-    tests/main.cpp
-    tests/reach.cpp
+    test/main.cpp
+    # test/case/reach.cpp
+    test/case/circle.cpp
 
     simulation/simulator.cpp
     simulation/actors/frankaridgeback.cpp
@@ -33,8 +34,10 @@ add_executable(
     frankaridgeback/dynamics.cpp
     frankaridgeback/model.cpp
     frankaridgeback/objective/point.cpp
+    frankaridgeback/objective/assisted_manipulation.cpp
 
     logging/mppi.cpp
+    logging/pid.cpp
 )
 
 target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

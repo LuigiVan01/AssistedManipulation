@@ -8,25 +8,8 @@
             "name": "Debug Windows",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/install/bin/assistedmanipulation.exe",
-            "args": [],
-            "environment": [
-                {
-                    "name": "RAISIM_ACTIVATION",
-                    "value": "${workspaceFolder}\\activation.raisim"
-                }
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/install/bin",
-            "console": "integratedTerminal",
-            "preLaunchTask": "Compile"
-        },
-        {
-            "name": "Debug Tests Windows",
-            "type": "cppvsdbg",
-            "request": "launch",
             "program": "${workspaceFolder}/install/bin/test.exe",
-            "args": ["-abc", "-efg", "--x", "y", "--abc", "acfasdf"],
+            "args": ["--test", "circle"],
             "environment": [
                 {
                     "name": "RAISIM_ACTIVATION",
@@ -42,11 +25,10 @@
             "name": "Debug Linux",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/install/bin/assistedmanipulation",
-            "args": [],
+            "program": "${workspaceFolder}/install/bin/test",
+            "args": ["--test", "reach"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
             "MIMode": "gdb",
             "preLaunchTask": "Compile",
             "setupCommands": [

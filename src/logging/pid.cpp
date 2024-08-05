@@ -6,14 +6,14 @@ std::unique_ptr<PID> PID::create(PID::Configuration &&configuration)
 {
     using namespace std::string_literals;
     std::vector<std::string> state;
-    for (int i = 1; i < configuration.reference_dof + 1; i++)
+    for (unsigned int i = 1; i < configuration.reference_dof + 1; i++)
         state.push_back("state"s + std::to_string(i));
 
     std::vector<std::string> control;
-    for (int i = 1; i < configuration.control_dof + 1; i++)
+    for (unsigned int i = 1; i < configuration.control_dof + 1; i++)
         control.push_back("control"s + std::to_string(i));
 
-    auto pid = std::make_unique<PID>();
+    auto pid = std::unique_ptr<PID>(new PID());
 
     if (configuration.reference) {
         pid->m_reference = CSV::create(CSV::Configuration{

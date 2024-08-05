@@ -12,7 +12,7 @@ class AssistedManipulation : public mppi::Cost
 public:
 
     /// The default lower joint limits.
-    inline static Eigen::VectorXd<double, FrankaRidgeback::DoF::JOINTS>
+    inline static Eigen::Vector<double, FrankaRidgeback::DoF::JOINTS>
     s_default_lower_joint_limits {
         -2.0, -2.0, -6.28,
         -2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973,
@@ -20,7 +20,7 @@ public:
     };
 
     /// The default upper joint limits.
-    inline static Eigen::VectorXd<double, FrankaRidgeback::DoF::JOINTS>
+    inline static Eigen::Vector<double, FrankaRidgeback::DoF::JOINTS>
     s_default_upper_joint_limits {
         2.0, 2.0, 6.28,
         2.8973, 1.7628, 2.8973, 0.0698, 2.8973, 3.7525, 2.8973,
@@ -28,6 +28,9 @@ public:
     };
 
     struct Configuration {
+
+        /// The configuration of the model.
+        FrankaRidgeback::Model::Configuration model;
 
         /// Penalise approaching joint limits.
         bool enable_joint_limits;
@@ -95,7 +98,10 @@ public:
      */
     inline std::unique_ptr<mppi::Cost> copy() override {
         return std::unique_ptr<AssistedManipulation>(
-            new AssistedManipulation(std::move(m_model->copy()))
+            new AssistedManipulation(
+                std::move(m_model->copy()),
+                m_configuration
+            )
         );
     }
 

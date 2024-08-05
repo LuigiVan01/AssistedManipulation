@@ -16,6 +16,12 @@ public:
 
     struct Configuration {
 
+        /// The number of degrees of freedom for state.
+        unsigned int state_dof;
+
+        /// The number of degrees of freedom for control.
+        unsigned int control_dof;
+
         /// Proportional gain matrix.
         Eigen::VectorXd kp;
 
@@ -104,36 +110,8 @@ public:
         m_last_time = time;
     }
 
-    /**
-     * @brief Updated the desired reference state of the pid controller.
-     * @param state The desired reference state.
-     */
-    inline void set_reference(Eigen::Ref<Eigen::VectorXd> state) {
-        m_reference = state;
-    }
-
-    /**
-     * @brief Set the controllers proportional gain.
-     * @param kp The proportional gain.
-     */
-    inline void set_proportional_gain(Eigen::Ref<Eigen::VectorXd> kp) {
-        m_kp = kp;
-    }
-
-    /**
-     * @brief Set the controllers derivative gain.
-     * @param kd The derivative gain.
-     */
-    inline void set_derivative_gain(Eigen::Ref<Eigen::VectorXd> kd) {
-        m_kd = kd;
-    }
-
-    /**
-     * @brief Set the controllers integral gain.
-     * @param ki The integral gain.
-     */
-    inline void set_integral_gain(Eigen::Ref<Eigen::VectorXd> ki) {
-        m_ki = ki;
+    inline const Eigen::VectorXd &get_control() const {
+        return m_control;
     }
 
     inline double get_time() const {
@@ -166,6 +144,38 @@ public:
 
     inline const Eigen::VectorXd &get_integral_gain() const {
         return m_ki;
+    }
+
+    /**
+     * @brief Updated the desired reference state of the pid controller.
+     * @param state The desired reference state.
+     */
+    inline void set_reference(Eigen::Ref<Eigen::VectorXd> state) {
+        m_reference = state;
+    }
+
+    /**
+     * @brief Set the controllers proportional gain.
+     * @param kp The proportional gain.
+     */
+    inline void set_proportional_gain(Eigen::Ref<Eigen::VectorXd> kp) {
+        m_kp = kp;
+    }
+
+    /**
+     * @brief Set the controllers derivative gain.
+     * @param kd The derivative gain.
+     */
+    inline void set_derivative_gain(Eigen::Ref<Eigen::VectorXd> kd) {
+        m_kd = kd;
+    }
+
+    /**
+     * @brief Set the controllers integral gain.
+     * @param ki The integral gain.
+     */
+    inline void set_integral_gain(Eigen::Ref<Eigen::VectorXd> ki) {
+        m_ki = ki;
     }
 
 private:

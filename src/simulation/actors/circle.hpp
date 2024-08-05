@@ -4,6 +4,7 @@
 
 #include "controller/pid.hpp"
 #include "simulation/simulator.hpp"
+#include "simulation/actors/circle.hpp"
 
 class RotatingPoint
 {
@@ -107,7 +108,7 @@ public:
      * @returns A pointer to the actor on success, or nullptr if the configured
      * frame does not exist.
      */
-    inline std::shared_ptr<CircleActor> create(
+    static inline std::shared_ptr<CircleActor> create(
         const Configuration &configuration,
         Simulator *simulator
      ) {
@@ -128,7 +129,7 @@ public:
         }
 
         return std::shared_ptr<CircleActor>(
-            new CircleActor(configuration, simulator)
+            new CircleActor(configuration, frame_index, simulator)
         );
     }
 
@@ -148,44 +149,42 @@ public:
         // Update the pid controller with the current frame position.
         m_pid.update(
             m_configuration.robot->getFrames()[m_frame_index].position.e(),
-            m_force,
             simulator->get_time()
         );
 
         // Set external pid control force.
-        m_configuration.robot->setExternalForce(m_configuration.frame, m_force);
+        m_configuration.robot->setExternalForce(
+            m_configuration.frame,
+            m_pid.get_control()
+        );
     }
 
     inline void update(Simulator *simulator) override {}
 
     /**
-     * @brief Get the applied force by the actor.
-     */
-    inline Eigen::VectorXd force() {
-        return m_force;
-    }
-
-    /**
      * @brief Get the pid controller used to track the point.
      */
-    inline controller::PID &pid() {
+    inline controller::PID &get_pid() {
         return m_pid;
     }
 
 private:
 
-    CircleActor(const Configuration &configuration, Simulator *simulator)
-        : m_configuration(configuration)
+    CircleActor(
+        const Configuration &configuration,
+        unsigned int frame_index,
+        Simulator *simulator
+      ) : m_configuration(configuration)
         , m_rotating_point(configuration.rotating_point)
+        , m_frame_index(frame_index)
         , m_pid(
             configuration.pid,
             m_rotating_point(configuration.initial_time),
             configuration.initial_time
         )
-        , m_force(Eigen::Vector3d::Zero())
     {
-        auto sphere = simulator->get_server().addVisualSphere("tracking_sphere", 0.1);
-        sphere->setPosition(m_rotating_point(configuration.initial_time));
+        m_tracking_sphere = simulator->get_server().addVisualSphere("tracking_sphere", 0.1);
+        m_tracking_sphere->setPosition(m_rotating_point(configuration.initial_time));
     }
 
     /// Configuration of the point tracking actor.
@@ -200,8 +199,6 @@ private:
     /// A pid controller to move towards the point.
     controller::PID m_pid;
 
-    /// The last force control applied to the point.
-    Eigen::Vector3d m_force;
-
+    /// Visual sphere of the point being tracked.
     raisim::Visuals *m_tracking_sphere;
 };

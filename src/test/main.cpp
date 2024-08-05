@@ -5,7 +5,7 @@
 #include <optional>
 #include <vector>
 
-#include "tests/test.hpp"
+#include "test/test.hpp"
 
 /**
  * @brief Parse command line arguments.
