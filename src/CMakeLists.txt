@@ -21,8 +21,8 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio
 add_executable(
     test
     test/main.cpp
-    # test/case/reach.cpp
-    test/case/circle.cpp
+    test/case/reach.cpp
+    # test/case/circle.cpp
 
     simulation/simulator.cpp
     simulation/actors/frankaridgeback.cpp

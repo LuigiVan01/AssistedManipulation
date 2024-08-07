@@ -64,6 +64,11 @@ std::unique_ptr<Trajectory> Trajectory::create(
         return nullptr;
     }
 
+    if (configuration.filter && !configuration.filter.value()) {
+        std::cerr << "trajectory filter cannot be nullptr" << std::endl;
+        return nullptr;
+    }
+
     return std::unique_ptr<Trajectory>(new Trajectory(configuration));
 }
 
@@ -93,7 +98,9 @@ Trajectory::Trajectory(const Configuration &configuration) noexcept
   , m_weights(m_rollout_count, 1) // (rows, cols) ...
   , m_gradient(configuration.dynamics->control_dof(), m_step_count)
   , m_gradient_step(configuration.gradient_step)
+  , m_filter(nullptr)
   , m_optimal_control_shifted(configuration.dynamics->control_dof(), m_step_count)
+  , m_optimal_rollout(configuration.dynamics->control_dof(), m_step_count)
   , m_optimal_control(configuration.dynamics->control_dof(), m_step_count)
   , m_keep_best_rollouts(configuration.keep_best_rollouts)
   , m_ordered_rollouts(configuration.rollouts)
@@ -117,15 +124,19 @@ Trajectory::Trajectory(const Configuration &configuration) noexcept
         m_cost[i] = configuration.cost->copy();
     }
 
-    if (configuration.filter) {
+    if (configuration.smoothing) {
         m_smoothing_filter = SavitzkyGolayFilter(
             m_step_count,
             m_control_dof,
-            configuration.filter->window,
-            configuration.filter->order,
+            configuration.smoothing->window,
+            configuration.smoothing->order,
             0,
             configuration.time_step
         );
+    }
+
+    if (configuration.filter) {
+        m_filter = configuration.filter.value()->copy();
     }
 }
 
@@ -138,11 +149,28 @@ void Trajectory::update(const Eigen::Ref<Eigen::VectorXd> state, double time)
 
     auto start = steady_clock::now();
 
+    // Sample all the control trajectories for each rollout.
     sample(time);
+
+    // Calculate the cost of each sampled rollout.
     rollout();
+
+    // Take a fancy linear combination of the rollouts to generate a gradient
+    // to step the final control trajectory towards.
     optimise();
 
-    m_update_duration = std::chrono::duration<double>(steady_clock::now() - start).count();
+    // Rollout the updated optimal trajectory, and apply the optional filter at
+    // each time step. The rollout also computes optimal trajectory cost.
+    filter();
+
+    // Update the optimal control trajectory under lock.
+    {
+        std::scoped_lock lock(m_optimal_control_mutex);
+        m_last_rollout_time = m_rollout_time;
+        m_optimal_control = m_optimal_control_shifted;
+    }
+
+    m_update_duration = duration<double>(steady_clock::now() - start).count();
     m_update_last = time;
     ++m_update_count;
 }
@@ -373,11 +401,39 @@ void Trajectory::optimise()
             .cwiseMin(m_control_max.replicate(1, m_step_count))
             .cwiseMax(m_control_min.replicate(1, m_step_count));
     }
+}
 
-    // Update the optimal control under lock.
-    std::scoped_lock lock(m_optimal_control_mutex);
-    m_last_rollout_time = m_rollout_time;
-    m_optimal_control = m_optimal_control_shifted;
+void Trajectory::filter()
+{
+    Eigen::VectorXd state = m_rollout_state;
+    Dynamics &dynamics = *m_dynamics[0];
+    Cost &cost = *m_cost[0];
+
+    dynamics.set(state);
+    cost.reset();
+    m_optimal_rollout.cost = 0.0;
+
+    for (int step = 0; step < m_step_count; ++step) {
+
+        auto control = m_optimal_control_shifted.col(step);
+
+        // Apply the filter to the optimal control.
+        if (m_filter)
+            m_filter->filter(state, control, m_rollout_time + step * m_time_step);
+
+        double step_cost = (
+            std::pow(m_cost_discount_factor, step) *
+            cost.get(state, control, m_time_step)
+        );
+
+        assert(!std::isnan(step_cost));
+
+        // Cumulative running cost.
+        m_optimal_rollout.cost += step_cost;
+
+        // Step the dynamics simulation.
+        state = dynamics.step(control, m_time_step);
+    }
 }
 
 void Trajectory::get(Eigen::Ref<Eigen::VectorXd> control, double time)

@@ -5,6 +5,7 @@ namespace logger {
 std::unique_ptr<PID> PID::create(PID::Configuration &&configuration)
 {
     using namespace std::string_literals;
+
     std::vector<std::string> state;
     for (unsigned int i = 1; i < configuration.reference_dof + 1; i++)
         state.push_back("state"s + std::to_string(i));
@@ -15,28 +16,28 @@ std::unique_ptr<PID> PID::create(PID::Configuration &&configuration)
 
     auto pid = std::unique_ptr<PID>(new PID());
 
-    if (configuration.reference) {
+    if (configuration.log_reference) {
         pid->m_reference = CSV::create(CSV::Configuration{
             .path = configuration.folder / "reference.csv",
             .header = CSV::make_header("time", state)
         });
     }
 
-    if (configuration.error) {
+    if (configuration.log_error) {
         pid->m_error = CSV::create(CSV::Configuration{
             .path = configuration.folder / "error.csv",
             .header = CSV::make_header("time", state)
         });
     }
 
-    if (configuration.cumulative_error) {
+    if (configuration.log_cumulative_error) {
         pid->m_cumulative_error = CSV::create(CSV::Configuration{
             .path = configuration.folder / "cumulative_error.csv",
             .header = CSV::make_header("time", state)
         });
     }
 
-    if (configuration.saturation) {
+    if (configuration.log_saturation) {
         pid->m_saturation = CSV::create(CSV::Configuration{
             .path = configuration.folder / "saturation.csv",
             .header = CSV::make_header("time", control)
@@ -44,10 +45,10 @@ std::unique_ptr<PID> PID::create(PID::Configuration &&configuration)
     }
 
     bool error = (
-        (configuration.reference && !pid->m_reference) ||
-        (configuration.error && !pid->m_error) ||
-        (configuration.cumulative_error && !pid->m_cumulative_error) ||
-        (configuration.saturation && !pid->m_saturation)
+        (configuration.log_reference && !pid->m_reference) ||
+        (configuration.log_error && !pid->m_error) ||
+        (configuration.log_cumulative_error && !pid->m_cumulative_error) ||
+        (configuration.log_saturation && !pid->m_saturation)
     );
 
     if (error) {

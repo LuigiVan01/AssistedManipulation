@@ -23,16 +23,16 @@ public:
         unsigned int control_dof;
 
         /// Log the reference.
-        bool reference;
+        bool log_reference = true;
 
         /// Log the error.
-        bool error;
+        bool log_error = true;
 
         /// Log the cumulative error.
-        bool cumulative_error;
+        bool log_cumulative_error = true;
 
         /// Log PID control saturation.
-        bool saturation;
+        bool log_saturation = true;
     };
 
     /**

@@ -2,6 +2,7 @@
 
 #include <numeric>
 #include <ranges>
+#include <limits>
 
 namespace logger {
 
@@ -14,86 +15,74 @@ std::unique_ptr<MPPI> MPPI::create(Configuration &&configuration)
     // for (int i = 0; i < configuration.trajectory->get_state_dof(); i++)
     //     states.push_back("state"s + std::to_string(i));
 
-    for (int i = 1; i < configuration.trajectory->get_control_dof() + 1; i++)
+    for (int i = 1; i < configuration.control_dof + 1; i++)
         control.push_back("control"s + std::to_string(i));
 
-    for (int i = 1; i < configuration.trajectory->get_rollout_count() + 1; i++)
+    for (int i = 1; i < configuration.rollouts + 1; i++)
         rollouts.push_back("rollout"s + std::to_string(i));
 
-    std::vector<std::string> cost_header {"update"};
-    cost_header.insert(cost_header.end(), rollouts.begin(), rollouts.end());
+    auto mppi = std::unique_ptr<MPPI>(new MPPI());
 
-    auto costs = CSV::create(CSV::Configuration{
-        .path = configuration.folder / "costs.csv",
-        .header = std::move(cost_header)
-    });
+    if (configuration.log_costs) {
+        mppi->m_costs = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "costs.csv",
+            .header = CSV::make_header("update", rollouts)
+        });
+    }
 
-    std::vector<std::string> weights_header {"update"};
-    weights_header.insert(weights_header.end(), rollouts.begin(), rollouts.end());
+    if (configuration.log_weights) {
+        mppi->m_weights = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "weights.csv",
+            .header = CSV::make_header("update", rollouts)
+        });
+    }
 
-    auto weights = CSV::create(CSV::Configuration{
-        .path = configuration.folder / "weights.csv",
-        .header = std::move(weights_header)
-    });
+    if (configuration.log_gradient) {
+        mppi->m_gradient = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "gradient.csv",
+            .header = CSV::make_header("update", "time", control)
+        });
+    }
 
-    std::vector<std::string> gradient_header {"update", "time"};
-    gradient_header.insert(gradient_header.end(), control.begin(), control.end());
+    if (configuration.log_optimal_rollout) {
+        mppi->m_optimal_rollout = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "optimal_rollout.csv",
+            .header = CSV::make_header("update", "time", control)
+        });
+    }
 
-    auto gradient = CSV::create(CSV::Configuration{
-        .path = configuration.folder / "gradient.csv",
-        .header = std::move(gradient_header)
-    });
+    if (configuration.log_optimal_cost) {
+        mppi->m_optimal_cost = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "optimal_cost.csv",
+            .header = CSV::make_header("update", "cost")
+        });
+    }
 
-    std::vector<std::string> optimal_rollout_header {"update", "time"};
-    optimal_rollout_header.insert(optimal_rollout_header.end(), control.begin(), control.end());
+    if (configuration.log_update) {
+        mppi->m_update = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "update.csv",
+            .header = CSV::make_header("update", "time", "update_duration")
+        });
+    }
 
-    auto optimal_rollout = CSV::create(CSV::Configuration{
-        .path = configuration.folder / "optimal_rollout.csv",
-        .header = std::move(optimal_rollout_header)
-    });
+    bool error = (
+        (configuration.log_costs && !mppi->m_costs) ||
+        (configuration.log_weights && !mppi->m_weights) ||
+        (configuration.log_gradient && !mppi->m_gradient) ||
+        (configuration.log_optimal_rollout && !mppi->m_optimal_rollout) ||
+        (configuration.log_optimal_cost && !mppi->m_optimal_cost) ||
+        (configuration.log_update && !mppi->m_update)
+    );
 
-    auto optimal_cost = CSV::create(CSV::Configuration{
-        .path = configuration.folder / "optimal_cost.csv",
-        .header = {"update", "cost"}
-    });
-
-    auto update = CSV::create(CSV::Configuration{
-        .path = configuration.folder / "update.csv",
-        .header = {"update", "time", "update_duration"}
-    });
-
-    if (!costs || !weights || !gradient || !optimal_rollout || !optimal_cost || !update) {
+    if (error) {
         std::cerr << "failed to create csv logger" << std::endl;
         return nullptr;
     }
 
-    return std::unique_ptr<MPPI>(
-        new MPPI(
-            std::move(costs),
-            std::move(weights),
-            std::move(gradient),
-            std::move(optimal_rollout),
-            std::move(optimal_cost),
-            std::move(update)
-        )
-    );
-}
+    mppi->m_last_update = -std::numeric_limits<double>::min();
 
-MPPI::MPPI(
-    std::unique_ptr<CSV> &&costs,
-    std::unique_ptr<CSV> &&weights,
-    std::unique_ptr<CSV> &&gradient,
-    std::unique_ptr<CSV> &&optimal_rollout,
-    std::unique_ptr<CSV> &&optimal_cost,
-    std::unique_ptr<CSV> &&update
-) : m_last_update(-9999.0)
-  , m_costs(std::move(costs))
-  , m_weights(std::move(weights))
-  , m_gradient(std::move(gradient))
-  , m_optimal_rollout(std::move(optimal_rollout))
-  , m_optimal_cost(std::move(optimal_cost))
-  , m_update(std::move(update))
-{}
+    return mppi;
+}
 
 void MPPI::log(const mppi::Trajectory &trajectory)
 {
@@ -141,6 +130,10 @@ void MPPI::log(const mppi::Trajectory &trajectory)
     if (m_optimal_rollout) {
         for (int i = 0; i < steps; ++i)
             m_optimal_rollout->write(iteration, m_time[i], trajectory.get_optimal_rollout().col(i));
+    }
+
+    if (m_optimal_cost) {
+        m_optimal_cost->write(iteration, trajectory.get_optimal_cost());
     }
 
     m_last_update = time;

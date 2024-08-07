@@ -132,6 +132,44 @@ public:
 };
 
 /**
+ * @brief A filter applied to a trajectory per timestep.
+ */
+class Filter
+{
+public:
+
+    /**
+     * @brief Apply the filter.
+     * 
+     * @param state The state of the system.
+     * @param control The controls of the system.
+     * @param time The time.
+     * 
+     * @returns The filtered control. 
+     */
+    virtual Eigen::VectorXd filter(
+        Eigen::Ref<Eigen::VectorXd> state,
+        Eigen::Ref<Eigen::VectorXd> control,
+        double time
+    ) = 0;
+
+    /**
+     * @brief Reset the filter.
+     * 
+     * @param state The state of the system.
+     * @param time The time.
+     */
+    virtual void reset(Eigen::Ref<Eigen::VectorXd> state, double time) = 0;
+
+    /**
+     * @brief Make a copy of this filter.
+     * 
+     * @returns A std::unique_ptr to the filter copy.
+     */
+    virtual std::unique_ptr<Filter> copy() = 0;
+};
+
+/**
  * @brief A model predictive path integral (MPPI) optimal trajectory
  * generator.
  * 
@@ -152,7 +190,7 @@ class Trajectory
 public:
 
     /**
-     * @brief Configuration parameters for the controller.
+     * @brief Configuration parameters for the MPPI trajectory.
      */
     struct Configuration
     {
@@ -163,6 +201,9 @@ public:
         /// A pointer to a cost obdject, that tracks to cumulative cost of
         /// dynamics simulation rollouts.
         std::unique_ptr<Cost> cost;
+
+        /// A filter applied to the optimal trajectory.
+        std::optional<std::unique_ptr<Filter>> filter;
 
         /// The initial state of the system.
         Eigen::VectorXd initial_state;
@@ -204,7 +245,7 @@ public:
         std::optional<Eigen::VectorXd> control_default;
 
         /// Filter configuration.
-        struct Filter {
+        struct Smoothing {
 
             /// The number of samples in the filter window.
             unsigned int window;
@@ -214,7 +255,7 @@ public:
         };
 
         /// If the trajectory should be filtered.
-        std::optional<Filter> filter;
+        std::optional<Smoothing> smoothing;
 
         /// The number of threads to use for concurrent work such as sampling and
         /// rollouts.
@@ -238,11 +279,11 @@ public:
             , cost(0.0)
         {}
 
-        /// The noise applied to the optimal rollout. Has `control_dof` number of
-        /// rows and `steps` number of columns.
+        /// The noise applied to the previous optimal rollout. Has `control_dof`
+        /// number of rows and `steps` number of columns.
         Eigen::MatrixXd noise;
 
-        /// The cost of the optimal rollout.
+        /// The cost of the rollout.
         double cost;
     };
 
@@ -320,9 +361,9 @@ public:
         return m_optimal_control;
     }
 
-    // inline const auto &get_update_delta() {
-    //     return m_update_delta;
-    // }
+    inline double get_optimal_cost() const {
+        return m_optimal_rollout.cost;
+    }
 
     /**
      * 
@@ -425,6 +466,13 @@ private:
      */
     void optimise();
 
+    /**
+     * @brief Rolls out and filters the optimal trajectory.
+     * 
+     * Also computes the optimal trajectory cost during rollout.
+     */
+    void filter();
+
     /// The number of time steps per rollout.
     const int m_step_count;
 
@@ -500,8 +548,14 @@ private:
     /// The scalar amount by which to add the gradient to the optimal control.
     const double m_gradient_step;
 
+    /// The filter to apply to the optimal trajectory. May be nullptr.
+    std::unique_ptr<Filter> m_filter;
+
     /// The previous optimal control, shifted to align with the current time.
     Eigen::MatrixXd m_optimal_control_shifted;
+
+    /// The rollout of the optimal trajectory. The filter is applied here.
+    Rollout m_optimal_rollout;
 
     /// The optimal control.
     Eigen::MatrixXd m_optimal_control;

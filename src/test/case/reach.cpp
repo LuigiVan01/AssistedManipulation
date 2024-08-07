@@ -25,6 +25,7 @@ std::unique_ptr<Test> ReachForPoint::create()
                     .end_effector_frame = "panda_grasp"
                 }
             }),
+            .filter = std::nullopt,
             .initial_state = FrankaRidgeback::State::Zero(),
             .rollouts = 20,
             .keep_best_rollouts = 10,
@@ -50,7 +51,7 @@ std::unique_ptr<Test> ReachForPoint::create()
                 0.05, 0.05 // gripper
             },
             .control_default = FrankaRidgeback::Control::Zero(),
-            .filter = std::nullopt,
+            .smoothing = std::nullopt,
             .threads = 12
         },
         .controller_rate = 0.3,
@@ -94,7 +95,9 @@ std::unique_ptr<Test> ReachForPoint::create()
 
     auto logger = logger::MPPI::create(logger::MPPI::Configuration{
         .folder = cwd / "mppi",
-        .trajectory = &robot->get_trajectory()
+        .state_dof = FrankaRidgeback::DoF::STATE,
+        .control_dof = FrankaRidgeback::DoF::CONTROL,
+        .rollouts = (unsigned int)robot->get_trajectory().get_rollout_count()
     });
 
     if (!logger) {

@@ -19,8 +19,32 @@ public:
         /// Path to the folder to log into.
         std::filesystem::path folder;
 
-        /// The trajectory to log, for logger initialisation.
-        const mppi::Trajectory *trajectory;
+        /// The number of degrees of freedom for the state.
+        unsigned int state_dof;
+
+        /// The number of degrees of freedom for the control.
+        unsigned int control_dof;
+
+        /// The number of rollouts.
+        unsigned int rollouts;
+
+        /// Log the rollout costs.
+        bool log_costs = true;
+
+        /// Log the rollout weights.
+        bool log_weights = true;
+
+        /// Log the optimal control gradient.
+        bool log_gradient = true;
+
+        /// Log the optimal rollout.
+        bool log_optimal_rollout = true;
+
+        /// Log the optimal rollout cost.
+        bool log_optimal_cost = true;
+
+        /// Log other update information.
+        bool log_update = true;
     };
 
     /**
@@ -39,14 +63,7 @@ public:
 
 private:
 
-    MPPI(
-        std::unique_ptr<CSV> &&costs,
-        std::unique_ptr<CSV> &&weights,
-        std::unique_ptr<CSV> &&gradient,
-        std::unique_ptr<CSV> &&optimal_rollout,
-        std::unique_ptr<CSV> &&optimal_cost,
-        std::unique_ptr<CSV> &&iteration
-    );
+    MPPI() = default;
 
     /// The last time the trajectory was updated.
     double m_last_update;
