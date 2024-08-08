@@ -152,10 +152,20 @@ public:
             simulator->get_time()
         );
 
+        Eigen::Vector3d force = m_configuration.robot->getExternalForce(
+            m_configuration.robot->getBodyIdx(),
+            WORLD_FR
+        );
+
+        Eigen::Vector3d force = (
+            m_configuration.robot->getExternalForce()[m_frame_index].e() +
+            m_pid.get_control()
+        );
+
         // Set external pid control force.
         m_configuration.robot->setExternalForce(
             m_configuration.frame,
-            m_pid.get_control()
+            force
         );
     }
 

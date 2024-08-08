@@ -26,9 +26,6 @@ Simulator::Simulator(
   , m_server(m_world.get())
 {
     m_server.launchServer();
-
-    auto sphere = m_server.addVisualSphere("sphere", 0.1);
-    sphere->setPosition(Eigen::Vector3d(1.0, 1.0, 1.0));
 }
 
 void Simulator::step()

@@ -32,6 +32,7 @@ std::unique_ptr<Test> Circle::create()
                 .lower_joint_limit = AssistedManipulation::s_default_lower_joint_limits,
                 .upper_joint_limit = AssistedManipulation::s_default_upper_joint_limits
             }),
+            .filter = std::nullopt,
             .initial_state = FrankaRidgeback::State::Zero(),
             .rollouts = 20,
             .keep_best_rollouts = 10,
@@ -57,7 +58,7 @@ std::unique_ptr<Test> Circle::create()
                 0.05, 0.05 // gripper
             },
             .control_default = FrankaRidgeback::Control::Zero(),
-            .filter = std::nullopt,
+            .smoothing = std::nullopt,
             .threads = 12
         },
         .controller_rate = 0.3,
@@ -107,9 +108,9 @@ std::unique_ptr<Test> Circle::create()
             .pid = {
                 .state_dof = 3,
                 .control_dof = 3,
-                .kp = Eigen::Vector3d(1.0, 1.0, 1.0),
-                .kd = Eigen::Vector3d(1.0, 1.0, 1.0),
-                .ki = Eigen::Vector3d(1.0, 1.0, 1.0),
+                .kp = Eigen::Vector3d(1000.0, 1000.0, 1000.0),
+                .kd = Eigen::Vector3d(0.0, 0.0, 0.0),
+                .ki = Eigen::Vector3d(0.0, 0.0, 0.0),
                 .minimum = Eigen::Vector3d(-1.0, -1.0, -1.0),
                 .maximum = Eigen::Vector3d(1.0, 1.0, 1.0)
             },
@@ -125,7 +126,9 @@ std::unique_ptr<Test> Circle::create()
 
     auto mppi_logger = logger::MPPI::create(logger::MPPI::Configuration{
         .folder = cwd / "mppi",
-        .trajectory = &robot->get_trajectory()
+        .state_dof = FrankaRidgeback::DoF::STATE,
+        .control_dof = FrankaRidgeback::DoF::CONTROL,
+        .rollouts = (unsigned int)robot->get_trajectory().get_rollout_count()
     });
 
     if (!mppi_logger) {
@@ -135,11 +138,7 @@ std::unique_ptr<Test> Circle::create()
     auto pid_logger = logger::PID::create(logger::PID::Configuration{
         .folder = "pid",
         .reference_dof = 3,
-        .control_dof = 3,
-        .reference = true,
-        .error = true,
-        .cumulative_error = true,
-        .saturation = true
+        .control_dof = 3
     });
 
     test->m_simulator = std::move(simulator);

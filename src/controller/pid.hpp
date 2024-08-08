@@ -56,9 +56,11 @@ public:
         , m_minimum(configuration.minimum)
         , m_maximum(configuration.maximum)
         , m_reference(reference)
-        , m_error(Eigen::VectorXd::Zero(configuration.kp.size())) // Vector of zeros with correct dimension.
-        , m_last_error(Eigen::VectorXd::Zero(configuration.kp.size()))
-        , m_cumulative_error(Eigen::VectorXd::Zero(configuration.kp.size()))
+        , m_error(Eigen::VectorXd::Zero(configuration.state_dof))
+        , m_last_error(Eigen::VectorXd::Zero(configuration.state_dof))
+        , m_cumulative_error(Eigen::VectorXd::Zero(configuration.state_dof))
+        , m_saturation(Eigen::VectorXd::Zero(configuration.control_dof))
+        , m_control(Eigen::VectorXd::Zero(configuration.control_dof))
         , m_last_time(time)
     {
         bool equal_dimensions = (
@@ -84,7 +86,13 @@ public:
      * @param state The observed state of the system.
      * @param time The current time in seconds.
      */
-    inline void update(Eigen::Ref<Eigen::VectorXd> state, double time) {
+    inline void update(Eigen::Ref<Eigen::VectorXd> state, double time)
+    {
+        // Time must be monotonically increasing. Also waits until dt
+        // calculations are valid.
+        if (time <= m_last_time)
+            return;
+
         double dt = time - m_last_time;
         auto error = m_reference - state;
 
@@ -92,19 +100,20 @@ public:
 
         // Calculate control and saturate.
         m_control = (
-            m_kp * error +
-            m_kd * (error - m_last_error) / dt +
-            m_ki * m_cumulative_error
+            m_kp.cwiseProduct(error) +
+            m_kd.cwiseProduct(error - m_last_error) / dt +
+            m_ki.cwiseProduct(m_cumulative_error)
         ).cwiseMin(m_maximum).cwiseMax(m_minimum);
 
         // Calculate saturation per degree of freedom.
-        m_saturation = (
-            m_control.array() < m_maximum.array() &&
-            m_control.array() > m_minimum.array()
-        ).cast<double>();
+        // m_saturation = (
+        //     m_control.array() < m_maximum.array() &&
+        //     m_control.array() > m_minimum.array()
+        // ).cast<double>();
+        // m_cumulative_error += error.cwiseProduct(m_saturation) * dt;
 
         // Accumulate error only if not saturated (anti windup).
-        m_cumulative_error += error * dt * m_saturation;
+        m_cumulative_error += error * dt;
 
         m_last_error = error;
         m_last_time = time;
@@ -208,10 +217,10 @@ private:
     Eigen::VectorXd m_cumulative_error;
 
     /// The control action of the last update.
-    Eigen::VectorXd m_control;
+    Eigen::VectorXd m_saturation;
 
     /// The control action of the last update.
-    Eigen::VectorXd m_saturation;
+    Eigen::VectorXd m_control;
 
     /// The time of the last update.
     double m_last_time;
