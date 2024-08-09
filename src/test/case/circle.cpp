@@ -42,20 +42,20 @@ std::unique_ptr<Test> Circle::create()
             .cost_scale = 10.0,
             .cost_discount_factor = 1.0,
             .covariance = FrankaRidgeback::Control{
-                0.0, 0.0, 0.2, // base
+                0.1, 0.1, 0.2, // base
                 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
                 0.0, 0.0 // gripper
             }.asDiagonal(),
             .control_bound = false,
             .control_min = FrankaRidgeback::Control{
-                -0.2, -0.2, -0.2, // base
-                -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, //arm
-                -0.05, -0.05 // gripper
+                -0, -0, -0, // base
+                -0, -0, -0, -0, -0, -0, -0, //arm
+                -0, -0 // gripper
             },
             .control_max = FrankaRidgeback::Control{
-                0.2, 0.2, 0.2, // base
-                5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // arm
-                0.05, 0.05 // gripper
+                0, 0, 0, // base
+                0, 0, 0, 0, 0, 0, 0, // arm
+                0, 0 // gripper
             },
             .control_default = FrankaRidgeback::Control::Zero(),
             .smoothing = std::nullopt,
@@ -100,23 +100,22 @@ std::unique_ptr<Test> Circle::create()
 
     auto circle_actor = CircleActor::create(CircleActor::Configuration{
             .rotating_point = {
-                .origin = Eigen::Vector3d(1.0, 1.0, 1.0),
+                .origin = Eigen::Vector3d(0.75, 0.75, 0.75),
                 .axis = Eigen::Vector3d(0.0, 0.0, 1.0),
-                .radius = 0.5,
+                .radius = 0.25,
                 .angular_velocity = M_PI / 3
             },
             .pid = {
                 .state_dof = 3,
                 .control_dof = 3,
-                .kp = Eigen::Vector3d(1000.0, 1000.0, 1000.0),
-                .kd = Eigen::Vector3d(0.0, 0.0, 0.0),
+                .kp = Eigen::Vector3d(500.0, 500.0, 500.0),
+                .kd = Eigen::Vector3d(50.0, 50.0, 50.0),
                 .ki = Eigen::Vector3d(0.0, 0.0, 0.0),
-                .minimum = Eigen::Vector3d(-1.0, -1.0, -1.0),
-                .maximum = Eigen::Vector3d(1.0, 1.0, 1.0)
+                .minimum = Eigen::Vector3d(-10000.0, -10000.0, -10000.0),
+                .maximum = Eigen::Vector3d(10000.0, 10000.0, 10000.0),
+                .reference = Eigen::Vector3d::Zero()
             },
-            .robot = robot->get_robot(),
-            .frame = "panda_grasp_joint",
-            .initial_time = simulator->get_time()
+            .robot = robot.get(),
         },
         simulator.get()
     );
@@ -152,8 +151,9 @@ std::unique_ptr<Test> Circle::create()
 
 bool Circle::run()
 {
-    while (m_simulator->get_time() < 30) {
-        // raisim::TimedLoop(m_simulator->get_time_step() * 1e6);
+    // while (m_simulator->get_time() < 30) {
+    while (1) {
+        raisim::TimedLoop(m_simulator->get_time_step() * 1e6);
         m_simulator->step();
         m_mppi_logger->log(m_robot->get_trajectory());
         m_pid_logger->log(m_actor->get_pid());

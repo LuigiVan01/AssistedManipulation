@@ -33,6 +33,9 @@ public:
 
         /// Log PID control saturation.
         bool log_saturation = true;
+
+        /// Log PID controls.
+        bool log_control = true;
     };
 
     /**
@@ -62,8 +65,11 @@ private:
     /// Optional logger for mppi gradient.
     std::unique_ptr<CSV> m_cumulative_error;
 
-    /// Optional logger for the optimal rollout.
+    /// Optional logger for the control saturation.
     std::unique_ptr<CSV> m_saturation;
+
+    /// Optional logger for the control.
+    std::unique_ptr<CSV> m_control;
 };
 
 } // namespace logger

@@ -72,6 +72,28 @@ public:
     void set_end_effector_force(Eigen::Ref<Eigen::Vector3d> force);
 
     /**
+     * @brief Get the end effector position.
+     * @returns The end effector position in world frame as (x, y, z).
+     */
+    inline Eigen::Vector3d get_end_effector_position()
+    {
+        raisim::Vec<3> position;
+        m_robot->getFramePosition(m_end_effector_frame_index, position);
+        return position.e();
+    }
+
+    /**
+     * @brief Get the end effector orientation.
+     * @return The end effector orientation in world frame.
+     */
+    inline Eigen::Quaterniond get_end_effector_orientation()
+    {
+        raisim::Mat<3, 3> orientation;
+        m_robot->getFrameOrientation(m_end_effector_frame_index, orientation);
+        return Eigen::Quaterniond(orientation.e());
+    }
+
+    /**
      * @brief Get a pointer to the simulated articulated system.
      */
     inline raisim::ArticulatedSystem *get_robot() {

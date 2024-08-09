@@ -44,11 +44,19 @@ std::unique_ptr<PID> PID::create(PID::Configuration &&configuration)
         });
     }
 
+    if (configuration.log_control) {
+        pid->m_control = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "control.csv",
+            .header = CSV::make_header("time", control)
+        });
+    }
+
     bool error = (
         (configuration.log_reference && !pid->m_reference) ||
         (configuration.log_error && !pid->m_error) ||
         (configuration.log_cumulative_error && !pid->m_cumulative_error) ||
-        (configuration.log_saturation && !pid->m_saturation)
+        (configuration.log_saturation && !pid->m_saturation) ||
+        (configuration.log_control && !pid->m_control)
     );
 
     if (error) {
@@ -74,6 +82,9 @@ void PID::log(const controller::PID &pid)
 
     if (m_saturation)
         m_saturation->write(time, pid.get_saturation());
+
+    if (m_control)
+        m_control->write(time, pid.get_control());
 }
 
 } // namespace logger

@@ -5,6 +5,7 @@
 #include "controller/pid.hpp"
 #include "simulation/simulator.hpp"
 #include "simulation/actors/circle.hpp"
+#include "simulation/actors/frankaridgeback.hpp"
 
 class RotatingPoint
 {
@@ -91,13 +92,7 @@ public:
         controller::PID::Configuration pid;
 
         /// Pointer to the simulated system to apply force to.
-        raisim::ArticulatedSystem *robot;
-
-        /// The frame to move to the point.
-        std::string frame;
-
-        /// The initial pid time, for calculating first derivative.
-        double initial_time;
+        FrankaRidgebackActor *robot;
     };
 
     /**
@@ -117,19 +112,8 @@ public:
             return nullptr;
         }
 
-        auto frame_index = configuration.robot->getFrameIdxByName(
-            configuration.frame
-        );
-
-        if (frame_index > configuration.robot->getFrames().size()) {
-            std::cerr << "point actor frame " << configuration.frame
-                      << " does not exist in " << configuration.robot->getName()
-                      << std::endl;
-            return nullptr;
-        }
-
         return std::shared_ptr<CircleActor>(
-            new CircleActor(configuration, frame_index, simulator)
+            new CircleActor(configuration, simulator)
         );
     }
 
@@ -142,31 +126,21 @@ public:
      */
     inline void act(Simulator *simulator) override
     {
+        // Get the current position of the rotating point to track.
         Eigen::Vector3d reference = m_rotating_point(simulator->get_time());
-        m_pid.set_reference(reference);
+
+        // Display the new position in the simulator.
         m_tracking_sphere->setPosition(reference);
 
-        // Update the pid controller with the current frame position.
-        m_pid.update(
-            m_configuration.robot->getFrames()[m_frame_index].position.e(),
-            simulator->get_time()
-        );
+        auto position = m_configuration.robot->get_end_effector_position();
 
-        Eigen::Vector3d force = m_configuration.robot->getExternalForce(
-            m_configuration.robot->getBodyIdx(),
-            WORLD_FR
-        );
+        // Update the pid controller.
+        m_pid.set_reference(reference);
+        m_pid.update(position, simulator->get_time());
 
-        Eigen::Vector3d force = (
-            m_configuration.robot->getExternalForce()[m_frame_index].e() +
-            m_pid.get_control()
-        );
-
-        // Set external pid control force.
-        m_configuration.robot->setExternalForce(
-            m_configuration.frame,
-            force
-        );
+        // Apply the pid controller for to the end effector.
+        Eigen::Vector3d control = m_pid.get_control();
+        m_configuration.robot->set_end_effector_force(control);
     }
 
     inline void update(Simulator *simulator) override {}
@@ -182,19 +156,19 @@ private:
 
     CircleActor(
         const Configuration &configuration,
-        unsigned int frame_index,
         Simulator *simulator
       ) : m_configuration(configuration)
         , m_rotating_point(configuration.rotating_point)
-        , m_frame_index(frame_index)
-        , m_pid(
-            configuration.pid,
-            m_rotating_point(configuration.initial_time),
-            configuration.initial_time
-        )
+        , m_pid(configuration.pid)
     {
-        m_tracking_sphere = simulator->get_server().addVisualSphere("tracking_sphere", 0.1);
-        m_tracking_sphere->setPosition(m_rotating_point(configuration.initial_time));
+        Eigen::Vector3d reference = m_rotating_point(configuration.pid.time);
+        m_pid.set_reference(reference);
+
+        auto position = m_rotating_point(configuration.pid.time);
+
+        // Add a visual sphere to show the tracked point.
+        m_tracking_sphere = simulator->get_server().addVisualSphere("tracking_sphere", 0.05);
+        m_tracking_sphere->setPosition(position);
     }
 
     /// Configuration of the point tracking actor.
@@ -202,9 +176,6 @@ private:
 
     /// The point rotating in space to force to.
     RotatingPoint m_rotating_point;
-
-    /// Index into the articulated system to the frame to be forced.
-    unsigned int m_frame_index;
 
     /// A pid controller to move towards the point.
     controller::PID m_pid;

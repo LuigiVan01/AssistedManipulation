@@ -36,6 +36,12 @@ public:
 
         /// The maximum control output.
         Eigen::VectorXd maximum;
+
+        /// The initial reference of the pid controller.
+        Eigen::VectorXd reference;
+
+        /// The initial time.
+        double time;
     };
 
     /**
@@ -46,28 +52,26 @@ public:
      * @throws std::logic_error if the pid parameters are not square or have
      * different dimensions.
      */
-    inline PID(
-        const Configuration &configuration,
-        Eigen::VectorXd reference,
-        double time
-      ) : m_kp(configuration.kp)
+    inline PID(const Configuration &configuration)
+        : m_kp(configuration.kp)
         , m_kd(configuration.kd)
         , m_ki(configuration.ki)
         , m_minimum(configuration.minimum)
         , m_maximum(configuration.maximum)
-        , m_reference(reference)
+        , m_reference(configuration.reference)
         , m_error(Eigen::VectorXd::Zero(configuration.state_dof))
         , m_last_error(Eigen::VectorXd::Zero(configuration.state_dof))
         , m_cumulative_error(Eigen::VectorXd::Zero(configuration.state_dof))
         , m_saturation(Eigen::VectorXd::Zero(configuration.control_dof))
         , m_control(Eigen::VectorXd::Zero(configuration.control_dof))
-        , m_last_time(time)
+        , m_last_time(configuration.time)
     {
         bool equal_dimensions = (
             m_kp.size() == m_kd.size() &&
             m_kd.size() == m_ki.size() &&
             m_ki.size() == m_minimum.size() &&
-            m_minimum.size() == m_maximum.size()
+            m_minimum.size() == m_maximum.size() &&
+            m_reference.size() == m_minimum.size()
         );
 
         if (!equal_dimensions) {
@@ -106,20 +110,19 @@ public:
         ).cwiseMin(m_maximum).cwiseMax(m_minimum);
 
         // Calculate saturation per degree of freedom.
-        // m_saturation = (
-        //     m_control.array() < m_maximum.array() &&
-        //     m_control.array() > m_minimum.array()
-        // ).cast<double>();
-        // m_cumulative_error += error.cwiseProduct(m_saturation) * dt;
+        m_saturation = (
+            m_control.array() < m_maximum.array() &&
+            m_control.array() > m_minimum.array()
+        ).cast<double>();
 
         // Accumulate error only if not saturated (anti windup).
-        m_cumulative_error += error * dt;
+        m_cumulative_error += error.cwiseProduct(m_saturation) * dt;
 
         m_last_error = error;
         m_last_time = time;
     }
 
-    inline const Eigen::VectorXd &get_control() const {
+    inline const Eigen::VectorXd get_control() const {
         return m_control;
     }
 
