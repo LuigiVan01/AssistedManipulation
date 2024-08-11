@@ -1,12 +1,13 @@
 #include "simulation/actors/frankaridgeback.hpp"
 
 std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
+    mppi::Trajectory::Configuration &&mppi,
     Configuration &&configuration,
     Simulator *simulator
 ) {
     using namespace controller;
 
-    auto controller = mppi::Trajectory::create(configuration.mppi);
+    auto controller = mppi::Trajectory::create(std::move(mppi));
     if (!controller) {
         std::cerr << "failed to create FrankaRidgebackActor mppi" << std::endl;
         return nullptr;

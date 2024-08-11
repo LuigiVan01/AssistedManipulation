@@ -4,7 +4,7 @@
 // https://containers.dev/implementors/json_reference/
 // https://github.com/microsoft/wslg/blob/main/samples/container/Containers.md
 {
-    "name": "ROS",
+    "name": "ROS1",
 	"build": {
         "dockerfile": "dockerfile"
 	},
@@ -13,12 +13,10 @@
 		"--security-opt",
 		"seccomp=unconfined",
 		"--privileged",
-		"--network=host",
+		"--network=host"
         // "--device /dev/dri/renderD128", // GPU support
         // "--device /dev/dri/card0",
         // "--device=/dev/dxg",
-		"--name",
-		"assistedmanipulation"
 	],
 	"mounts": [
 		"source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",

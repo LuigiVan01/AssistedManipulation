@@ -3,8 +3,12 @@
 #include <Eigen/Eigen>
 
 #include "frankaridgeback/dof.hpp"
+#include "controller/mppi.hpp"
+#include "controller/qp.hpp"
 
-class FrankaRidgebackSafetyFilter
+namespace FrankaRidgeback {
+
+class TrajectorySafetyFilter : public mppi::Filter
 {
 public:
 
@@ -23,7 +27,7 @@ public:
         Eigen::Vector<double, FrankaRidgeback::DoF::JOINTS> acceleration_maximum;
 
         double reach_maximum = 0.8;
-    
+
         double reach_minimum = 0.15;
 
         bool limit_joints;
@@ -35,12 +39,33 @@ public:
         bool limit_reach;
     };
 
-    Eigen::Vector<double, FrankaRidgeback::DoF::CONTROL> filter(
+    std::unique_ptr<TrajectorySafetyFilter> create(Configuration &&configuration);
+
+    Eigen::VectorXd filter(
         Eigen::Ref<Eigen::VectorXd> state,
         Eigen::Ref<Eigen::VectorXd> control,
         double time
-    );
+    ) override;
+
+    /**
+     * @brief Reset the filter.
+     * 
+     * @param state The state of the system.
+     * @param time The time.
+     */
+    void reset(Eigen::Ref<Eigen::VectorXd> state, double time) override;
+
+private:
+
+    TrajectorySafetyFilter() = default;
+};
+
+class CriticalSafetyFilter
+{
+public:
 
 private:
 
 };
+
+} // namespace FrankaRidgeback

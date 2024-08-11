@@ -24,9 +24,6 @@ public:
 
     struct Configuration {
 
-        /// The controller configuration.
-        mppi::Trajectory::Configuration mppi;
-
         /// The period of time between the controller updates.
         double controller_rate;
 
@@ -58,6 +55,7 @@ public:
      * @returns A pointer to the actor on success, or nullptr on failure.
      */
     static std::shared_ptr<FrankaRidgebackActor> create(
+        mppi::Trajectory::Configuration &&mppi,
         Configuration &&configuration,
         Simulator *simulator
     );

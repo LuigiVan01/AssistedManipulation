@@ -160,13 +160,6 @@ public:
      * @param time The time.
      */
     virtual void reset(Eigen::Ref<Eigen::VectorXd> state, double time) = 0;
-
-    /**
-     * @brief Make a copy of this filter.
-     * 
-     * @returns A std::unique_ptr to the filter copy.
-     */
-    virtual std::unique_ptr<Filter> copy() = 0;
 };
 
 /**
@@ -298,7 +291,7 @@ public:
      * 
      * @returns A pointer to the trajectory on success, or nullptr on failure.
      */
-    static std::unique_ptr<Trajectory> create(const Configuration &configuration);
+    static std::unique_ptr<Trajectory> create(Configuration &&configuration);
 
     /**
      * @brief Increments the generated trajectory towards the optimal one, given
@@ -415,7 +408,7 @@ private:
      * @brief Initialise the trajectory generator.
      * @param configuration The configuration of the trajectory generator.
      */
-    Trajectory(const Configuration &configuration) noexcept;
+    Trajectory(Configuration &&configuration) noexcept;
 
     /**
      * @brief Sample the rollouts to simulate.

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 
 if [ $# -ne 1 ]; then
@@ -9,9 +11,7 @@ WORKSPACE=`pwd`
 SOURCE=$1
 
 # Add library directories to cmake path.
-CMAKE_PREFIX_PATH+="$WORKSPACE/lib/eigen;"
-CMAKE_PREFIX_PATH+="$WORKSPACE/lib/yaml-cpp;"
-CMAKE_PREFIX_PATH+="$WORKSPACE/lib/raisimlib/raisim/linux"
+CMAKE_PREFIX_PATH+=";$WORKSPACE/lib/raisimlib/raisim/linux"
 export CMAKE_PREFIX_PATH
 
 # Add raisim linker directories to path.

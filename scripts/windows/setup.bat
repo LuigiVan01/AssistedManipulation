@@ -22,3 +22,4 @@ set PATH=%VCPKG_ROOT%;%PATH%
 :: Install dependancies.
 vcpkg install eigen3
 vcpkg install pinocchio --overlay-ports=vcpkg_overlays/pinocchio
+vcpkg install osqp --overlay-ports=vcpkg_overlays/osqp

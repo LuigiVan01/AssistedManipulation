@@ -39,7 +39,7 @@
                 "problemMatcher": "$msCompile"
             },
             "linux": {
-                "command": "./scripts/linux/compile.bash",
+                "command": "./scripts/linux/compile.bash src",
                 "problemMatcher": "$gcc"
             },
             "options": { "cwd": "${workspaceFolder}" },

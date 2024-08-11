@@ -5,7 +5,6 @@ project(assistedmanipulation)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 # Display search paths for libraries.
@@ -14,6 +13,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
+find_package(osqp REQUIRED)
 find_package(raisim CONFIG REQUIRED)
 
 include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio_INCLUDE_DIRS})
@@ -30,6 +30,7 @@ add_executable(
     controller/gram_savitzky_golay/gram_savitzky_golay.cpp
     controller/filter.cpp
     controller/mppi.cpp
+    controller/qp.cpp
 
     frankaridgeback/dynamics.cpp
     frankaridgeback/model.cpp
@@ -41,8 +42,13 @@ add_executable(
 )
 
 target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(test PUBLIC raisim::raisim pinocchio::pinocchio osqp::osqp)
 
-target_link_libraries(test PUBLIC raisim::raisim pinocchio::pinocchio)
+if (UNIX)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+        message("gcc version <= 10, currently using version ${CMAKE_CXX_COMPILER_VERSION}")
+    endif()
+endif ()
 
 # Additional logic depending on the operating system.
 if (UNIX)

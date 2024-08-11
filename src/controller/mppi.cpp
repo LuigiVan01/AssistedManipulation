@@ -7,9 +7,8 @@
 
 namespace mppi {
 
-std::unique_ptr<Trajectory> Trajectory::create(
-    const Configuration &configuration
-) {
+std::unique_ptr<Trajectory> Trajectory::create(Configuration &&configuration)
+{
     // Ensure dynamics and cost expect the same control.
     if (configuration.dynamics->control_dof() != configuration.cost->control_dof()) {
         std::cerr << "controller dynamics control dof "
@@ -69,10 +68,10 @@ std::unique_ptr<Trajectory> Trajectory::create(
         return nullptr;
     }
 
-    return std::unique_ptr<Trajectory>(new Trajectory(configuration));
+    return std::unique_ptr<Trajectory>(new Trajectory(std::move(configuration)));
 }
 
-Trajectory::Trajectory(const Configuration &configuration) noexcept
+Trajectory::Trajectory(Configuration &&configuration) noexcept
   : m_step_count(std::ceil(configuration.horison / configuration.time_step))
   , m_time_step(configuration.time_step)
   , m_rollout_count(configuration.rollouts + s_static_rollouts)
@@ -136,7 +135,7 @@ Trajectory::Trajectory(const Configuration &configuration) noexcept
     }
 
     if (configuration.filter) {
-        m_filter = configuration.filter.value()->copy();
+        m_filter = std::move(configuration.filter.value());
     }
 }
 
