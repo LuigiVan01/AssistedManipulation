@@ -1,9 +1,12 @@
 #include "controller/qp.hpp"
 
-SparseMatrix::SparseMatrix(Eigen::Ref<Eigen::MatrixXd> m)
+QuadraticProgram::SparseMatrix::SparseMatrix(Eigen::Ref<Eigen::MatrixXd> m)
+    : columns()
+    , rows()
+    , data()
 {
     for (auto col : m.colwise()) {
-        columns.push_back(columns.size() + m.size());
+        columns.push_back(rows.size());
         for (int i = 0; i < col.size(); i++) {
             if (col[i] != 0.0) {
                 rows.push_back(i);
@@ -31,22 +34,39 @@ std::unique_ptr<QuadraticProgram> QuadraticProgram::create(
     // Allocate the quadratic program.
     auto qp = std::unique_ptr<QuadraticProgram>(new QuadraticProgram());
 
-    Eigen::MatrixXd P;
-    Eigen::MatrixXd A;
+    // Construct the quadratic and scalar costs.
+    auto quadratic = Eigen::MatrixXd::Zero(configuration.variables, configuration.variables);
+    auto scale = Eigen::MatrixXd::Zero(configuration.constraints.size(), configuration.variables);
 
-    P.conservativeResize(configuration.variables, configuration.variables);
-    A.conservativeResize(Eigen::NoChange, configuration.variables);
+    for (int i = 0; i < configuration.objectives.size(); i++) {
+        Objective &objective = configuration.objectives[i];
 
-    OSQPInt next_column_index = 0;
-    for (Constraint &constraint : configuration.constraints) {
+        qp->m_linear_cost.push_back(objective.linear);
 
-        // Add the quadratic constraint.
-        P.conservativeResize(P.rows() + 1, P.cols());
+        quadratic.row(i) = Eigen::Map<Eigen::VectorXd>(
+            objective.quadratic.data(),
+            objective.quadratic.size()
+        );
+    }
+
+    for (int i = 0; i < configuration.constraints.size(); i++) {
+        Constraint &constraint = configuration.constraints[i];
+
+        qp->m_lower.push_back(constraint.lower);
+        qp->m_upper.push_back(constraint.upper);
+
+        scale.row(i) = Eigen::Map<Eigen::VectorXd>(
+            constraint.scale.data(),
+            constraint.scale.size()
+        );
     }
 
     // Convert to 
-    qp->m_quadratic_cost = std::make_unique<SparseMatrix>(P);
-    qp->m_scale = std::make_unique<SparseMatrix>(A);
+    qp->m_quadratic_cost = std::make_unique<SparseMatrix>(quadratic);
+    qp->m_scale = std::make_unique<SparseMatrix>(scale);
+
+    OSQPSettings settings;
+    osqp_set_default_settings(&settings);
 
     OSQPSolver *solver = nullptr;
     auto failure = osqp_setup(
