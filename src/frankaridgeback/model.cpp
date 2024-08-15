@@ -61,7 +61,7 @@ Model::Model(
 {}
 
 void Model::set(const State &state) {
-    pinocchio::forwardKinematics(*m_model, *m_data, state.position());
+    pinocchio::forwardKinematics(*m_model, *m_data, state.position(), state.velocity());
     pinocchio::updateFramePlacements(*m_model, *m_data);
 }
 
@@ -107,10 +107,21 @@ std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::pose(
     );
 }
 
-std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::end_effector() {
+std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::end_effector_pose()
+{
     return std::make_tuple(
         m_data->oMf[m_end_effector_index].translation(),
         (Eigen::Quaterniond)m_data->oMf[m_end_effector_index].rotation()
+    );
+}
+
+Eigen::Vector3d Model::end_effector_velocity()
+{
+    return pinocchio::getFrameVelocity(
+        m_model.get(),
+        m_data.get(),
+        m_end_effector_index,
+        pinocchio::WORLD
     );
 }
 

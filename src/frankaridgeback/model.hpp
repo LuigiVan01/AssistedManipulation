@@ -41,25 +41,32 @@ public:
 
     /**
      * @brief Update the state of the model.
+     * 
+     * Updates the model with current joint positions and velocities.
+     * 
      * @param state The joint parameters of the model.
      */
     void set(const State &state);
 
-    // void Model::set(
-    //     const State &state,
-    //     const Velocity &velocity
-    // ) {
-    //     pinocchio::forwardKinematics(m_model, m_data, state, velocity);
-    //     pinocchio::updateFramePlacements(m_model, m_data);
-    // }
+    /**
+     * @brief Get the underlying pinocchio model.
+     * @returns The underlying pinocchio model.
+     */
+    const pinocchio::Model *get_model() const {
+        return m_model.get();
+    }
 
     /**
-     * @brief Update the state of the model and the joint velocities.
+     * @brief Get the underlying pinocchio data.
      * 
-     * @param state The joint parameters of the model.
-     * @param velocity The velocities of each joint.
+     * See https://gepettoweb.laas.fr/doc/stack-of-tasks/pinocchio/topic/doc-v2/doxygen-html/structse3_1_1Data.html
+     * for all available model data.
+     * 
+     * @return const pinocchio::Data* 
      */
-    // void update(const State &state, const Velocity &velocity);
+    const pinocchio::Data *get_data() const {
+        return m_model.get();
+    }
 
     Eigen::Vector3d offset(
         const std::string &from_frame,
@@ -81,7 +88,15 @@ public:
         const std::string &frame
     );
 
-    std::tuple<Eigen::Vector3d, Eigen::Quaterniond> end_effector();
+    /**
+     * @brief Get the end effector position and orientation.
+     */
+    std::tuple<Eigen::Vector3d, Eigen::Quaterniond> end_effector_pose();
+
+    /**
+     * @brief Get the velocity of the end effector in the world frame.
+     */
+    Eigen::Vector3d end_effector_velocity();
 
     inline std::unique_ptr<Model> copy()
     {

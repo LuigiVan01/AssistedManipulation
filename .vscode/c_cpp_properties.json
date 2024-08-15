@@ -20,7 +20,7 @@
                 "${workspaceFolder}/src/**",
                 "${workspaceFolder}/lib/raisimlib/raisim/win32/include",
                 "${workspaceFolder}/vcpkg/packages/eigen3_x64-windows/include/eigen3/**",
-                "${workspaceFolder}/vcpkg/packages/pinnochio_x64-windows/include/**",
+                "${workspaceFolder}/vcpkg/packages/pinocchio_x64-windows/include/**",
                 "${workspaceFolder}/vcpkg/packages/osqp_x64-windows/include/**"
             ]
         }
