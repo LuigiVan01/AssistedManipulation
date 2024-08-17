@@ -9,6 +9,10 @@
 #include <future>
 #include <filesystem>
 
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
 /**
  * @brief Used as a generic pointer to test classes, and defines the test
  * interface.
@@ -31,7 +35,11 @@ class TestSuite
 {
 public:
 
-    using TestCreator = std::function<std::unique_ptr<Test>()>;
+    /**
+     * @brief Function the takes a json configuration and returns a test
+     * instance to run.
+     */
+    using TestCreator = std::function<std::unique_ptr<Test>(json&)>;
 
     /**
      * @brief Register a test at runtime.
@@ -86,7 +94,7 @@ public:
      * @param name The name of the test to run.
      * @returns If the test was successful.
      */
-    static bool run(std::string name)
+    static bool run(std::string name, json configuration = nullptr)
     {
         using namespace std::string_literals;
         using namespace std::chrono_literals;
@@ -98,9 +106,11 @@ public:
             return false;
         }
 
-        auto test = it->second();
+        auto test = it->second(configuration);
         if (!test) {
-            std::cerr << "failed to create test \"" << name << "\"" << std::endl;
+            std::cerr << "failed to create test \"" << name << "\""
+                      << " with configuration " << configuration.dump(4)
+                      << std::endl;
             return false;
         }
 
@@ -176,7 +186,10 @@ private:
             );
         }
  
-        TestSuite::s_tests[Derived::TEST_NAME] = []{ return Derived::create(); };
+        TestSuite::s_tests[Derived::TEST_NAME] = [](json &configuration){
+            return Derived::create(configuration);
+        };
+
         return true;
     }
 

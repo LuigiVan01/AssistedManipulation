@@ -31,7 +31,7 @@ double TrackPoint::get(
     const FrankaRidgeback::State &state = s;
 
     m_model->set(state);
-    auto [position, orientation] = m_model->end_effector();
+    auto [position, orientation] = m_model->end_effector_pose();
 
     // Target end effector at point (1.0, 1.0, 1.0)    
     Eigen::Vector3d target = Eigen::Vector3d(1.0, 1.0, 1.0);

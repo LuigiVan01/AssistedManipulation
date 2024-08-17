@@ -7,32 +7,36 @@
 
 namespace mppi {
 
-std::unique_ptr<Trajectory> Trajectory::create(Configuration &&configuration)
-{
+std::unique_ptr<Trajectory> Trajectory::create(
+    const Configuration &configuration,
+    std::unique_ptr<Dynamics> &&dynamics,
+    std::unique_ptr<Cost> &&cost,
+    std::unique_ptr<Filter> &&filter
+) {
     // Ensure dynamics and cost expect the same control.
-    if (configuration.dynamics->control_dof() != configuration.cost->control_dof()) {
+    if (dynamics->control_dof() != cost->control_dof()) {
         std::cerr << "controller dynamics control dof "
-                  << configuration.dynamics->control_dof()
+                  << dynamics->control_dof()
                   << " != cost control dof "
-                  << configuration.cost->control_dof()
+                  << cost->control_dof()
                   << std::endl;
         return nullptr;
     }
 
     // Ensure dynamics and cost expect the same state.
-    if (configuration.dynamics->state_dof() != configuration.cost->state_dof()) {
+    if (dynamics->state_dof() != cost->state_dof()) {
         std::cerr << "controller dynamics state dof "
-                  << configuration.dynamics->state_dof()
+                  << dynamics->state_dof()
                   << " != cost state dof "
-                  << configuration.cost->state_dof()
+                  << cost->state_dof()
                   << std::endl;
         return nullptr;
     }
 
-    if (configuration.control_min.size() != configuration.dynamics->control_dof() ||
-        configuration.control_max.size() != configuration.dynamics->control_dof()) {
+    if (configuration.control_min.size() != dynamics->control_dof() ||
+        configuration.control_max.size() != dynamics->control_dof()) {
         std::cerr << "controller maximum and minimum must have length "
-                  << configuration.dynamics->control_dof() << std::endl;
+                  << dynamics->control_dof() << std::endl;
         return nullptr;
     }
 
@@ -41,9 +45,9 @@ std::unique_ptr<Trajectory> Trajectory::create(Configuration &&configuration)
         return nullptr;
     }
 
-    if (configuration.covariance.rows() != configuration.dynamics->control_dof()) {
+    if (configuration.covariance.rows() != dynamics->control_dof()) {
         std::cerr << "controller sample variance dof " << configuration.covariance.rows()
-                  << " != dynamics and cost control dof " <<  configuration.dynamics->control_dof()
+                  << " != dynamics and cost control dof " <<  dynamics->control_dof()
                   << std::endl;
         return nullptr;
     }
@@ -63,21 +67,26 @@ std::unique_ptr<Trajectory> Trajectory::create(Configuration &&configuration)
         return nullptr;
     }
 
-    if (configuration.filter && !configuration.filter.value()) {
-        std::cerr << "trajectory filter cannot be nullptr" << std::endl;
-        return nullptr;
-    }
-
-    return std::unique_ptr<Trajectory>(new Trajectory(std::move(configuration)));
+    return std::unique_ptr<Trajectory>(new Trajectory(
+        configuration,
+        std::move(dynamics),
+        std::move(cost),
+        std::move(filter)
+    ));
 }
 
-Trajectory::Trajectory(Configuration &&configuration) noexcept
+Trajectory::Trajectory(
+    const Configuration &configuration,
+    std::unique_ptr<Dynamics> &&dynamics,
+    std::unique_ptr<Cost> &&cost,
+    std::unique_ptr<Filter> &&filter
+) noexcept
   : m_step_count(std::ceil(configuration.horison / configuration.time_step))
   , m_time_step(configuration.time_step)
   , m_rollout_count(configuration.rollouts + s_static_rollouts)
   , m_thread_count(configuration.threads)
-  , m_state_dof(configuration.dynamics->state_dof())
-  , m_control_dof(configuration.dynamics->control_dof())
+  , m_state_dof(dynamics->state_dof())
+  , m_control_dof(dynamics->control_dof())
   , m_update_last(0)
   , m_update_duration(0)
   , m_update_count(0)
@@ -93,14 +102,14 @@ Trajectory::Trajectory(Configuration &&configuration) noexcept
   , m_cost_scale(configuration.cost_scale)
   , m_shift_by(0)
   , m_shifted(0)
-  , m_rollouts(m_rollout_count, Rollout(configuration.dynamics->control_dof(), m_step_count))
+  , m_rollouts(m_rollout_count, Rollout(dynamics->control_dof(), m_step_count))
   , m_weights(m_rollout_count, 1) // (rows, cols) ...
-  , m_gradient(configuration.dynamics->control_dof(), m_step_count)
+  , m_gradient(dynamics->control_dof(), m_step_count)
   , m_gradient_step(configuration.gradient_step)
-  , m_filter(nullptr)
-  , m_optimal_control_shifted(configuration.dynamics->control_dof(), m_step_count)
-  , m_optimal_rollout(configuration.dynamics->control_dof(), m_step_count)
-  , m_optimal_control(configuration.dynamics->control_dof(), m_step_count)
+  , m_filter(std::move(filter))
+  , m_optimal_control_shifted(dynamics->control_dof(), m_step_count)
+  , m_optimal_rollout(dynamics->control_dof(), m_step_count)
+  , m_optimal_control(dynamics->control_dof(), m_step_count)
   , m_keep_best_rollouts(configuration.keep_best_rollouts)
   , m_ordered_rollouts(configuration.rollouts)
   , m_bound_control(configuration.control_bound)
@@ -119,8 +128,8 @@ Trajectory::Trajectory(Configuration &&configuration) noexcept
 
     // Initialise thread data.
     for (unsigned int i = 0; i < configuration.threads; i++) {
-        m_dynamics[i] = configuration.dynamics->copy();
-        m_cost[i] = configuration.cost->copy();
+        m_dynamics[i] = dynamics->copy();
+        m_cost[i] = cost->copy();
     }
 
     if (configuration.smoothing) {
@@ -132,10 +141,6 @@ Trajectory::Trajectory(Configuration &&configuration) noexcept
             0,
             configuration.time_step
         );
-    }
-
-    if (configuration.filter) {
-        m_filter = std::move(configuration.filter.value());
     }
 }
 
@@ -278,6 +283,7 @@ void Trajectory::rollout()
         start = stop;
     }
 
+    // Barrier waiting for all threads to complete.
     for (auto &future : m_futures)
         future.get();
 }
@@ -302,6 +308,7 @@ void Trajectory::rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost)
             cost.get(state, control, m_time_step)
         );
 
+        // Rollout weight is interpreted as zero during optimisation.
         if (std::isnan(step_cost)) {
             rollout.cost = NAN;
             return;

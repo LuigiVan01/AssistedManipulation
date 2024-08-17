@@ -20,47 +20,62 @@ std::unique_ptr<Test> Circle::create()
     auto cwd = std::filesystem::current_path();
     std::string urdf = (cwd / "model/robot.urdf").string();
 
-    FrankaRidgebackActor::Configuration configuration {
-        .mppi = {
-            .dynamics = FrankaRidgeback::Dynamics::create(),
-            .cost = AssistedManipulation::create({
-                .model = {
-                    .filename = urdf,
-                    .end_effector_frame = "panda_grasp_joint"
-                },
-                .enable_joint_limits = true,
-                .lower_joint_limit = AssistedManipulation::s_default_lower_joint_limits,
-                .upper_joint_limit = AssistedManipulation::s_default_upper_joint_limits
-            }),
-            .filter = std::nullopt,
-            .initial_state = FrankaRidgeback::State::Zero(),
-            .rollouts = 20,
-            .keep_best_rollouts = 10,
-            .time_step = 0.1,
-            .horison = 1.0,
-            .gradient_step = 1.0,
-            .cost_scale = 10.0,
-            .cost_discount_factor = 1.0,
-            .covariance = FrankaRidgeback::Control{
-                0.1, 0.1, 0.2, // base
-                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
-                0.0, 0.0 // gripper
-            }.asDiagonal(),
-            .control_bound = false,
-            .control_min = FrankaRidgeback::Control{
-                -0, -0, -0, // base
-                -0, -0, -0, -0, -0, -0, -0, //arm
-                -0, -0 // gripper
-            },
-            .control_max = FrankaRidgeback::Control{
-                0, 0, 0, // base
-                0, 0, 0, 0, 0, 0, 0, // arm
-                0, 0 // gripper
-            },
-            .control_default = FrankaRidgeback::Control::Zero(),
-            .smoothing = std::nullopt,
-            .threads = 12
+    mppi::Trajectory::Configuration mppi {
+        .initial_state = FrankaRidgeback::State::Zero(),
+        .rollouts = 20,
+        .keep_best_rollouts = 10,
+        .time_step = 0.1,
+        .horison = 1.0,
+        .gradient_step = 1.0,
+        .cost_scale = 10.0,
+        .cost_discount_factor = 1.0,
+        .covariance = FrankaRidgeback::Control{
+            0.1, 0.1, 0.2, // base
+            10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+            0.0, 0.0 // gripper
+        }.asDiagonal(),
+        .control_bound = false,
+        .control_min = FrankaRidgeback::Control{
+            -0, -0, -0, // base
+            -0, -0, -0, -0, -0, -0, -0, //arm
+            -0, -0 // gripper
         },
+        .control_max = FrankaRidgeback::Control{
+            0, 0, 0, // base
+            0, 0, 0, 0, 0, 0, 0, // arm
+            0, 0 // gripper
+        },
+        .control_default = FrankaRidgeback::Control::Zero(),
+        .smoothing = std::nullopt,
+        .threads = 12
+    };
+
+    auto cost = AssistedManipulation::create({
+        .model = {
+            .filename = urdf,
+            .end_effector_frame = "panda_grasp_joint"
+        },
+        .enable_joint_limit = true,
+        .enable_reach_limit = false,
+        .enable_maximise_manipulability = false,
+        .enable_minimise_power = false,
+        .enable_variable_damping = false,
+        .lower_joint_limit = AssistedManipulation::s_default_lower_joint_limits,
+        .upper_joint_limit = AssistedManipulation::s_default_upper_joint_limits
+    });
+
+    if (!cost) {
+        std::cerr << "failed to create mppi cost" << std::endl;
+        return nullptr;
+    }
+
+    auto dynamics = FrankaRidgeback::Dynamics::create();
+    if (!dynamics) {
+        std::cerr << "failed to create mppi dynamics" << std::endl;
+        return nullptr;
+    }
+
+    FrankaRidgebackActor::Configuration configuration {
         .controller_rate = 0.3,
         .controller_substeps = 10,
         .urdf_filename = urdf,
@@ -78,19 +93,12 @@ std::unique_ptr<Test> Circle::create()
         },
     };
 
-    if (!configuration.mppi.cost) {
-        std::cerr << "failed to create mppi cost" << std::endl;
-        return nullptr;
-    }
-
-    if (!configuration.mppi.dynamics) {
-        std::cerr << "failed to create mppi dynamics" << std::endl;
-        return nullptr;
-    }
-
     auto robot = FrankaRidgebackActor::create(
         std::move(configuration),
-        simulator.get()
+        mppi,
+        simulator.get(),
+        std::move(dynamics),
+        std::move(cost)
     );
 
     if (!robot) {
@@ -98,7 +106,8 @@ std::unique_ptr<Test> Circle::create()
         return nullptr;
     }
 
-    auto circle_actor = CircleActor::create(CircleActor::Configuration{
+    auto circle_actor = CircleActor::create(
+        CircleActor::Configuration{
             .rotating_point = {
                 .origin = Eigen::Vector3d(0.75, 0.75, 0.75),
                 .axis = Eigen::Vector3d(0.0, 0.0, 1.0),

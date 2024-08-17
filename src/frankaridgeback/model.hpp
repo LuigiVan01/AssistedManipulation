@@ -37,7 +37,7 @@ public:
      * @param configuration The model configuration.
      * @return A pointer to the model on success, or nullptr on failure.
      */
-    static std::unique_ptr<Model> create(Configuration &&configuration);
+    static std::unique_ptr<Model> create(const Configuration &configuration);
 
     /**
      * @brief Update the state of the model.
@@ -65,7 +65,7 @@ public:
      * @return const pinocchio::Data* 
      */
     const pinocchio::Data *get_data() const {
-        return m_model.get();
+        return m_data.get();
     }
 
     Eigen::Vector3d offset(

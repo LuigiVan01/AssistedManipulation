@@ -15,6 +15,7 @@ find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(osqp REQUIRED)
 find_package(raisim CONFIG REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio_INCLUDE_DIRS})
 
@@ -30,7 +31,7 @@ add_executable(
     controller/gram_savitzky_golay/gram_savitzky_golay.cpp
     controller/filter.cpp
     controller/mppi.cpp
-    controller/qp.cpp
+    # controller/qp.cpp
 
     frankaridgeback/dynamics.cpp
     frankaridgeback/model.cpp
@@ -42,7 +43,13 @@ add_executable(
 )
 
 target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(test PUBLIC raisim::raisim pinocchio::pinocchio osqp::osqp)
+target_link_libraries(
+    test PUBLIC 
+    raisim::raisim
+    pinocchio::pinocchio
+    osqp::osqp
+    nlohmann_json::nlohmann_json
+)
 
 if (UNIX)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)

@@ -1,13 +1,22 @@
 #include "simulation/actors/frankaridgeback.hpp"
 
 std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
-    mppi::Trajectory::Configuration &&mppi,
-    Configuration &&configuration,
-    Simulator *simulator
+    const Configuration &configuration,
+    const mppi::Trajectory::Configuration &mppi,
+    Simulator *simulator,
+    std::unique_ptr<mppi::Dynamics> &&dynamics,
+    std::unique_ptr<mppi::Cost> &&cost,
+    std::unique_ptr<mppi::Filter> &&filter
 ) {
     using namespace controller;
 
-    auto controller = mppi::Trajectory::create(std::move(mppi));
+    auto controller = mppi::Trajectory::create(
+        mppi,
+        std::move(dynamics),
+        std::move(cost),
+        std::move(filter)
+    );
+
     if (!controller) {
         std::cerr << "failed to create FrankaRidgebackActor mppi" << std::endl;
         return nullptr;
@@ -20,7 +29,8 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
 
     // There must be at least one controller update.
     if (configuration.controller_substeps < 1) {
-        configuration.controller_substeps = 1;
+        std::cerr << "frankaridgeback actor substeps less than zero" << std::endl;
+        return nullptr;
     }
 
     auto robot = simulator->get_world().addArticulatedSystem(configuration.urdf_filename);
@@ -41,23 +51,23 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
         return nullptr;
     }
 
-    std::cout << "simulated robot of DoF " << robot->getDOF() << std::endl;
-    int i = 0;
-    for (auto name : robot->getMovableJointNames()) {
-        auto joint = robot->getJoint(name);
-        const char *type;
+    // std::cout << "simulated robot of DoF " << robot->getDOF() << std::endl;
+    // int i = 0;
+    // for (auto name : robot->getMovableJointNames()) {
+    //     auto joint = robot->getJoint(name);
+    //     const char *type;
 
-        switch (joint.getType()) {
-            case raisim::Joint::FIXED: type = "fixed"; break;
-            case raisim::Joint::REVOLUTE: type = "revolute"; break;
-            case raisim::Joint::PRISMATIC: type = "prismatic"; break;
-            case raisim::Joint::SPHERICAL: type = "spherical"; break;
-            case raisim::Joint::FLOATING: type = "floating"; break;
-        }
+    //     switch (joint.getType()) {
+    //         case raisim::Joint::FIXED: type = "fixed"; break;
+    //         case raisim::Joint::REVOLUTE: type = "revolute"; break;
+    //         case raisim::Joint::PRISMATIC: type = "prismatic"; break;
+    //         case raisim::Joint::SPHERICAL: type = "spherical"; break;
+    //         case raisim::Joint::FLOATING: type = "floating"; break;
+    //     }
 
-        std::cout << "    joint " << i << " (" << name << ") is " << type << std::endl;
-        i++;
-    }
+    //     std::cout << "    joint " << i << " (" << name << ") is " << type << std::endl;
+    //     i++;
+    // }
 
     robot->setPdGains(
         configuration.proportional_gain,
@@ -75,9 +85,9 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
 
     return std::shared_ptr<FrankaRidgebackActor>(
         new FrankaRidgebackActor(
-            std::move(configuration),
-            simulator,
+            configuration,
             std::move(controller),
+            simulator,
             robot,
             end_effector_frame_index,
             controller_countdown_max
@@ -86,12 +96,12 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
 }
 
 FrankaRidgebackActor::FrankaRidgebackActor(
-    Configuration &&configuration,
-    Simulator *simulator,
-    std::unique_ptr<mppi::Trajectory> &&controller,
-    raisim::ArticulatedSystem *robot,
-    std::size_t end_effector_index,
-    std::int64_t controller_countdown_max
+        const Configuration &configuration,
+        std::unique_ptr<mppi::Trajectory> &&controller,
+        Simulator *simulator,
+        raisim::ArticulatedSystem *robot,
+        std::size_t end_effector_index,
+        std::int64_t controller_countdown_max
 ) : m_configuration(std::move(configuration))
   , m_simulator(simulator)
   , m_trajectory(std::move(controller))
@@ -107,7 +117,7 @@ FrankaRidgebackActor::FrankaRidgebackActor(
     m_external_joint_torques.setZero();
     m_contact_jacobian.setZero();
 
-    FrankaRidgeback::State state = m_configuration.mppi.initial_state;
+    FrankaRidgeback::State state = m_trajectory->get_rolled_out_state();
 
     m_robot->setState(
         m_configuration.initial_state.position(),

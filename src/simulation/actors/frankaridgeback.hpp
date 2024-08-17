@@ -28,7 +28,7 @@ public:
         double controller_rate;
 
         /// The number of controller updates each update.
-        std::int64_t controller_substeps;
+        unsigned int controller_substeps;
 
         /// The file name of the robot definition.
         std::string urdf_filename;
@@ -55,9 +55,12 @@ public:
      * @returns A pointer to the actor on success, or nullptr on failure.
      */
     static std::shared_ptr<FrankaRidgebackActor> create(
-        mppi::Trajectory::Configuration &&mppi,
-        Configuration &&configuration,
-        Simulator *simulator
+        const Configuration &configuration,
+        const mppi::Trajectory::Configuration &mppi,
+        Simulator *simulator,
+        std::unique_ptr<mppi::Dynamics> &&dynamics,
+        std::unique_ptr<mppi::Cost> &&cost,
+        std::unique_ptr<mppi::Filter> &&filter = nullptr
     );
 
     /**
@@ -105,6 +108,9 @@ public:
         return m_state;
     }
 
+    /**
+     * @brief Get the mppi trajectory generator.
+     */
     inline const mppi::Trajectory &get_trajectory() const {
         return *m_trajectory;
     }
@@ -114,9 +120,9 @@ private:
     friend class Simulator;
 
     FrankaRidgebackActor(
-        Configuration &&configuration,
-        Simulator *simulator,
+        const Configuration &configuration,
         std::unique_ptr<mppi::Trajectory> &&controller,
+        Simulator *simulator,
         raisim::ArticulatedSystem *robot,
         std::size_t end_effector_index,
         std::int64_t controller_countdown_max

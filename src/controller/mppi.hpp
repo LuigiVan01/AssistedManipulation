@@ -163,6 +163,68 @@ public:
 };
 
 /**
+ * @brief Configuration parameters of the mppi trajectory.
+ */
+struct Configuration
+{
+    /// The initial state of the system.
+    Eigen::VectorXd initial_state;
+
+    /// The number of rollouts to perform on each trajectory update.
+    std::int64_t rollouts;
+
+    /// The number of best rollouts to keep to warmstart the next rollout.
+    std::int64_t keep_best_rollouts;
+
+    /// The time step of the rollout dynamics simulations, in seconds.
+    double time_step;
+
+    /// The duration of time in each rollout, in seconds.
+    double horison;
+
+    /// The factor by which the optimal policy is updated with the gradient.
+    double gradient_step;
+
+    /// Cost to likelihood mapping scaling.
+    double cost_scale;
+
+    /// Discount factor of cost calculation.
+    double cost_discount_factor;
+
+    /// The covariance matrix to generate rollout noise from.
+    Eigen::MatrixXd covariance;
+
+    /// If the control output is bounded between control_min and control_max.
+    bool control_bound;
+
+    /// The minimum control output for each control degree of freedom.
+    Eigen::VectorXd control_min;
+
+    /// The maximum control output for each control degree of freedom.
+    Eigen::VectorXd control_max;
+
+    /// The control to return when getting the trajectory past the horison.
+    std::optional<Eigen::VectorXd> control_default;
+
+    /// Filter configuration.
+    struct Smoothing {
+
+        /// The number of samples in the filter window.
+        unsigned int window;
+
+        /// The order of the polynomial used to fit data.
+        unsigned int order;
+    };
+
+    /// If the trajectory should be filtered.
+    std::optional<Smoothing> smoothing;
+
+    /// The number of threads to use for concurrent work such as sampling and
+    /// rollouts.
+    unsigned int threads;
+};
+
+/**
  * @brief A model predictive path integral (MPPI) optimal trajectory
  * generator.
  * 
@@ -183,84 +245,24 @@ class Trajectory
 public:
 
     /**
-     * @brief Configuration parameters for the MPPI trajectory.
-     */
-    struct Configuration
-    {
-        /// The dynamics object that keeps track of the current system state,
-        /// and predicts future system states.
-        std::unique_ptr<Dynamics> dynamics;
-
-        /// A pointer to a cost obdject, that tracks to cumulative cost of
-        /// dynamics simulation rollouts.
-        std::unique_ptr<Cost> cost;
-
-        /// A filter applied to the optimal trajectory.
-        std::optional<std::unique_ptr<Filter>> filter;
-
-        /// The initial state of the system.
-        Eigen::VectorXd initial_state;
-
-        /// The number of rollouts to perform on each trajectory update.
-        std::int64_t rollouts;
-
-        /// The number of best rollouts to keep to warmstart the next rollout.
-        std::int64_t keep_best_rollouts;
-
-        /// The time step of the rollout dynamics simulations, in seconds.
-        double time_step;
-
-        /// The duration of time in each rollout, in seconds.
-        double horison;
-
-        /// The factor by which the optimal policy is updated with the gradient.
-        double gradient_step;
-
-        /// Cost to likelihood mapping scaling.
-        double cost_scale;
-
-        /// Discount factor of cost calculation.
-        double cost_discount_factor;
-
-        /// The covariance matrix to generate rollout noise from.
-        Eigen::MatrixXd covariance;
-
-        /// If the control output is bounded between control_min and control_max.
-        bool control_bound;
-
-        /// The minimum control output for each control degree of freedom.
-        Eigen::VectorXd control_min;
-
-        /// The maximum control output for each control degree of freedom.
-        Eigen::VectorXd control_max;
-
-        /// The control to return when getting the trajectory past the horison.
-        std::optional<Eigen::VectorXd> control_default;
-
-        /// Filter configuration.
-        struct Smoothing {
-
-            /// The number of samples in the filter window.
-            unsigned int window;
-
-            /// The order of the polynomial used to fit data.
-            unsigned int order;
-        };
-
-        /// If the trajectory should be filtered.
-        std::optional<Smoothing> smoothing;
-
-        /// The number of threads to use for concurrent work such as sampling and
-        /// rollouts.
-        unsigned int threads;
-    };
-
-    /**
      * @brief A rollout stores the noise applied to the current optimal
      * trajectory, and a measure of how good the noise is.
      */
-    struct Rollout
+    class Rollout
     {
+    public:
+
+        /// The noise applied to the previous optimal rollout. Has `control_dof`
+        /// number of rows and `steps` number of columns.
+        Eigen::MatrixXd noise;
+
+        /// The cost of the rollout.
+        double cost;
+
+    private:
+
+        friend class Trajectory;
+
         /**
          * @brief Create a new rollout.
          * 
@@ -271,27 +273,31 @@ public:
             : noise(control_dof, steps)
             , cost(0.0)
         {}
-
-        /// The noise applied to the previous optimal rollout. Has `control_dof`
-        /// number of rows and `steps` number of columns.
-        Eigen::MatrixXd noise;
-
-        /// The cost of the rollout.
-        double cost;
     };
 
-    /// The number of always available precomputed rollouts. These are the zero
-    /// control sample and negative of the previous optimal trajectory.
+    /// The number of rollouts added to the configured rollouts. These are the
+    /// zero control sample and negative of the previous optimal trajectory.
     static const constexpr std::int64_t s_static_rollouts = 2;
 
     /**
      * @brief Create a new Trajectory optimal trajectory generator.
      * 
      * @param configuration The configuration of the trajectory.
+     * @param dynamics The dynamics object that keeps track of the current system
+     * state and predicts future system states.
+     * @param cost A pointer to a cost object that evaluates the objective
+     * function at each rollout time step.
+     * @param filter An optional filter to apply to the optimal rollout after
+     * each update.
      * 
      * @returns A pointer to the trajectory on success, or nullptr on failure.
      */
-    static std::unique_ptr<Trajectory> create(Configuration &&configuration);
+    static std::unique_ptr<Trajectory> create(
+        const Configuration &configuration,
+        std::unique_ptr<Dynamics> &&dynamics,
+        std::unique_ptr<Cost> &&cost,
+        std::unique_ptr<Filter> &&filter = nullptr
+    );
 
     /**
      * @brief Increments the generated trajectory towards the optimal one, given
@@ -306,73 +312,104 @@ public:
      */
     void update(const Eigen::Ref<Eigen::VectorXd> state, double time);
 
-    inline double get_state_dof() const {
+    /**
+     * @brief Get the state degrees of freedom.
+     */
+    inline unsigned int get_state_dof() const {
         return m_state_dof;
     }
 
-    inline double get_control_dof() const {
+    /**
+     * @brief Get the control degrees of freedom.
+     */
+    inline unsigned int get_control_dof() const {
         return m_control_dof;
     }
 
+    /**
+     * @brief Get the trajectory time step.
+     */
     inline double get_time_step() const {
         return m_time_step;
     }
 
-    inline std::size_t get_step_count() const {
+    /**
+     * @brief Get the number of trajectory time steps.
+     */
+    inline unsigned int get_step_count() const {
         return m_step_count;
     }
 
+    /**
+     * @brief Get the computation duration of the last update.
+     */
     inline double get_update_duration() const {
         return m_update_duration;
     }
 
+    /**
+     * @brief Get the time of the last update.
+     */
     inline double get_update_last() const {
         return m_update_last;
     }
 
+    /**
+     * @brief Get the cumulative number of trajectory updates.
+     */
     inline std::size_t get_update_count() const {
         return m_update_count;
     }
 
+    /**
+     * @brief Get the number of rollouts.
+     */
     inline std::size_t get_rollout_count() const {
         return m_rollout_count;
     }
 
-    inline const auto &get_weights() const {
-        return m_weights;
-    }
-
-    inline const auto &get_gradient() const {
-        return m_gradient;
-    }
-
-    inline const auto &get_rollouts() const {
-        return m_rollouts;
-    }
-
-    inline const auto &get_optimal_rollout() const {
-        return m_optimal_control;
-    }
-
-    inline double get_optimal_cost() const {
-        return m_optimal_rollout.cost;
+    /**
+     * @brief Get the initial state of all the rollouts of the previous update
+     * (or the initial state if update has not been called yet).
+     */
+    inline const auto &get_rolled_out_state() const {
+        return m_rollout_state;
     }
 
     /**
-     * 
-     * @brief Get the noise trajectory of a rollout.
-     * 
-     * A block of data where each column is a vector with control dof elements.
-     * Each vector contains noise applied to the matching optimal control
-     * input for the given time step. The number of columns is equal to the
-     * number of time steps.
-     * 
-     * @param rollout The rollout to get the noise of.
-     * @return The noise of the rollout.
+     * @brief Get the last update rollout weights.
      */
-    inline auto get_rollout(std::int64_t rollout) {
-        return m_rollouts[rollout];
-    };
+    inline const Eigen::VectorXd &get_weights() const {
+        return m_weights;
+    }
+
+    /**
+     * @brief Get the last update gradient.
+     */
+    inline const Eigen::MatrixXd &get_gradient() const {
+        return m_gradient;
+    }
+
+    /**
+     * @brief Get the rollouts.
+     */
+    inline const std::vector<mppi::Trajectory::Rollout> &get_rollouts() const {
+        return m_rollouts;
+    }
+
+    /**
+     * @brief Get the optimal rollout 
+     */
+    inline const Eigen::VectorXd &get_optimal_rollout() const {
+        return m_optimal_control;
+    }
+
+    /**
+     * @brief Get the optimal rollout cost.
+     */
+    inline double get_optimal_cost() const {
+        return m_optimal_rollout.cost;
+    }
 
     /**
      * @brief Get the optimal trajectory starting at the last update time.
@@ -408,7 +445,12 @@ private:
      * @brief Initialise the trajectory generator.
      * @param configuration The configuration of the trajectory generator.
      */
-    Trajectory(Configuration &&configuration) noexcept;
+    Trajectory(
+        const Configuration &configuration,
+        std::unique_ptr<Dynamics> &&dynamics,
+        std::unique_ptr<Cost> &&cost,
+        std::unique_ptr<Filter> &&filter
+    ) noexcept;
 
     /**
      * @brief Sample the rollouts to simulate.
@@ -556,7 +598,7 @@ private:
     /// Mutex protecting concurrent access to the optimal control.
     std::mutex m_optimal_control_mutex;
 
-    /// The number of best rollouts to keep for warm starting the next iteration.
+    /// The number of best rollouts to keep for warm starting the next update.
     const std::int64_t m_keep_best_rollouts;
 
     /// Buffer to store rollout indexes before sorting them by cost.

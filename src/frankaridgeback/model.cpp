@@ -6,7 +6,7 @@
 
 namespace FrankaRidgeback {
 
-std::unique_ptr<Model> Model::create(Configuration &&configuration)
+std::unique_ptr<Model> Model::create(const Configuration &configuration)
 {
     // Open the file.
     std::ifstream file {configuration.filename, std::ios::in};
@@ -117,12 +117,13 @@ std::tuple<Eigen::Vector3d, Eigen::Quaterniond> Model::end_effector_pose()
 
 Eigen::Vector3d Model::end_effector_velocity()
 {
-    return pinocchio::getFrameVelocity(
-        m_model.get(),
-        m_data.get(),
-        m_end_effector_index,
-        pinocchio::WORLD
-    );
+    return Eigen::Vector3d::Zero();
+    // return pinocchio::getFrameVelocity(
+    //     m_model.get(),
+    //     m_data.get(),
+    //     m_end_effector_index,
+    //     pinocchio::WORLD
+    // );
 }
 
 } // namespace FrankaRidgeback 

@@ -3,16 +3,16 @@
 #include <iostream>
 
 std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
-    Configuration &&configuration
+    const Configuration &configuration
 ) {
     bool lower = (
-        configuration.enable_joint_limits &&
+        configuration.enable_joint_limit &&
         configuration.lower_joint_limit.size() != FrankaRidgeback::DoF::JOINTS
     );
 
     bool upper = (
-        configuration.enable_joint_limits &&
-        configuration.upper_joint_limit.size() != FrankaRidgeback::DoF::JOINTS
+        configuration.enable_joint_limit &&
+        configuration.lower_joint_limit.size() != FrankaRidgeback::DoF::JOINTS
     );
 
     if (lower) {
@@ -71,14 +71,14 @@ double AssistedManipulation::get(
     if (m_configuration.enable_maximise_manipulability)
         m_manipulability_cost = manipulability_cost();
 
-    if (m_configuration.enable_joint_limits)
+    if (m_configuration.enable_joint_limit)
         m_joint_cost = joint_limit_cost(state);
 
     if (m_configuration.enable_reach_limit)
         m_reach_cost = reach_cost();
-    
-    if (m_configuration.optimise_variable_damping)
-        m_variable_damping_cost = variable_damping_cost();
+
+    if (m_configuration.enable_variable_damping)
+        m_variable_damping_cost = variable_damping_cost(state);
 
     m_cost = (
         m_power_cost +
@@ -100,14 +100,14 @@ double AssistedManipulation::power_cost(
     double power = (
         state.base_velocity().transpose() * control.base() +
         state.arm_velocity().transpose() * control.arm_torque()
-    );
+    ).eval().value();
 
     if (power < maximum.limit)
         return 0.0;
 
     return (
         maximum.constant_cost +
-        std::max(0.0, maximum.proportional_cost * (power - maximum.limit)
+        std::max(0.0, maximum.proportional_cost * (power - maximum.limit))
     );
 }
 
@@ -130,13 +130,13 @@ double AssistedManipulation::manipulability_cost()
     return minimum.proportional_cost / ellipsoid_volume;
 }
 
-double AssistedManipulation::joint_limit_cost()
+double AssistedManipulation::joint_limit_cost(const FrankaRidgeback::State &state)
 {
     double cost = 0.0;
 
     for (size_t i = 0; i < FrankaRidgeback::DoF::JOINTS; i++) {
-        const auto &lower = m_configuration.lower_joint[i];
-        const auto &upper = m_configuration.upper_joint[i];
+        const auto &lower = m_configuration.lower_joint_limit[i];
+        const auto &upper = m_configuration.upper_joint_limit[i];
 
         double position = state.position()(i);
 
@@ -146,7 +146,7 @@ double AssistedManipulation::joint_limit_cost()
                 lower.proportional_cost * std::pow(lower.limit - position, 2)
             );
         }
-        else if (position > upper) {
+        else if (position > upper.limit) {
             cost += (
                 upper.constant_cost +
                 lower.proportional_cost * std::pow(position - upper.limit, 2)
@@ -159,8 +159,8 @@ double AssistedManipulation::joint_limit_cost()
 
 double AssistedManipulation::reach_cost()
 {
-    const auto &max = m_configuration.maximum_reach.limit;
-    const auto &min = m_configuration.minimum_reach.limit;
+    const auto &max = m_configuration.maximum_reach;
+    const auto &min = m_configuration.minimum_reach;
 
     // Distance of end effector to base frame.
     double reach = 0.0; // TODO
@@ -168,13 +168,13 @@ double AssistedManipulation::reach_cost()
     if (reach > max.limit) {
         return (
             max.constant_cost +
-            max.proportional_cost * std::power(max.limit - reach, 2)
+            max.proportional_cost * std::pow(max.limit - reach, 2)
         );
     }
-    else if (reach < m_configuration.reach_minimum) {
+    else if (reach < min.limit) {
         return (
             min.constant_cost +
-            min.proportional_cost * std::power(reach - min.limit, 2)
+            min.proportional_cost * std::pow(reach - min.limit, 2)
         );
     }
 
@@ -183,15 +183,18 @@ double AssistedManipulation::reach_cost()
 
 double AssistedManipulation::variable_damping_cost(const FrankaRidgeback::State &state)
 {
-    double force = 
+    // double velocity = m_model->end_effector_velocity().norm();
 
-    double damping = (
-        m_configuration.variable_damping_maximum *
-        std::exp(-m_configuration.variable_damping_dropoff * velocity)
-    );
+    // // F = c * x_dot therefore c = F \ x_dot
+    // double damping = state.end_effector_torque().norm() / velocity;
 
-    // Convert damping to expected 
-    double velocity = m_model->end_effector_velocity().norm();
+    // double expected_damping = (
+    //     m_configuration.variable_damping_maximum *
+    //     std::exp(-m_configuration.variable_damping_dropoff * velocity)
+    // );
+
+    // // Convert damping to expected 
+    // double velocity = m_model->end_effector_velocity().norm();
 
     return 0.0;
 }

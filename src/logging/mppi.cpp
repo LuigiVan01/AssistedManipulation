@@ -12,9 +12,6 @@ std::unique_ptr<MPPI> MPPI::create(Configuration &&configuration)
 
     std::vector<std::string> states, control, rollouts;
 
-    // for (int i = 0; i < configuration.trajectory->get_state_dof(); i++)
-    //     states.push_back("state"s + std::to_string(i));
-
     for (int i = 1; i < configuration.control_dof + 1; i++)
         control.push_back("control"s + std::to_string(i));
 

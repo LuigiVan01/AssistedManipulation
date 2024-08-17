@@ -64,10 +64,10 @@ public:
         bool enable_variable_damping = true;
 
         /// Lower joint limits if enabled.
-        std::vector<Limit> lower_joint;
+        std::vector<Limit> lower_joint_limit;
 
         /// Upper joint limits if enabled.
-        std::vector<Limit> upper_joint;
+        std::vector<Limit> upper_joint_limit;
 
         /// Maximum reach if enabled.
         Limit maximum_reach;
@@ -110,8 +110,43 @@ public:
      * @returns A pointer to the objective on success, or nullptr on failure.
      */
     static std::unique_ptr<AssistedManipulation> create(
-        Configuration &&configuration
+        const Configuration &configuration
     );
+
+    /**
+     * @brief Get the cumulative power cost.
+     */
+    inline double get_power_cost() {
+        return m_power_cost;
+    }
+
+    /**
+     * 
+    */
+    inline double get_manipulability_cost() {
+        return m_manipulability_cost;
+    }
+
+    /**
+     * 
+    */
+    inline double get_joint_cost() {
+        return m_joint_cost;
+    }
+
+    /**
+     * 
+    */
+    inline double get_reach_cost() {
+        return m_reach_cost;
+    }
+
+    /**
+     * 
+    */
+    inline double get_variable_damping_cost() {
+        return m_variable_damping_cost;
+    }
 
     /**
      * @brief Get the cost of a state and control input over dt.
