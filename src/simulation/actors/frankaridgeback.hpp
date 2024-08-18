@@ -24,6 +24,9 @@ public:
 
     struct Configuration {
 
+        /// Configuration of the mppi trajectory generator.
+        mppi::Configuration mppi;
+
         /// The period of time between the controller updates.
         double controller_rate;
 
@@ -44,6 +47,14 @@ public:
 
         /// The differential gain of the joint PD controller.
         FrankaRidgeback::Control differential_gain;
+
+        // JSON conversion for franka ridgeback actor configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            controller_rate, controller_substeps, urdf_filename,
+            end_effector_frame, initial_state, proportional_gain,
+            differential_gain
+        )
     };
 
     /**
@@ -56,7 +67,6 @@ public:
      */
     static std::shared_ptr<FrankaRidgebackActor> create(
         const Configuration &configuration,
-        const mppi::Trajectory::Configuration &mppi,
         Simulator *simulator,
         std::unique_ptr<mppi::Dynamics> &&dynamics,
         std::unique_ptr<mppi::Cost> &&cost,

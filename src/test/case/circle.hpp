@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include "simulation/simulator.hpp"
+#include "frankaridgeback/objective/assisted_manipulation.hpp"
 #include "simulation/actors/frankaridgeback.hpp"
 #include "simulation/actors/circle.hpp"
 #include "logging/mppi.hpp"
@@ -14,10 +15,44 @@ class Circle : public RegisteredTest<Circle>
 {
 public:
 
+    struct Configuration {
+
+        std::string folder;
+
+        Simulator::Configuration simulator;
+
+        AssistedManipulation::Configuration objective;
+
+        FrankaRidgebackActor::Configuration frankaridgeback_actor;
+
+        CircleActor::Configuration circle_actor;
+
+        logger::MPPI::Configuration mppi_logger;
+
+        logger::PID::Configuration pid_logger;
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            folder, simulator, objective, frankaridgeback_actor,
+            circle_actor, mppi_logger, pid_logger
+        )
+    };
+
     static inline constexpr const char *TEST_NAME = "circle";
 
-    static std::unique_ptr<Test> create();
+    /**
+     * @brief Create a circle test instance.
+     * 
+     * @param patch The configuration overrides from the default configuration.
+     * 
+     * @returns A pointer to the test on success or nullptr on failure.
+     */
+    static std::unique_ptr<Test> create(json &patch);
 
+    /**
+     * @brief Run the test.
+     * @returns If the test was successful.
+     */
     bool run() override;
 
 private:

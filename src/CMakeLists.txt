@@ -35,7 +35,7 @@ add_executable(
 
     frankaridgeback/dynamics.cpp
     frankaridgeback/model.cpp
-    frankaridgeback/objective/point.cpp
+    frankaridgeback/objective/track_point.cpp
     frankaridgeback/objective/assisted_manipulation.cpp
 
     logging/mppi.cpp

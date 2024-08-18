@@ -5,6 +5,8 @@
 
 #include <Eigen/Eigen>
 
+#include "controller/json.hpp"
+
 namespace controller {
 
 /**
@@ -42,6 +44,13 @@ public:
 
         /// The initial time.
         double time;
+
+        // JSON conversion for pid configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            state_dof, control_dof, kp, kd, ki, minimum, maximum, reference,
+            time
+        )
     };
 
     /**

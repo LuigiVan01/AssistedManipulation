@@ -2,6 +2,7 @@
 
 #include <Eigen/Eigen>
 
+#include "controller/json.hpp"
 #include "controller/pid.hpp"
 #include "simulation/simulator.hpp"
 #include "simulation/actors/circle.hpp"
@@ -24,6 +25,12 @@ public:
 
         /// The angular velocity of the point to track.
         double angular_velocity;
+
+        // JSON conversion for rotating point configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            origin, axis, radius, angular_velocity
+        )
     };
 
     inline RotatingPoint(const Configuration &configuration)
@@ -91,29 +98,35 @@ public:
         /// The pid behaviour of keeping the end effector at the point.
         controller::PID::Configuration pid;
 
-        /// Pointer to the simulated system to apply force to.
-        FrankaRidgebackActor *robot;
+        // JSON conversion for circle actor configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            rotating_point, pid
+        )
     };
 
     /**
      * @brief Create a new actor.
      * 
      * @param configuration The point actor configuration.
+     * @param simulator Pointer to the simulator
+     * @param robot Pointer to the simulated system to apply force to.
      * 
      * @returns A pointer to the actor on success, or nullptr if the configured
      * frame does not exist.
      */
     static inline std::shared_ptr<CircleActor> create(
         const Configuration &configuration,
-        Simulator *simulator
+        Simulator *simulator,
+        FrankaRidgebackActor *robot
      ) {
-        if (configuration.robot == nullptr) {
+        if (robot == nullptr) {
             std::cerr << "point actor robot pointer is nullptr" << std::endl;
             return nullptr;
         }
 
         return std::shared_ptr<CircleActor>(
-            new CircleActor(configuration, simulator)
+            new CircleActor(configuration, simulator, robot)
         );
     }
 
@@ -132,7 +145,7 @@ public:
         // Display the new position in the simulator.
         m_tracking_sphere->setPosition(reference);
 
-        auto position = m_configuration.robot->get_end_effector_position();
+        auto position = m_robot->get_end_effector_position();
 
         // Update the pid controller.
         m_pid.set_reference(reference);
@@ -140,7 +153,7 @@ public:
 
         // Apply the pid controller for to the end effector.
         Eigen::Vector3d control = m_pid.get_control();
-        m_configuration.robot->set_end_effector_force(control);
+        m_robot->set_end_effector_force(control);
     }
 
     inline void update(Simulator *simulator) override {}
@@ -156,10 +169,12 @@ private:
 
     CircleActor(
         const Configuration &configuration,
-        Simulator *simulator
+        Simulator *simulator,
+        FrankaRidgebackActor *robot
       ) : m_configuration(configuration)
         , m_rotating_point(configuration.rotating_point)
         , m_pid(configuration.pid)
+        , m_robot(robot)
     {
         Eigen::Vector3d reference = m_rotating_point(configuration.pid.time);
         m_pid.set_reference(reference);
@@ -179,6 +194,9 @@ private:
 
     /// A pid controller to move towards the point.
     controller::PID m_pid;
+
+    /// Pointer to the robot.
+    FrankaRidgebackActor *m_robot;
 
     /// Visual sphere of the point being tracked.
     raisim::Visuals *m_tracking_sphere;

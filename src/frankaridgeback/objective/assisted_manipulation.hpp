@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include "controller/mppi.hpp"
 #include "frankaridgeback/model.hpp"
 
@@ -11,39 +13,39 @@ class AssistedManipulation : public mppi::Cost
 {
 public:
 
-    /// The default lower joint limits.
-    inline static Eigen::Vector<double, FrankaRidgeback::DoF::JOINTS>
-    s_default_lower_joint_limits {
-        -2.0, -2.0, -6.28,
-        -2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973,
-        0.5, 0.5
-    };
+    /**
+     * @brief A generic objective function for evaluating a single variable.
+     * 
+     * The quadratic cost performs the role of a quadratic gradient function
+     * during optimisation. Does not guarentee 
+     * 
+     * TODO: Could add an inline function calculating the cost as
+     * c(x) = constant_cost + linear_cost * x + quadratic_cost * x^2
+     * to simplify writing it out in every part of the objective function.
+     */
+    struct QuadraticCost {
 
-    /// The default upper joint limits.
-    inline static Eigen::Vector<double, FrankaRidgeback::DoF::JOINTS>
-    s_default_upper_joint_limits {
-        2.0, 2.0, 6.28,
-        2.8973, 1.7628, 2.8973, 0.0698, 2.8973, 3.7525, 2.8973,
-        0.5, 0.5
+        /// The limits to apply.
+        double limit;
+
+        /// Constant cost incurred when limit is breached.
+        double constant_cost = 1'000;
+
+        /// Cost incurred proportional to the square of how much limit is
+        /// breached.
+        // double linear_cost = 10'000;
+
+        /// Cost incurred proportional to the square of how much limit is
+        /// breached.
+        double quadratic_cost = 100'000;
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            QuadraticCost,
+            limit, constant_cost, quadratic_cost
+        )
     };
 
     struct Configuration {
-
-        /**
-         * @brief A generic objective function for evaluating a single variable.
-         */
-        struct Limit {
-
-            /// The limits to apply.
-            double limit;
-
-            /// Constant cost added when limit is breached.
-            double constant_cost = 1'000;
-
-            /// Additional cost added proportional to how much the limit is
-            /// breached.
-            double proportional_cost = 100'000;
-        };
 
         /// The configuration of the model.
         FrankaRidgeback::Model::Configuration model;
@@ -64,30 +66,79 @@ public:
         bool enable_variable_damping = true;
 
         /// Lower joint limits if enabled.
-        std::vector<Limit> lower_joint_limit;
+        std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> lower_joint_limit;
 
         /// Upper joint limits if enabled.
-        std::vector<Limit> upper_joint_limit;
+        std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> upper_joint_limit;
 
         /// Maximum reach if enabled.
-        Limit maximum_reach;
+        QuadraticCost maximum_reach;
 
         /// Minimum reach if enabled.
-        Limit minimum_reach;
+        QuadraticCost minimum_reach;
 
         /// Manipulability limits if enabled. Relative to `sqrt(det(J * J^T))`
         /// that is proportional to the volume of the manipulability ellipsoid,
         /// clipped above 1e-10. Jacobian in spatial frame. Greater values are
         /// better. Limit is a lower bound on this value.
-        Limit minimum_manipulability;
+        QuadraticCost minimum_manipulability;
 
         /// Maximum power (joules per second) usage if enabled. 
-        Limit maximum_power;
+        QuadraticCost maximum_power;
 
+        /// The maximum damping that occurs when the end effector has zero
+        /// velocity. The A in c(v) = Ae^{lambda * v}
         double variable_damping_maximum;
 
+        /// The exponential drop-off from variable_damping_maximum with respect
+        /// to velocity. The lambda in c(v) = Ae^{lambda * v}
         double variable_damping_dropoff;
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            model, enable_joint_limit, enable_reach_limit, 
+            enable_maximise_manipulability, enable_minimise_power,
+            enable_variable_damping, lower_joint_limit, upper_joint_limit,
+            maximum_reach, minimum_reach, minimum_manipulability, maximum_power,
+            variable_damping_maximum, variable_damping_dropoff
+        )
     };
+
+    // Joint cost limits probably don't need this high fidelity.
+
+    /// The default lower joint limits.
+    inline static std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS>
+    s_default_lower_joint_limits {{
+        {-2.0,    1'000, 100'00}, // Base rotation
+        {-2.0,    1'000, 100'00}, // Base x
+        {-6.28,   1'000, 100'00}, // Base y
+        {-2.8973, 1'000, 100'00}, // Joint1
+        {-1.7628, 1'000, 100'00}, // Joint2
+        {-2.8973, 1'000, 100'00}, // Joint3
+        {-3.0718, 1'000, 100'00}, // Joint4
+        {-2.8973, 1'000, 100'00}, // Joint5
+        {-0.0175, 1'000, 100'00}, // Joint6
+        {-2.8973, 1'000, 100'00}, // Joint7
+        {0.5,     1'000, 100'00}, // Gripper x
+        {0.5,     1'000, 100'00}  // Gripper y
+    }};
+
+    /// The default upper joint limits.
+    inline static std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS>
+    s_default_upper_joint_limits {{
+        {2.0,    1'000, 100'00}, // Base rotation
+        {2.0,    1'000, 100'00}, // Base x
+        {6.28,   1'000, 100'00}, // Base y
+        {2.8973, 1'000, 100'00}, // Joint1
+        {1.7628, 1'000, 100'00}, // Joint2
+        {2.8973, 1'000, 100'00}, // Joint3
+        {3.0718, 1'000, 100'00}, // Joint4
+        {2.8973, 1'000, 100'00}, // Joint5
+        {0.0175, 1'000, 100'00}, // Joint6
+        {2.8973, 1'000, 100'00}, // Joint7
+        {0.5,    1'000, 100'00}, // Gripper x
+        {0.5,    1'000, 100'00}  // Gripper y
+    }};
 
     /**
      * @brief Get the number of state degrees of freedom.

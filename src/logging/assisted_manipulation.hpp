@@ -34,6 +34,13 @@ public:
 
         /// Log the optimal rollout cost.
         bool log_variable_damping_cost = true;
+
+        // JSON conversion for mppi logger configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            folder, log_joint_cost, log_reach_cost, log_manipulability_cost,
+            log_power_cost, log_variable_damping_cost
+        )
     };
 
     /**

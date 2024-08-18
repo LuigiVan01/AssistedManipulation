@@ -5,32 +5,6 @@
 std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
     const Configuration &configuration
 ) {
-    bool lower = (
-        configuration.enable_joint_limit &&
-        configuration.lower_joint_limit.size() != FrankaRidgeback::DoF::JOINTS
-    );
-
-    bool upper = (
-        configuration.enable_joint_limit &&
-        configuration.lower_joint_limit.size() != FrankaRidgeback::DoF::JOINTS
-    );
-
-    if (lower) {
-        std::cerr << "lower joint limits has incorrect dimension "
-                  << configuration.lower_joint_limit.size()
-                  << " != expected " << FrankaRidgeback::DoF::JOINTS
-                  << std::endl;
-        return nullptr;
-    }
-
-    if (upper) {
-        std::cerr << "upper joint limits has incorrect dimension "
-                  << configuration.upper_joint_limit.size()
-                  << " != expected " << FrankaRidgeback::DoF::JOINTS
-                  << std::endl;
-        return nullptr;
-    }
-
     auto model = FrankaRidgeback::Model::create(std::move(configuration.model));
     if (!model) {
         std::cout << "failed to create dynamics model." << std::endl;
@@ -98,7 +72,6 @@ double AssistedManipulation::power_cost(
     const auto &maximum = m_configuration.maximum_power;
 
     double power = (
-        state.base_velocity().transpose() * control.base() +
         state.arm_velocity().transpose() * control.arm_torque()
     ).eval().value();
 
@@ -107,7 +80,7 @@ double AssistedManipulation::power_cost(
 
     return (
         maximum.constant_cost +
-        std::max(0.0, maximum.proportional_cost * (power - maximum.limit))
+        std::max(0.0, maximum.quadratic_cost * (power - maximum.limit))
     );
 }
 
@@ -127,7 +100,7 @@ double AssistedManipulation::manipulability_cost()
     if (ellipsoid_volume < minimum.limit)
         return 0.0;
 
-    return minimum.proportional_cost / ellipsoid_volume;
+    return minimum.quadratic_cost / ellipsoid_volume;
 }
 
 double AssistedManipulation::joint_limit_cost(const FrankaRidgeback::State &state)
@@ -143,13 +116,13 @@ double AssistedManipulation::joint_limit_cost(const FrankaRidgeback::State &stat
         if (position < lower.limit) {
             cost += (
                 lower.constant_cost +
-                lower.proportional_cost * std::pow(lower.limit - position, 2)
+                lower.quadratic_cost * std::pow(lower.limit - position, 2)
             );
         }
         else if (position > upper.limit) {
             cost += (
                 upper.constant_cost +
-                lower.proportional_cost * std::pow(position - upper.limit, 2)
+                lower.quadratic_cost * std::pow(position - upper.limit, 2)
             );
         }
     }
@@ -168,13 +141,13 @@ double AssistedManipulation::reach_cost()
     if (reach > max.limit) {
         return (
             max.constant_cost +
-            max.proportional_cost * std::pow(max.limit - reach, 2)
+            max.quadratic_cost * std::pow(max.limit - reach, 2)
         );
     }
     else if (reach < min.limit) {
         return (
             min.constant_cost +
-            min.proportional_cost * std::pow(reach - min.limit, 2)
+            min.quadratic_cost * std::pow(reach - min.limit, 2)
         );
     }
 

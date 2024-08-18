@@ -10,6 +10,7 @@
 
 #include <Eigen/Eigen>
 
+#include "controller/json.hpp"
 #include "controller/gaussian.hpp"
 #include "controller/concurrency.hpp"
 #include "controller/filter.hpp"
@@ -214,6 +215,9 @@ struct Configuration
 
         /// The order of the polynomial used to fit data.
         unsigned int order;
+
+        // JSON conversion for Smoothing.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Smoothing, window, order)
     };
 
     /// If the trajectory should be filtered.
@@ -222,6 +226,14 @@ struct Configuration
     /// The number of threads to use for concurrent work such as sampling and
     /// rollouts.
     unsigned int threads;
+
+    // JSON conversion for mppi configuration.
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        Configuration,
+        initial_state, rollouts, keep_best_rollouts, time_step, horison,
+        gradient_step, cost_scale, cost_discount_factor, covariance,
+        control_bound, control_min, control_max, control_default, smoothing, threads
+    )
 };
 
 /**

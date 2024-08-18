@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/algorithm/frames.hpp>
@@ -29,6 +31,11 @@ public:
 
         /// The name of the end effector frame.
         std::string end_effector_frame;
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            filename, end_effector_frame
+        )
     };
 
     /**

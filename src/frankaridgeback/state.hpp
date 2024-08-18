@@ -2,6 +2,7 @@
 
 #include <Eigen/Eigen>
 
+#include "controller/json.hpp"
 #include "frankaridgeback/dof.hpp"
 
 namespace FrankaRidgeback {
@@ -61,6 +62,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
 
     inline const auto base_yaw() const {
         return segment<DoF::BASE_YAW>(DoF::BASE_POSITION);
+    }
+
+    inline auto base() {
+        return head<DoF::BASE>();
     }
 
     /**
@@ -209,5 +214,13 @@ struct State : public Eigen::Vector<double, DoF::STATE>
         return tail<DoF::EXTERNAL_TORQUE>();
     }
 };
+
+inline void to_json(json& j, const State &state) {
+    to_json(j, (Eigen::VectorXd&)state);
+}
+
+inline void from_json(const json& j, State &state) {
+    from_json(j, (Eigen::VectorXd&)state);
+}
 
 } // namespace FrankaRidgeback

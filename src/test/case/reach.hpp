@@ -1,10 +1,12 @@
+#pragma once
+
 #include <cstdlib>
 #include <filesystem>
 
 #include "simulation/simulator.hpp"
 #include "simulation/actors/frankaridgeback.hpp"
 #include "frankaridgeback/dynamics.hpp"
-#include "frankaridgeback/objective/point.hpp"
+#include "frankaridgeback/objective/track_point.hpp"
 #include "logging/mppi.hpp"
 #include "test/test.hpp"
 
@@ -17,23 +19,23 @@ public:
         /// The output folder for the test.
         std::string folder;
 
+        /// Simulation configuration.
         Simulator::Configuration simulator;
 
         /// The reach for point objective configuration.
         TrackPoint::Configuration objective;
 
-        /// Mppi configuration.
-        mppi::Configuration mppi;
-
         /// The actors configuration including controller update rate.
         FrankaRidgebackActor::Configuration actor;
 
-        logger::MPPI::Configuration mppi_logger;
+        /// MPPI logging configuration.
+        logger::MPPI::Configuration logger;
 
+        // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, objective, mppi, actor
-        );
+            folder, simulator, objective, actor, logger
+        )
     };
 
     static inline constexpr const char *TEST_NAME = "reach";

@@ -2,7 +2,6 @@
 
 std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
     const Configuration &configuration,
-    const mppi::Trajectory::Configuration &mppi,
     Simulator *simulator,
     std::unique_ptr<mppi::Dynamics> &&dynamics,
     std::unique_ptr<mppi::Cost> &&cost,
@@ -11,7 +10,7 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
     using namespace controller;
 
     auto controller = mppi::Trajectory::create(
-        mppi,
+        configuration.mppi,
         std::move(dynamics),
         std::move(cost),
         std::move(filter)

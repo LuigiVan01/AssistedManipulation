@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "logging/csv.hpp"
+#include "controller/json.hpp"
 #include "controller/pid.hpp"
 
 namespace logger {
@@ -36,6 +37,12 @@ public:
 
         /// Log PID controls.
         bool log_control = true;
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            folder, reference_dof, control_dof, log_reference, log_error,
+            log_cumulative_error, log_saturation, log_control
+        )
     };
 
     /**
@@ -44,7 +51,7 @@ public:
      * @param configuration The logger configuration.
      * @returns A pointer to the PID logger on success or nullptr on failure.
      */
-    static std::unique_ptr<PID> create(Configuration &&configuration);
+    static std::unique_ptr<PID> create(const Configuration &configuration);
 
     /**
      * @brief Log a pid controller.

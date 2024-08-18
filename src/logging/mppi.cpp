@@ -6,7 +6,7 @@
 
 namespace logger {
 
-std::unique_ptr<MPPI> MPPI::create(Configuration &&configuration)
+std::unique_ptr<MPPI> MPPI::create(const Configuration &configuration)
 {
     using namespace std::string_literals;
 

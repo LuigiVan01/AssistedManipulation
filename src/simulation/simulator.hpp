@@ -5,6 +5,7 @@
 
 #include <Eigen/Eigen>
 
+#include "controller/json.hpp"
 #include "raisim/RaisimServer.hpp"
 #include "raisim/World.hpp"
 
@@ -45,6 +46,8 @@ public:
 
         // The gravitational acceleration.
         Eigen::Vector3d gravity;
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, time_step, gravity)
     };
 
     /**

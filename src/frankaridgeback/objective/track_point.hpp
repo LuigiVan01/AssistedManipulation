@@ -1,5 +1,6 @@
 #pragma once
 
+#include "controller/json.hpp"
 #include "controller/mppi.hpp"
 #include "frankaridgeback/model.hpp"
 
@@ -18,6 +19,9 @@ public:
 
         /// The configuration of the model.
         FrankaRidgeback::Model::Configuration model;
+
+        // JSON conversion for track point objective configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, point, model)
     };
 
     inline constexpr int state_dof() override {
@@ -34,7 +38,7 @@ public:
      * @param configuration The configuration of the objective function.
      * @return A pointer to the cost instance on success, or nullptr on failure.
      */
-    static std::unique_ptr<TrackPoint> create(Configuration &&configuration);
+    static std::unique_ptr<TrackPoint> create(const Configuration &configuration);
 
     /**
      * @brief Get the cost of a state and control input over dt.

@@ -45,6 +45,12 @@ public:
 
         /// Log other update information.
         bool log_update = true;
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            folder, state_dof, control_dof, rollouts, log_costs, log_weights,
+            log_gradient, log_optimal_rollout, log_optimal_cost, log_update
+        )
     };
 
     /**
@@ -53,7 +59,7 @@ public:
      * @param configuration The logger configuration.
      * @returns A pointer to the MPPI logger on success or nullptr on failure.
      */
-    static std::unique_ptr<MPPI> create(Configuration &&configuration);
+    static std::unique_ptr<MPPI> create(const Configuration &configuration);
 
     /**
      * @brief Log the current trajectory.

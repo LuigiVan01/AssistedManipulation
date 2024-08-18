@@ -1,9 +1,9 @@
-#include "frankaridgeback/objective/point.hpp"
+#include "frankaridgeback/objective/track_point.hpp"
 
 #include <iostream>
 #include <random>
 
-std::unique_ptr<TrackPoint> TrackPoint::create(Configuration &&configuration)
+std::unique_ptr<TrackPoint> TrackPoint::create(const Configuration &configuration)
 {
     auto model = FrankaRidgeback::Model::create(std::move(configuration.model));
     if (!model) {

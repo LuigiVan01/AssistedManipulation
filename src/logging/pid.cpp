@@ -2,7 +2,7 @@
 
 namespace logger {
 
-std::unique_ptr<PID> PID::create(PID::Configuration &&configuration)
+std::unique_ptr<PID> PID::create(const PID::Configuration &configuration)
 {
     using namespace std::string_literals;
 

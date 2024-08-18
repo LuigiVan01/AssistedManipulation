@@ -2,8 +2,8 @@
 
 #include <iostream>
 
+#include "simulation/simulator.hpp"
 #include "controller/pid.hpp"
-#include "simulator.hpp"
 
 /**
  * @brief An actor that attempts to force a frame to a point in space using PID.

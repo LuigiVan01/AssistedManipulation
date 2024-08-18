@@ -2,6 +2,7 @@
 
 #include <Eigen/Eigen>
 
+#include "controller/json.hpp"
 #include "frankaridgeback/dof.hpp"
 
 namespace FrankaRidgeback {
@@ -89,5 +90,13 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
         return tail<DoF::GRIPPER>();
     }
 };
+
+inline void to_json(json& j, const Control &control) {
+    to_json(j, (Eigen::VectorXd&)control);
+}
+
+inline void from_json(const json& j, Control &control) {
+    from_json(j, (Eigen::VectorXd&)control);
+}
 
 } // namespace FrankaRidgeback
