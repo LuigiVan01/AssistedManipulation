@@ -1,9 +1,6 @@
 #pragma once
 
-#include <iostream>
-#include <fstream>
-#include <filesystem>
-#include <string>
+#include "logging/file.hpp"
 
 namespace logger {
 
@@ -25,8 +22,14 @@ class CSV
 {
 public:
 
+    /**
+     * @brief The first line in the CSV file naming to columns.
+     */
     using Header = std::vector<std::string>;
 
+    /**
+     * @brief Configuration of the CSV file.
+     */
     struct Configuration {
 
         /// The file to log to.
@@ -61,45 +64,24 @@ public:
     ) {
         using namespace std::string_literals;
 
-        // Create the parent directories of the file if they do not exist.
-        if (!std::filesystem::exists(configuration.path.parent_path())) {
-            std::error_code code;
-            bool created_directory = std::filesystem::create_directories(
-                configuration.path.parent_path(),
-                code
-            );
-
-            if (!created_directory) {
-                std::cerr << "failed to create csv log file " << configuration.path
-                        << ". " << code.message() << std::endl;
-                return nullptr;
-            }
-        }
-
-        // Open the CSV file.
-        std::fstream stream {configuration.path, std::ios::out};
-
-        if (!stream.is_open()) {
-            std::cerr << "failed to open log file "
-                      << configuration.path << std::endl;
+        auto file = File::create(configuration.path);
+        if (!file) {
+            std::cerr << "failed to create csv log file" << std::endl;
             return nullptr;
         }
 
         // Output the csv header.
         if (!configuration.header.empty()) {
-            stream << configuration.header[0];
+            *file << configuration.header[0];
             for (int i = 1; i < configuration.header.size(); i++)
-                stream << ", " << configuration.header[i];
-            stream << '\n';
+                *file << ", " << configuration.header[i];
+            *file << '\n';
         }
 
-        return std::unique_ptr<CSV>(new CSV(std::move(stream)));
-    }
+        auto csv = std::unique_ptr<CSV>(new CSV());
+        csv->m_file = std::move(file);
 
-    inline ~CSV()
-    {
-        m_stream.flush();
-        m_stream.close();
+        return csv;
     }
 
     /**
@@ -117,29 +99,19 @@ public:
     {
         using namespace std::string_literals;
 
-        if (!m_stream.is_open())
-            throw std::runtime_error("logging to unopen csv file.");
-
         // Log the first value.
         write_value(std::forward<Arg&&>(arg));
 
         // Log comma separated values.
-        ((m_stream << ", ", write_value(std::forward<Args&&>(args))), ...);
+        ((*m_file << ", ", write_value(std::forward<Args&&>(args))), ...);
 
         // End with newline. End of newline at end of file.
-        m_stream << '\n';
-        m_stream.flush();
+        *m_file << '\n';
     }
 
 private:
 
-    /**
-     * @brief Initialise the CSV file writer.
-     * @param out The open file stream to write to.
-     */
-    inline CSV(std::fstream &&out)
-        : m_stream(std::move(out))
-    {}
+    CSV() = default;
 
     /**
      * @brief Push a string to a header.
@@ -171,11 +143,11 @@ private:
         auto it = std::begin(iterable);
 
         if (it != std::end(iterable))
-            m_stream << *it;
+            *m_file << *it;
 
         // Comma separation after the first element.
         for (++it; it != std::end(iterable); ++it)
-            m_stream << ", " << *it;
+            *m_file << ", " << *it;
     }
 
     /**
@@ -186,11 +158,11 @@ private:
      */
     template<typename T>
     void write_value(const T &value) {
-        m_stream << value;
+        *m_file << value;
     }
 
     /// The file to write to.
-    std::fstream m_stream;
+    std::unique_ptr<File> m_file;
 };
 
 } // namespace logger

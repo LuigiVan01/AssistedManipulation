@@ -96,25 +96,25 @@ static const Circle::Configuration default_configuration {
         .reference_dof = 3,
         .control_dof = 3
     }
-};
+};  
 
-std::unique_ptr<Test> Circle::create(json &patch)
+std::unique_ptr<Test> Circle::create(Options &options)
 {
     Configuration configuration = default_configuration;
 
     // If configuration overrides were provided, apply them based on the json
     // patch specification.
     try {
-        if (!patch.is_null()) {
+        if (!options.configuration.is_null()) {
             json json_configuration = default_configuration;
-            json_configuration.merge_patch(patch);
+            json_configuration.merge_patch(options.configuration);
             configuration = json_configuration;
         }
     }
     catch (const json::exception &err) {
         std::cerr << "error when patching json configuration: " << err.what() << std::endl;
         std::cerr << "configuration was " << ((json)default_configuration).dump(4) << std::endl;
-        std::cerr << "patch was " << patch.dump(4) << std::endl;
+        std::cerr << "patch was " << options.configuration.dump(4) << std::endl;
         return nullptr;
     }
 
@@ -170,10 +170,10 @@ std::unique_ptr<Test> Circle::create(json &patch)
     configuration.mppi_logger.rollouts = robot->get_trajectory().get_rollout_count();
 
     if (configuration.mppi_logger.folder.empty())
-        configuration.mppi_logger.folder = cwd / "mppi";
+        configuration.mppi_logger.folder = options.folder / "mppi";
 
     if (configuration.pid_logger.folder.empty())
-        configuration.pid_logger.folder = cwd / "pid";
+        configuration.pid_logger.folder = options.folder / "pid";
 
     auto mppi_logger = logger::MPPI::create(configuration.mppi_logger);
     if (!mppi_logger) {
@@ -185,6 +185,14 @@ std::unique_ptr<Test> Circle::create(json &patch)
     if (!pid_logger) {
         std::cerr << "failed to create pid logger" << std::endl;
         return nullptr;
+    }
+
+    // Log the configuration used in the test.
+    {
+        auto file = logger::File::create(options.folder / "configuration.json");
+        if (!file)
+            return nullptr;
+        file->get_stream() << ((json)configuration).dump(4);
     }
 
     auto test = std::make_unique<Circle>();
@@ -202,7 +210,7 @@ bool Circle::run()
 {
     // while (m_simulator->get_time() < 30) {
     while (1) {
-        raisim::TimedLoop(m_simulator->get_time_step() * 1e6);
+        // raisim::TimedLoop(m_simulator->get_time_step() * 1e6);
         m_simulator->step();
         m_mppi_logger->log(m_robot->get_trajectory());
         m_pid_logger->log(m_actor->get_pid());

@@ -147,7 +147,7 @@ void FrankaRidgebackActor::act(Simulator *simulator)
     if (--m_trajectory_countdown <= 0) {
         m_trajectory_countdown = m_trajectory_countdown_max;
 
-        for (int i = 0; i < m_configuration.controller_substeps; i++)
+        for (unsigned int i = 0; i < m_configuration.controller_substeps; i++)
             m_trajectory->update(m_state, simulator->get_time());
     }
 

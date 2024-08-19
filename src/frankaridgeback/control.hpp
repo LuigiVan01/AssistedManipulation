@@ -91,12 +91,20 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
     }
 };
 
-inline void to_json(json& j, const Control &control) {
-    to_json(j, (Eigen::VectorXd&)control);
+// JSON conversion should be handled by the generic type, but are custom here
+// due to the issue in templated conversion function, see there.
+
+inline void to_json(json& j, const Control &control)
+{
+    j = json::array();
+    for (int i = 0; i < control.size(); i++)
+        j.push_back(control(i));
 }
 
-inline void from_json(const json& j, Control &control) {
-    from_json(j, (Eigen::VectorXd&)control);
+inline void from_json(const json& j, Control &control)
+{
+    for (int i = 0; i < j.size(); i++)
+        j.get_to(control(i));
 }
 
 } // namespace FrankaRidgeback

@@ -412,7 +412,15 @@ public:
     /**
      * @brief Get the optimal rollout 
      */
-    inline const Eigen::VectorXd &get_optimal_rollout() const {
+    inline const Eigen::MatrixXd &get_optimal_rollout() const {
+        return m_optimal_control;
+    }
+
+    /**
+     * @brief Get the optimal trajectory starting at the last update time.
+     * @returns The optimal control trajectory.
+     */
+    inline const Eigen::MatrixXd &trajectory() const {
         return m_optimal_control;
     }
 
@@ -421,14 +429,6 @@ public:
      */
     inline double get_optimal_cost() const {
         return m_optimal_rollout.cost;
-    }
-
-    /**
-     * @brief Get the optimal trajectory starting at the last update time.
-     * @returns The optimal control trajectory.
-     */
-    inline const Eigen::VectorXd &trajectory() const {
-        return m_optimal_control;
     }
 
     /**

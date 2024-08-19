@@ -92,19 +92,49 @@ parse(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+    char *program = argv[0];
+
+    // Prints usage diagnostics for command line errors.
+    auto usage = [argc, argv](std::string reason) /* [[noreturn]] */ {
+        std::cerr << "usage: "<< argv[0] << " --test <string> --out <path> [--config <json>]" << std::endl;
+
+        std::cerr << "ran: ";
+        for (int i = 0; i < argc; i++)
+            std::cerr << argv[i] << ' ';
+        std::cerr << std::endl;
+
+        std::cerr << "error: " << reason << std::endl;
+        exit(1);
+    };
+
     // Ignore executable name.
     argc -= 1;
     argv += 1;
 
     auto [success, flags, args] = parse(argc, argv);
-    if (!success) {
-        std::cerr << "invalid command line arguments" << std::endl;
-        return 1;
+    if (!success)
+        usage("failed to parse args");
+
+    // Must supply test.
+    if (!args.contains("test") || args["test"].size() != 1) 
+        usage("--test must be specified");
+
+    // Must supply output folder.
+    if (!args.contains("out") || args["out"].size() != 1)
+        usage("--out must be specified");
+
+    json configuration = nullptr;
+
+    if (args.contains("config")) {
+        const std::string &string = args["config"][0];
+        try {
+            configuration = json::parse(string);
+        }
+        catch (const json::exception &err) {
+            using namespace std::string_literals;
+            usage("failed to parse config: "s + err.what() + ", config was " + string);
+        }
     }
 
-    auto it = args.find("test");
-    if (it == args.end())
-        return (int)TestSuite::run();
-    else
-        return (int)TestSuite::run(it->second);
+    return (int)TestSuite::run(args["test"][0], configuration, args["out"][0]);
 }

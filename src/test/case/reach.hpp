@@ -43,13 +43,17 @@ public:
     /**
      * @brief Create a test reaching for a point.
      * 
-     * @param configuration The configuration of the test for overriding, or
-     * null.
+     * @param options The test options. The configuration overrides from the
+     * default configuration.
      * 
-     * @return std::unique_ptr<Test> 
+     * @return A pointer to the test on success or nullptr on failure.
      */
-    static std::unique_ptr<Test> create(json &configuration);
+    static std::unique_ptr<Test> create(Options &options);
 
+    /**
+     * @brief Run the test.
+     * @returns If the test was successful.
+     */
     bool run() override;
 
 private:

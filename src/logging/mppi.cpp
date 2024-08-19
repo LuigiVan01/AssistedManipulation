@@ -12,10 +12,10 @@ std::unique_ptr<MPPI> MPPI::create(const Configuration &configuration)
 
     std::vector<std::string> states, control, rollouts;
 
-    for (int i = 1; i < configuration.control_dof + 1; i++)
+    for (unsigned int i = 1; i < configuration.control_dof + 1; i++)
         control.push_back("control"s + std::to_string(i));
 
-    for (int i = 1; i < configuration.rollouts + 1; i++)
+    for (unsigned int i = 1; i < configuration.rollouts + 1; i++)
         rollouts.push_back("rollout"s + std::to_string(i));
 
     auto mppi = std::unique_ptr<MPPI>(new MPPI());
@@ -88,8 +88,8 @@ void MPPI::log(const mppi::Trajectory &trajectory)
     if (time == m_last_update)
         return;
 
-    auto step = trajectory.get_time_step();
-    auto steps = trajectory.get_step_count();
+    double step = trajectory.get_time_step();
+    unsigned int steps = trajectory.get_step_count();
     std::size_t iteration = trajectory.get_update_count();
 
     if (m_update) {
@@ -104,7 +104,7 @@ void MPPI::log(const mppi::Trajectory &trajectory)
     m_time.resize(steps);
 
     // Update the time horison.
-    for (int i = 0; i < steps; ++i)
+    for (unsigned int i = 0; i < steps; ++i)
         m_time[i] = time + i * step;
 
     if (m_costs) {
@@ -120,12 +120,12 @@ void MPPI::log(const mppi::Trajectory &trajectory)
     }
 
     if (m_gradient) {
-        for (int i = 0; i < steps; ++i)
+        for (unsigned int i = 0; i < steps; ++i)
             m_gradient->write(iteration, m_time[i], trajectory.get_gradient().col(i));
     }
 
     if (m_optimal_rollout) {
-        for (int i = 0; i < steps; ++i)
+        for (unsigned int i = 0; i < steps; ++i)
             m_optimal_rollout->write(iteration, m_time[i], trajectory.get_optimal_rollout().col(i));
     }
 

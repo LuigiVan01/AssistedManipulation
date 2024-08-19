@@ -43,11 +43,12 @@ public:
     /**
      * @brief Create a circle test instance.
      * 
-     * @param patch The configuration overrides from the default configuration.
+     * @param options The test options. The configuration overrides from the
+     * default configuration.
      * 
      * @returns A pointer to the test on success or nullptr on failure.
      */
-    static std::unique_ptr<Test> create(json &patch);
+    static std::unique_ptr<Test> create(Options &options);
 
     /**
      * @brief Run the test.

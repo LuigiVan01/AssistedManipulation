@@ -21,6 +21,18 @@ class Test
 {
 public:
 
+    struct Options {
+
+        /// The configuration of the test.
+        json configuration;
+
+        /// The folder to put generated test data.
+        std::filesystem::path folder;
+
+        // JSON serialisation for test metadata.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Options, configuration, folder);
+    };
+
     /**
      * @brief Run the test.
      * @returns If the test ran successfully.
@@ -36,10 +48,10 @@ class TestSuite
 public:
 
     /**
-     * @brief Function the takes a json configuration and returns a test
-     * instance to run.
+     * @brief Function the takes test metadata and returns a test instance to
+     * run.
      */
-    using TestCreator = std::function<std::unique_ptr<Test>(json&)>;
+    using TestCreator = std::function<std::unique_ptr<Test>(Test::Options&)>;
 
     /**
      * @brief Register a test at runtime.
@@ -94,8 +106,11 @@ public:
      * @param name The name of the test to run.
      * @returns If the test was successful.
      */
-    static bool run(std::string name, json configuration = nullptr)
-    {
+    static bool run(
+        std::string name,
+        json configuration = nullptr,
+        std::string output_folder = ""
+    ) {
         using namespace std::string_literals;
         using namespace std::chrono_literals;
         using namespace std::chrono;
@@ -106,10 +121,15 @@ public:
             return false;
         }
 
-        auto test = it->second(configuration);
+        Test::Options meta {
+            .configuration = configuration,
+            .folder = output_folder
+        };
+
+        auto test = it->second(meta);
         if (!test) {
             std::cerr << "failed to create test \"" << name << "\""
-                      << " with configuration " << configuration.dump(4)
+                      << " with configuration " << ((json)meta).dump(4)
                       << std::endl;
             return false;
         }
@@ -186,8 +206,8 @@ private:
             );
         }
  
-        TestSuite::s_tests[Derived::TEST_NAME] = [](json &configuration){
-            return Derived::create(configuration);
+        TestSuite::s_tests[Derived::TEST_NAME] = [](Test::Options meta){
+            return Derived::create(meta);
         };
 
         return true;

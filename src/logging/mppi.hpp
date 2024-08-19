@@ -26,7 +26,7 @@ public:
         unsigned int control_dof;
 
         /// The number of rollouts.
-        unsigned int rollouts;
+        std::size_t rollouts;
 
         /// Log the rollout costs.
         bool log_costs = true;

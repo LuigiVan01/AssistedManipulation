@@ -35,6 +35,16 @@ struct adl_serializer<std::optional<T>>
 
 namespace Eigen {
 
+// Should be
+//
+// template<typename Derived>
+// void to_json(json &destination, const Eigen::MatrixBase<Derived> &matrix);
+//
+// template<typename Derived>
+// void from_json(const json &source, Eigen::MatrixBase<Derived> &matrix)
+//
+// See https://github.com/nlohmann/json/issues/3267
+
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
 void to_json(json &destination, const Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols> &matrix)
 {
@@ -43,7 +53,7 @@ void to_json(json &destination, const Eigen::Matrix<_Scalar, _Rows, _Cols, _Opti
     for (int i = 0; i < matrix.rows(); i++) {
         auto row = json::array();
 
-        for (int j = 0; j < matrix.cols(); i++)
+        for (int j = 0; j < matrix.cols(); j++)
             row.push_back(matrix(i, j));
 
         destination.push_back(row);
@@ -55,12 +65,8 @@ void from_json(const json &source, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options
 {
     using T = typename Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>::Scalar;
 
-    // Rows
     std::size_t n = source.size();
-
-    // Columns
     std::size_t m = source.at(0).size();
-
     matrix.resize(n, m);
 
     for (std::size_t i = 0; i < n; i++) {
@@ -69,20 +75,5 @@ void from_json(const json &source, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options
         }
     }
 }
-
-// void to_json(json &destination, const Eigen::VectorXd &vector)
-// {
-//     destination = json::array();
-//     for (std::size_t i = 0; i < vector.size(); i++)
-//         destination.push_back(vector(i));
-// }
-
-// void from_json(const json &source, Eigen::VectorXd &vector)
-// {
-//     std::size_t n = source.size();
-//     vector.resize(n);
-//     for (std::size_t i = 0; i < n; i++)
-//         vector(i) = source.at(i).get<double>();
-// }
 
 } // namespace Eigen

@@ -215,12 +215,20 @@ struct State : public Eigen::Vector<double, DoF::STATE>
     }
 };
 
-inline void to_json(json& j, const State &state) {
-    to_json(j, (Eigen::VectorXd&)state);
+// JSON conversion should be handled by the generic type, but are custom here
+// due to the issue in templated conversion function, see there.
+
+inline void to_json(json& j, const State &state)
+{
+    j = json::array();
+    for (int i = 0; i < state.size(); i++)
+        j.push_back(state(i));
 }
 
-inline void from_json(const json& j, State &state) {
-    from_json(j, (Eigen::VectorXd&)state);
+inline void from_json(const json& j, State &state)
+{
+    for (int i = 0; i < j.size(); i++)
+        j.get_to(state(i));
 }
 
 } // namespace FrankaRidgeback

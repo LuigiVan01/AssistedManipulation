@@ -1,5 +1,7 @@
 #include "test/case/reach.hpp"
 
+#include "logging/file.hpp"
+
 static ReachForPoint::Configuration default_configuration {
     .folder = "reach",
     .simulator = {
@@ -67,23 +69,23 @@ static ReachForPoint::Configuration default_configuration {
     }
 };
 
-std::unique_ptr<Test> ReachForPoint::create(json &patch)
+std::unique_ptr<Test> ReachForPoint::create(Options &options)
 {
     Configuration configuration = default_configuration;
 
     // If configuration overrides were provided, apply them based on the json
     // patch specification.
     try {
-        if (!patch.is_null()) {
+        if (!options.configuration.is_null()) {
             json json_configuration = default_configuration;
-            json_configuration.merge_patch(patch);
+            json_configuration.merge_patch(options.configuration);
             configuration = json_configuration;
         }
     }
     catch (const json::exception &err) {
         std::cerr << "error when patching json configuration: " << err.what() << std::endl;
         std::cerr << "configuration was " << ((json)default_configuration).dump(4) << std::endl;
-        std::cerr << "patch was " << patch.dump(4) << std::endl;
+        std::cerr << "patch was " << options.configuration.dump(4) << std::endl;
         return nullptr;
     }
 
@@ -125,7 +127,7 @@ std::unique_ptr<Test> ReachForPoint::create(json &patch)
 
     simulator->add_actor(robot);
 
-    configuration.logger.folder = cwd / "mppi";
+    configuration.logger.folder = options.folder / "mppi";
     configuration.logger.rollouts = robot->get_trajectory().get_rollout_count();
 
     auto logger = logger::MPPI::create(configuration.logger);
@@ -133,12 +135,20 @@ std::unique_ptr<Test> ReachForPoint::create(json &patch)
         return nullptr;
     }
 
+    // Log the configuration used in the test.
+    {
+        auto file = logger::File::create(options.folder / "configuration.json");
+        if (!file)
+            return nullptr;
+        file->get_stream() << ((json)configuration).dump(4);
+    }
+
     auto test = std::unique_ptr<ReachForPoint>(new ReachForPoint());
     test->m_simulator = std::move(simulator);
     test->m_robot = std::move(robot);
     test->m_mppi_logger = std::move(logger);
 
-    return test; 
+    return test;
 }
 
 bool ReachForPoint::run()
