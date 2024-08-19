@@ -23,6 +23,8 @@ public:
      */
     inline Gaussian(const Eigen::VectorXd &mean, const Eigen::MatrixXd &covariance)
         : m_mean(mean)
+        , m_generator()
+        , m_distribution(0, 1)
     {
         set_covariance(covariance);
     }
@@ -42,7 +44,7 @@ public:
      * @brief Set the covariance of the distribution.
      * @param covariance The covariance matrix of the distribution.
      */
-    inline void set_covariance(Eigen::MatrixXd const &covariance)
+    inline void set_covariance(const Eigen::MatrixXd &covariance)
     {
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(covariance);
         m_transform = (
@@ -52,12 +54,21 @@ public:
     }
 
     /**
+     * @brief Set the mean of the distribution.
+     * @param mean The mean of the distribution.
+     */
+    inline void set_mean(const Eigen::VectorXd &mean)
+    {
+        m_mean = mean;
+    }
+
+    /**
      * @brief Sample the distribution.
      * @returns A vector of values sampled from each gaussian.
      */
     inline Eigen::VectorXd operator()() const {
         return m_mean + m_transform * Eigen::VectorXd(m_mean.size()).unaryExpr(
-            [&](double) { return s_distribution(s_generator); }
+            [&](double) { return m_distribution(m_generator); }
         );
     }
 
@@ -70,8 +81,8 @@ private:
     Eigen::MatrixXd m_transform;
 
     /// The pseudo-random number generator.
-    inline static std::mt19937 s_generator {};
+    std::mt19937 m_generator;
 
     /// A N(0, 1) gaussian distribution single values from.
-    inline static std::normal_distribution<double> s_distribution {};
+    std::normal_distribution<double> m_distribution;
 };
