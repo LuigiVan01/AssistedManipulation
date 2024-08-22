@@ -66,7 +66,7 @@ public:
      * @brief Sample the distribution.
      * @returns A vector of values sampled from each gaussian.
      */
-    inline Eigen::VectorXd operator()() const {
+    inline Eigen::VectorXd operator()() {
         return m_mean + m_transform * Eigen::VectorXd(m_mean.size()).unaryExpr(
             [&](double) { return m_distribution(m_generator); }
         );
