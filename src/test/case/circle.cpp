@@ -2,8 +2,9 @@
 
 #include "frankaridgeback/dynamics.hpp"
 
-static const Circle::Configuration default_configuration {
+Circle::Configuration Circle::DEFAULT_CONFIGURATION {
     .folder = "circle",
+    .duration = 30,
     .simulator = {
         .time_step = 0.005,
         .gravity = {0.0, 0.0, 9.81}
@@ -100,21 +101,38 @@ static const Circle::Configuration default_configuration {
 
 std::unique_ptr<Test> Circle::create(Options &options)
 {
-    Configuration configuration = default_configuration;
+    Configuration configuration = DEFAULT_CONFIGURATION;
+    configuration.duration = options.duration;
+    configuration.folder = options.folder;
 
     // If configuration overrides were provided, apply them based on the json
     // patch specification.
     try {
-        if (!options.configuration.is_null()) {
-            json json_configuration = default_configuration;
-            json_configuration.merge_patch(options.configuration);
+        if (!options.patch.is_null()) {
+            json json_configuration = DEFAULT_CONFIGURATION;
+            json_configuration.merge_patch(options.patch);
             configuration = json_configuration;
         }
     }
     catch (const json::exception &err) {
         std::cerr << "error when patching json configuration: " << err.what() << std::endl;
-        std::cerr << "configuration was " << ((json)default_configuration).dump(4) << std::endl;
-        std::cerr << "patch was " << options.configuration.dump(4) << std::endl;
+        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGURATION).dump(4) << std::endl;
+        std::cerr << "patch was " << options.patch.dump(4) << std::endl;
+        return nullptr;
+    }
+
+    return create(configuration);
+}
+
+std::unique_ptr<Test> Circle::create(const Configuration &configuration)
+{
+    if (configuration.duration <= 0.0) {
+        std::cerr << "test duration <= 0" << std::endl;
+        return nullptr;
+    }
+
+    if (configuration.folder.empty()) {
+        std::cerr << "output folder path is empty" << std::endl;
         return nullptr;
     }
 
@@ -124,12 +142,11 @@ std::unique_ptr<Test> Circle::create(Options &options)
         return nullptr;
     }
 
-    auto cwd = std::filesystem::current_path();
-    std::string urdf = (cwd / "model/robot.urdf").string();
-    configuration.frankaridgeback_actor.urdf_filename = urdf;
-    configuration.objective.model.filename = urdf;
+    auto cost_configuration = configuration.objective;
+    if (cost_configuration.model.filename.empty())
+        cost_configuration.model.filename = FrankaRidgeback::Model::find_path().string();
 
-    auto cost = AssistedManipulation::create(configuration.objective);
+    auto cost = AssistedManipulation::create(cost_configuration);
     if (!cost) {
         std::cerr << "failed to create mppi cost" << std::endl;
         return nullptr;
@@ -141,8 +158,12 @@ std::unique_ptr<Test> Circle::create(Options &options)
         return nullptr;
     }
 
+    auto robot_configuration = configuration.frankaridgeback_actor;
+    if (robot_configuration.urdf_filename.empty())
+        robot_configuration.urdf_filename = FrankaRidgeback::Model::find_path().string();
+
     auto robot = FrankaRidgebackActor::create(
-        configuration.frankaridgeback_actor,
+        robot_configuration,
         simulator.get(),
         std::move(dynamics),
         std::move(cost)
@@ -167,21 +188,24 @@ std::unique_ptr<Test> Circle::create(Options &options)
     simulator->add_actor(robot);
     simulator->add_actor(circle_actor);
 
-    configuration.mppi_logger.rollouts = robot->get_trajectory().get_rollout_count();
+    // Update mppi logger configuration.
+    logger::MPPI::Configuration mppi = configuration.mppi_logger;
+    mppi.rollouts = robot->get_trajectory().get_rollout_count();
+    if (mppi.folder.empty())
+        mppi.folder = configuration.folder / "mppi";
 
-    if (configuration.mppi_logger.folder.empty())
-        configuration.mppi_logger.folder = options.folder / "mppi";
-
-    if (configuration.pid_logger.folder.empty())
-        configuration.pid_logger.folder = options.folder / "pid";
-
-    auto mppi_logger = logger::MPPI::create(configuration.mppi_logger);
+    auto mppi_logger = logger::MPPI::create(mppi);
     if (!mppi_logger) {
         std::cerr << "failed to create mppi logger" << std::endl;
         return nullptr;
     }
 
-    auto pid_logger = logger::PID::create(configuration.pid_logger);
+    // Update pid logger configuration.
+    logger::PID::Configuration pid = configuration.pid_logger;
+    if (pid.folder.empty())
+        pid.folder = configuration.folder / "pid";
+
+    auto pid_logger = logger::PID::create(pid);
     if (!pid_logger) {
         std::cerr << "failed to create pid logger" << std::endl;
         return nullptr;
@@ -189,7 +213,7 @@ std::unique_ptr<Test> Circle::create(Options &options)
 
     // Log the configuration used in the test.
     {
-        auto file = logger::File::create(options.folder / "configuration.json");
+        auto file = logger::File::create(configuration.folder / "configuration.json");
         if (!file)
             return nullptr;
         file->get_stream() << ((json)configuration).dump(4);
@@ -197,6 +221,7 @@ std::unique_ptr<Test> Circle::create(Options &options)
 
     auto test = std::make_unique<Circle>();
 
+    test->m_duration = configuration.duration;
     test->m_simulator = std::move(simulator);
     test->m_robot = std::move(robot);
     test->m_actor = std::move(circle_actor);
@@ -208,8 +233,7 @@ std::unique_ptr<Test> Circle::create(Options &options)
 
 bool Circle::run()
 {
-    // while (m_simulator->get_time() < 30) {
-    while (1) {
+    while (m_simulator->get_time() < m_duration) {
         // raisim::TimedLoop(m_simulator->get_time_step() * 1e6);
         m_simulator->step();
         m_mppi_logger->log(m_robot->get_trajectory());

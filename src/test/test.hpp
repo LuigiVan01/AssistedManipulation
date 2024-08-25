@@ -23,14 +23,17 @@ public:
 
     struct Options {
 
-        /// The configuration of the test.
-        json configuration;
+        /// The change in configuration of the test.
+        json patch;
 
         /// The folder to put generated test data.
         std::filesystem::path folder;
 
+        /// The maximum duration of the test.
+        double duration;
+
         // JSON serialisation for test metadata.
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Options, configuration, folder);
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Options, patch, folder, duration);
     };
 
     /**
@@ -104,12 +107,16 @@ public:
      * @brief Run a test.
      * 
      * @param name The name of the test to run.
+     * @param patch Changes to the test configuration.
+     * @param test_duration A suggestion to the test for maximum duration.
+     * 
      * @returns If the test was successful.
      */
     static bool run(
         std::string name,
-        json configuration = nullptr,
-        std::string output_folder = ""
+        json patch = nullptr,
+        std::string output_folder = "",
+        double test_duration = 10.0
     ) {
         using namespace std::string_literals;
         using namespace std::chrono_literals;
@@ -122,8 +129,9 @@ public:
         }
 
         Test::Options meta {
-            .configuration = configuration,
-            .folder = output_folder
+            .patch = patch,
+            .folder = output_folder,
+            .duration = test_duration
         };
 
         auto test = it->second(meta);

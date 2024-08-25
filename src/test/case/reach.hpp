@@ -14,10 +14,14 @@ class ReachForPoint : public RegisteredTest<ReachForPoint>
 {
 public:
 
+    static inline constexpr const char *TEST_NAME = "reach";
+
     struct Configuration {
 
         /// The output folder for the test.
-        std::string folder;
+        std::filesystem::path folder;
+
+        double duration;
 
         /// Simulation configuration.
         Simulator::Configuration simulator;
@@ -38,7 +42,7 @@ public:
         )
     };
 
-    static inline constexpr const char *TEST_NAME = "reach";
+    static Configuration DEFAULT_CONFIGIURATION;
 
     /**
      * @brief Create a test reaching for a point.
@@ -50,6 +54,8 @@ public:
      */
     static std::unique_ptr<Test> create(Options &options);
 
+    static std::unique_ptr<Test> create(const Configuration &configuration);
+
     /**
      * @brief Run the test.
      * @returns If the test was successful.
@@ -57,6 +63,8 @@ public:
     bool run() override;
 
 private:
+
+    double m_duration;
 
     std::unique_ptr<Simulator> m_simulator;
 

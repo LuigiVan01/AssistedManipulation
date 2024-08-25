@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include <nlohmann/json.hpp>
 
 #include <pinocchio/multibody/model.hpp>
@@ -37,6 +39,10 @@ public:
             filename, end_effector_frame
         )
     };
+
+    static inline std::filesystem::path find_path() {
+        return (std::filesystem::current_path() / "model/robot.urdf").string();
+    }
 
     /**
      * @brief Create a new instance of the robot model.

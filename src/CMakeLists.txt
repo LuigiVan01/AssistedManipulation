@@ -24,6 +24,7 @@ add_executable(
     test/main.cpp
     test/case/reach.cpp
     test/case/circle.cpp
+    test/case/power_minimisation.cpp
 
     simulation/simulator.cpp
     simulation/actors/frankaridgeback.cpp

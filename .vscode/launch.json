@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/install/bin/test.exe",
-            "args": ["--test", "circle", "--out", "${workspaceFolder}/results/reach"],
+            "args": ["--test", "power_minimisation", "--out", "${workspaceFolder}/results/reach"],
             "environment": [
                 {
                     "name": "RAISIM_ACTIVATION",

@@ -15,9 +15,13 @@ class Circle : public RegisteredTest<Circle>
 {
 public:
 
+    static inline constexpr const char *TEST_NAME = "circle";
+
     struct Configuration {
 
-        std::string folder;
+        std::filesystem::path folder;
+
+        double duration;
 
         Simulator::Configuration simulator;
 
@@ -38,7 +42,9 @@ public:
         )
     };
 
-    static inline constexpr const char *TEST_NAME = "circle";
+    static Configuration DEFAULT_CONFIGURATION;
+
+    static std::unique_ptr<Test> create(const Configuration &configuration);
 
     /**
      * @brief Create a circle test instance.
@@ -57,6 +63,8 @@ public:
     bool run() override;
 
 private:
+
+    double m_duration;
 
     std::unique_ptr<Simulator> m_simulator;
 
