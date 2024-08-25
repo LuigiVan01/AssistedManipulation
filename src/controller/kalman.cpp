@@ -7,7 +7,7 @@ std::unique_ptr<KalmanFilter> KalmanFilter::create(
 ) {
     static auto check_dimensions = [](
         const char *name,
-        Eigen::Ref<Eigen::MatrixXd> matrix,
+        const Eigen::MatrixXd &matrix,
         std::int64_t rows,
         std::int64_t cols
     ){

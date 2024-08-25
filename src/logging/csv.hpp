@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "logging/file.hpp"
 
 namespace logger {

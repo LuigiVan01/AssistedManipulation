@@ -13,12 +13,12 @@
             "problemMatcher": []
         },
         {
-            "label": "Configure",
-            "detail": "Generate build files for user_build_target defined in .vscode/settings.json",
+            "label": "Configure Debug",
+            "detail": "Generate build files for the project.",
             "type": "shell",
-            "windows": { "command": "call scripts/windows/configure.bat" },
+            "windows": { "command": "call scripts/windows/configure.bat Debug" },
             "linux": { "command": ""},
-            "args": [ "${config:user_build_target}" ],
+            "args": [ "${workspaceFolder}/src" ],
             "options": { "cwd": "${workspaceFolder}" },
             "presentation": {
                 "echo": true,
@@ -31,11 +31,51 @@
             "problemMatcher": [],
         },
         {
-            "label": "Compile",
+            "label": "Configure Release",
+            "detail": "Generate build files for the project.",
+            "type": "shell",
+            "windows": { "command": "call scripts/windows/configure.bat Release" },
+            "linux": { "command": ""},
+            "args": [ "${workspaceFolder}/src" ],
+            "options": { "cwd": "${workspaceFolder}" },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            },
+            "problemMatcher": [],
+        },
+        {
+            "label": "Compile Debug",
             "detail": "Compile the most recently configured build.",
             "type": "shell",
             "windows": {
-                "command": "call scripts/windows/compile.bat ${config:user_build_release}",
+                "command": "call scripts/windows/compile.bat Debug",
+                "problemMatcher": "$msCompile"
+            },
+            "linux": {
+                "command": "./scripts/linux/compile.bash src",
+                "problemMatcher": "$gcc"
+            },
+            "options": { "cwd": "${workspaceFolder}" },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "Compile Release",
+            "detail": "Compile the most recently configured build.",
+            "type": "shell",
+            "windows": {
+                "command": "call scripts/windows/compile.bat Release",
                 "problemMatcher": "$msCompile"
             },
             "linux": {
@@ -75,13 +115,6 @@
             "options": {"cwd": "${workspaceFolder}/src/model"},
             "linux": { "command": "xacro panda_mobile.urdf.xacro > robot.urdf"},
             "windows": { "command": ""},
-            "problemMatcher": []
-        },
-        {
-            "label": "ROS Core",
-            "detail": "Start the roscore instance.",
-            "type": "process",
-            "command": "roscore",
             "problemMatcher": []
         }
     ]

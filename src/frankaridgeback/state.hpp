@@ -200,6 +200,21 @@ struct State : public Eigen::Vector<double, DoF::STATE>
     }
 
     /**
+     * @brief Get the measured end effector force.
+     * 
+     * Slice of length <DoF::EXTERNAL_FORCE> starting at index (2 * DoF::JOINTS).
+     * 
+     * @returns The end effector force [fx, fy, fz]
+     */
+    inline auto end_effector_force() {
+        return segment<DoF::EXTERNAL_FORCE>(2 * DoF::JOINTS);
+    }
+
+    inline const auto end_effector_force() const {
+        return segment<DoF::EXTERNAL_FORCE>(2 * DoF::JOINTS);
+    }
+
+    /**
      * @brief Get the measured end effector torque.
      * 
      * Slice of the last <DoF::EXTERNAL_TORQUE> elements.
@@ -212,6 +227,21 @@ struct State : public Eigen::Vector<double, DoF::STATE>
 
     inline const auto end_effector_torque() const {
         return tail<DoF::EXTERNAL_TORQUE>();
+    }
+
+    /**
+     * @brief Get the measured end effector wrench.
+     * 
+     * Slice of the last <DoF::EXTERNAL_WRENCH> elements.
+     * 
+     * @returns The end effector wrench [fx, fy, fz, tau_x, tau_y, tau_z]
+     */
+    inline auto end_effector_wrench() {
+        return tail<DoF::EXTERNAL_WRENCH>();
+    }
+
+    inline const auto end_effector_wrench() const {
+        return tail<DoF::EXTERNAL_WRENCH>();
     }
 };
 
@@ -227,7 +257,7 @@ inline void to_json(json& j, const State &state)
 
 inline void from_json(const json& j, State &state)
 {
-    for (int i = 0; i < j.size(); i++)
+    for (json::size_type i = 0; i < j.size(); i++)
         j.get_to(state(i));
 }
 

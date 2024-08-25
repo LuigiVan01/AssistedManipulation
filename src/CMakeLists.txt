@@ -31,6 +31,7 @@ add_executable(
     controller/gram_savitzky_golay/gram_savitzky_golay.cpp
     controller/filter.cpp
     controller/mppi.cpp
+    controller/kalman.cpp
     # controller/qp.cpp
 
     frankaridgeback/dynamics.cpp
@@ -43,34 +44,36 @@ add_executable(
 )
 
 target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(
-    test PUBLIC 
-    raisim::raisim
-    pinocchio::pinocchio
-    osqp::osqp
-    nlohmann_json::nlohmann_json
-)
 
 if (UNIX)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
         message("gcc version <= 10, currently using version ${CMAKE_CXX_COMPILER_VERSION}")
     endif()
-endif ()
 
-# Additional logic depending on the operating system.
-if (UNIX)
-    target_link_libraries(test PUBLIC pthread)
+    target_link_libraries(
+        test PUBLIC 
+        raisim::raisim
+        pinocchio::pinocchio
+        osqp::osqp
+        nlohmann_json::nlohmann_json
+        pthread
+        -static
+    )
 elseif (WIN32)
     target_compile_options(test PUBLIC /W3)
-    target_link_libraries(test PUBLIC Ws2_32)
-endif ()
+
+    target_link_libraries(
+        test PUBLIC 
+        raisim::raisim
+        pinocchio::pinocchio
+        osqp::osqp
+        nlohmann_json::nlohmann_json
+        Ws2_32
+    )
+
+    install(FILES $<TARGET_RUNTIME_DLLS:test> DESTINATION bin)
+endif()
 
 # Install instructions
-
 install(TARGETS test DESTINATION bin)
 install(DIRECTORY frankaridgeback/model DESTINATION bin)
-
-# Copy runtime dlls on windows.
-if (WIN32)
-    install(FILES $<TARGET_RUNTIME_DLLS:test> DESTINATION bin)
-endif ()

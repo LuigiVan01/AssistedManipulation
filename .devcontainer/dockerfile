@@ -1,30 +1,48 @@
-FROM osrf/ros:noetic-desktop
+FROM ubuntu:jammy
 
+# Install required
 RUN apt update && \
     apt install -y \
+    curl \
     x11-apps \
     iputils-ping \
     git \
-    gcc-10 \
-    g++-10 \
-    python3-catkin-tools \
-    ros-noetic-libfranka \
-    ros-noetic-franka-ros \
-    ros-noetic-pinocchio \
     libeigen3-dev \
-    libyaml-cpp-dev
- 
+    nlohmann-json3-dev
+
+# Install pinnochio.
+RUN apt install -qqy curl && \
+    mkdir -p /etc/apt/keyrings && \
+    curl http://robotpkg.openrobots.org/packages/debian/robotpkg.asc | tee /etc/apt/keyrings/robotpkg.asc && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/robotpkg.asc] http://robotpkg.openrobots.org/packages/debian/pub jammy robotpkg" | tee /etc/apt/sources.list.d/robotpkg.list && \
+    apt update && \
+    apt install -qqy robotpkg-py3*-pinocchio && \
+    echo 'export PATH=/opt/openrobots/bin:$PATH' >> ~/.bashrc && \
+    echo 'export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH' >> ~/.bashrc && \
+    echo 'export LD_LIBRARY_PATH=/opt/openrobots/lib:$LD_LIBRARY_PATH' >> ~/.bashrc && \
+    echo 'export PYTHONPATH=/opt/openrobots/lib/python3.10/site-packages:$PYTHONPATH # Adapt your desired python version here' >> ~/.bashrc && \
+    echo 'export CMAKE_PREFIX_PATH=/opt/openrobots:$CMAKE_PREFIX_PATH' >> ~/.bashrc
+
 # Build osqp from source.
-RUN git clone -b v0.6.3 --recursive https://github.com/osqp/osqp.git osqp && \
+RUN git clone -b v1.0.0.beta1 --recursive https://github.com/osqp/osqp.git osqp && \
     cd osqp && \
+    git config --global --add safe.directory $(pwd) && \
     git submodule foreach --recursive 'git config --global --add safe.directory . && git reset --hard' && \
+    git clone https://github.com/osqp/qdldl.git src/osqp/algebra/_common/lin_sys/qdldl/qdldl_sources && \
+    git config --global --add safe.directory $(pwd)/algebra/_common/lin_sys/qdldl/qdldl_sources && \
     mkdir build && cd build && \
     cmake -G "Unix Makefiles" .. && \
     cmake --build . --target install && \
     cd ../.. && rm -rf osqp
 
-# Update gcc compiler from 9 to 10.
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 1 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 1 && \
-    echo source /opt/ros/noetic/setup.bash >> ~/.bashrc
-    # echo 127.0.0.1 `hostname` >> /etc/hosts
+# RUN apt update && \
+#     apt install -y curl && \
+#     echo "deb http://packages.ros.org/ros/ubuntu jammy main" > /etc/apt/sources.list.d/ros-latest.list && \
+#     curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
+#     apt install -y \
+#     ros-noetic-desktop-full \
+#     ros-noetic-libfranka \
+#     ros-noetic-franka-ros \
+#     ros-noetic-pinocchio \
+
+# RUN echo source /opt/ros/noetic/setup.bash >> ~/.bashrc

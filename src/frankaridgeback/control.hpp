@@ -103,7 +103,7 @@ inline void to_json(json& j, const Control &control)
 
 inline void from_json(const json& j, Control &control)
 {
-    for (int i = 0; i < j.size(); i++)
+    for (json::size_type i = 0; i < j.size(); i++)
         j.get_to(control(i));
 }
 

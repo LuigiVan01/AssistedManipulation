@@ -50,7 +50,6 @@ std::unique_ptr<Model> Model::create(const Configuration &configuration)
     );
 }
 
-
 Model::Model(
     std::unique_ptr<pinocchio::Model> model,
     std::unique_ptr<pinocchio::Data> data,

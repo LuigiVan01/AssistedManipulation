@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "controller/mppi.hpp"
+#include "controller/kalman.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
 

@@ -2,7 +2,11 @@
 
 std::unique_ptr<Simulator> Simulator::create(const Configuration &configuration)
 {
-    raisim::World::setActivationKey(std::getenv("RAISIM_ACTIVATION"));
+    std::string key = std::getenv("RAISIM_ACTIVATION");
+    if (key.empty())
+        key = "activation.raisim";
+
+    raisim::World::setActivationKey(key.c_str());
 
     auto world = std::make_unique<raisim::World>();
     world->setTimeStep(configuration.time_step);

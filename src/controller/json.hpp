@@ -2,6 +2,7 @@
 
 // Controller configuration json conversion utilities.
 
+#include <optional>
 #include <cstdint>
 
 #include <Eigen/Eigen>

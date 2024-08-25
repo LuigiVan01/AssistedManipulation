@@ -19,7 +19,7 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/install/bin",
             "console": "integratedTerminal",
-            "preLaunchTask": "Compile",
+            "preLaunchTask": "Compile Debug",
         },
         {
             "name": "Debug Linux",
@@ -30,7 +30,7 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
-            "preLaunchTask": "Compile",
+            "preLaunchTask": "Compile Debug",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -38,6 +38,19 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+        {
+            "name": "Debug Analysis",
+            "type": "debugpy",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "module": "analysis",
+            "args": [
+                "--executable", "install/bin/test.exe",
+                "circle", "run", "out"
+            ],
+            "cwd": "${workspaceFolder}",
         }
     ]
 }

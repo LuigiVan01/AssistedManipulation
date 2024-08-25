@@ -158,16 +158,24 @@ double AssistedManipulation::variable_damping_cost(const FrankaRidgeback::State 
 {
     // double velocity = m_model->end_effector_velocity().norm();
 
-    // // F = c * x_dot therefore c = F \ x_dot
-    // double damping = state.end_effector_torque().norm() / velocity;
-
     // double expected_damping = (
     //     m_configuration.variable_damping_maximum *
     //     std::exp(-m_configuration.variable_damping_dropoff * velocity)
     // );
 
-    // // Convert damping to expected 
-    // double velocity = m_model->end_effector_velocity().norm();
+    // // The expected resistive force against the external force.
+    // double expected_inertia = expected_damping * velocity;
+
+    // double inertia = m_model->get_data().Jm_model->get_data()->M
+    // // Subtract the 
+    // double residual_force = (
+    //     state.end_effector_force().norm() - expected_damping * velocity
+    // );
+
+    // // // F = c * x_dot therefore c = F \ x_dot
+    // double damping = state.end_effector_torque().norm() / velocity;
+
+    // m_variable_damping_cost.quadratic * ;
 
     return 0.0;
 }

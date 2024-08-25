@@ -3,6 +3,8 @@
 :: Initialise the MSVC environment. Sets path for cmake, cl.
 call "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64" || goto :error
 
+:: %1 is "Release" or "Debug"
+
 :: Register vcpkg on path.
 set WORKSPACE=%cd%
 set VCPKG_ROOT=%WORKSPACE%\vcpkg
@@ -16,8 +18,9 @@ cd build
 cmake ^
     -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" ^
     -DCMAKE_PREFIX_PATH="%RAISIM_ROOT%" ^
+    -DCMAKE_BUILD_TYPE=%1 ^
     -Wno-dev ^
-    %1 ^
+    ../src ^
     || goto :error
 
 :: Success!
