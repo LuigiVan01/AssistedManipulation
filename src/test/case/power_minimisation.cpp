@@ -1,4 +1,4 @@
-#include "test/case/circle.hpp"
+#include "test/case/base/circle.hpp"
 #include "test/case/power_minimisation.hpp"
 
 std::unique_ptr<Test> PowerMinimisation::create(Options &options)
@@ -12,7 +12,7 @@ std::unique_ptr<Test> PowerMinimisation::create(Options &options)
 bool PowerMinimisation::run()
 {
     Circle::Configuration configuration = Circle::DEFAULT_CONFIGURATION;
-    configuration.folder = "power_minimisation" / configuration.folder;
+    configuration.folder = configuration.folder / "power_minimisation";
     configuration.duration = 10.0;
 
     // Cost based on quadratic term only.

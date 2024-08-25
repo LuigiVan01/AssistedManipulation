@@ -1,4 +1,4 @@
-#include "test/case/circle.hpp"
+#include "test/case/base/circle.hpp"
 
 #include "frankaridgeback/dynamics.hpp"
 

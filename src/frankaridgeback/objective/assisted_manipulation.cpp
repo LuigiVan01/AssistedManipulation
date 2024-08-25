@@ -88,6 +88,7 @@ double AssistedManipulation::manipulability_cost()
 {
     const auto &minimum = m_configuration.minimum_manipulability;
 
+    pinocchio::computeJointJacobians(*m_model->get_model(), *m_model->get_data());
     m_space_jacobian = m_model->get_data()->J * m_model->get_data()->J.transpose();
 
     // Value proportional to the volumne of the manipulability ellipsoid.
@@ -97,10 +98,7 @@ double AssistedManipulation::manipulability_cost()
     if (ellipsoid_volume < 1e-10)
         ellipsoid_volume = 1e-10;
 
-    if (ellipsoid_volume < minimum.limit)
-        return 0.0;
-
-    return minimum.quadratic_cost / ellipsoid_volume;
+    return minimum.quadratic_cost * std::pow(1 / ellipsoid_volume, 2);
 }
 
 double AssistedManipulation::joint_limit_cost(const FrankaRidgeback::State &state)

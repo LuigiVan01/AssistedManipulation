@@ -65,7 +65,7 @@ public:
      * @brief Get the underlying pinocchio model.
      * @returns The underlying pinocchio model.
      */
-    const pinocchio::Model *get_model() const {
+    pinocchio::Model *get_model() const {
         return m_model.get();
     }
 
@@ -77,7 +77,7 @@ public:
      * 
      * @return const pinocchio::Data* 
      */
-    const pinocchio::Data *get_data() const {
+    pinocchio::Data *get_data() const {
         return m_data.get();
     }
 

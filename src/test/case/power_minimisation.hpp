@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <filesystem>
 
-#include "test/case/circle.hpp"
+#include "test/case/base/circle.hpp"
 #include "frankaridgeback/objective/assisted_manipulation.hpp"
 
 class PowerMinimisation : public RegisteredTest<PowerMinimisation>

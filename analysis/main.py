@@ -44,3 +44,6 @@ def read_mppi_results(folder: str) -> MppiResults:
         folder,
         'costs', 'gradient', 'optimal_cost', 'optimal_rollout', 'update', 'weights'
     ))
+
+def generate_mppi_graphs(results: MppiResults, /):
+    pass
