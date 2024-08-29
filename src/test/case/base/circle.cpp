@@ -9,11 +9,13 @@ Circle::Configuration Circle::DEFAULT_CONFIGURATION {
         .time_step = 0.005,
         .gravity = {0.0, 0.0, 9.81}
     },
-    .objective = {
+    .dynamics = {
         .model = {
             .filename = "",
             .end_effector_frame = "panda_grasp_joint"
-        },
+        }
+    },
+    .objective = {
         .enable_joint_limit = true,
         .enable_reach_limit = false,
         .enable_maximise_manipulability = false,
@@ -142,17 +144,17 @@ std::unique_ptr<Test> Circle::create(const Configuration &configuration)
         return nullptr;
     }
 
-    auto cost_configuration = configuration.objective;
-    if (cost_configuration.model.filename.empty())
-        cost_configuration.model.filename = FrankaRidgeback::Model::find_path().string();
-
-    auto cost = AssistedManipulation::create(cost_configuration);
+    auto cost = AssistedManipulation::create(configuration.objective);
     if (!cost) {
         std::cerr << "failed to create mppi cost" << std::endl;
         return nullptr;
     }
 
-    auto dynamics = FrankaRidgeback::Dynamics::create();
+    auto dynamics_configuration = configuration.dynamics;
+    if (dynamics_configuration.model.filename.empty())
+        dynamics_configuration.model.filename = FrankaRidgeback::Model::find_path().string();
+
+    auto dynamics = FrankaRidgeback::Dynamics::create(dynamics_configuration);
     if (!dynamics) {
         std::cerr << "failed to create mppi dynamics" << std::endl;
         return nullptr;

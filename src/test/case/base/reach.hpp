@@ -26,6 +26,9 @@ public:
         /// Simulation configuration.
         Simulator::Configuration simulator;
 
+        /// Frankaridgeback dynamics configuration.
+        FrankaRidgeback::Dynamics::Configuration dynamics;
+
         /// The reach for point objective configuration.
         TrackPoint::Configuration objective;
 
@@ -38,7 +41,7 @@ public:
         // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, simulator, objective, actor, logger
+            folder, simulator, dynamics, objective, actor, logger
         )
     };
 

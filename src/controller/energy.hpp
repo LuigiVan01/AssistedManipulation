@@ -6,13 +6,18 @@ class EnergyTank
 {
 public:
 
-    inline EnergyTank(double state, double time)
-        : m_state(state)
-        , m_energy(0.5 * state * state)
+    /**
+     * @brief Initialise the energy tank.
+     * 
+     * @param energy The initial energy in the tank.
+     */
+    inline EnergyTank(double energy)
+        : m_energy(energy)
+        , m_state(std::sqrt(2.0 * energy))
     {}
 
-    inline void step(double energy, double dt) {
-        m_energy = std::max(0.0, m_energy + energy * dt);
+    inline void step(double power, double dt) {
+        m_energy = std::max(0.0, m_energy + power * dt);
         m_state = std::sqrt(2.0 * m_energy);
     }
 
@@ -26,7 +31,7 @@ public:
 
 private:
 
-    double m_state;
-
     double m_energy;
+
+    double m_state;
 };

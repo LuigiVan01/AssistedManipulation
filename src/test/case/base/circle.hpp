@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include "simulation/simulator.hpp"
+#include "frankaridgeback/dynamics.hpp"
 #include "frankaridgeback/objective/assisted_manipulation.hpp"
 #include "simulation/actors/frankaridgeback.hpp"
 #include "simulation/actors/circle.hpp"
@@ -25,6 +26,8 @@ public:
 
         Simulator::Configuration simulator;
 
+        FrankaRidgeback::Dynamics::Configuration dynamics;
+
         AssistedManipulation::Configuration objective;
 
         FrankaRidgebackActor::Configuration frankaridgeback_actor;
@@ -37,7 +40,7 @@ public:
 
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, simulator, objective, frankaridgeback_actor,
+            folder, simulator, dynamics, objective, frankaridgeback_actor,
             circle_actor, mppi_logger, pid_logger
         )
     };

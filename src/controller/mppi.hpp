@@ -111,6 +111,7 @@ public:
      * 
      * @param state The state of the dynamics system.
      * @param control The control parameters applied to the dynamics state.
+     * @param dynamics Pointer to the dynamics at the time.
      * @param time The current time.
      * 
      * @returns The cost of the step.
@@ -118,6 +119,7 @@ public:
     virtual double get(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
+        Dynamics *dynamics,
         double time
     ) = 0;
 
@@ -495,7 +497,7 @@ private:
      * @param dynamics The dynamics object to use for rolling out.
      * @param cost The objective function to use to calculate rollout cost.
      */
-    void rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost);
+    void rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost);
 
     /**
      * @brief Updates the optimal control trajectory.

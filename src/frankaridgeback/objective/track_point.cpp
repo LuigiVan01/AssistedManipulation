@@ -1,5 +1,7 @@
 #include "frankaridgeback/objective/track_point.hpp"
 
+#include "frankaridgeback/dynamics.hpp"
+
 #include <iostream>
 #include <random>
 
@@ -26,12 +28,14 @@ TrackPoint::TrackPoint(
 double TrackPoint::get(
     const Eigen::VectorXd & s,
     const Eigen::VectorXd & /*control */,
+    mppi::Dynamics *d,
     double /*dt */
 ) {
     const FrankaRidgeback::State &state = s;
+    auto dynamics = static_cast<FrankaRidgeback::Dynamics*>(d);
 
-    m_model->set(state);
-    auto [position, orientation] = m_model->end_effector_pose();
+    dynamics->set(state);
+    auto [position, orientation] = dynamics->get_model()->get_end_effector_pose();
 
     // Target end effector at point (1.0, 1.0, 1.0)    
     Eigen::Vector3d target = Eigen::Vector3d(1.0, 1.0, 1.0);
@@ -59,7 +63,7 @@ double TrackPoint::get(
             cost += 1000 + 100000 * std::pow(state(i) - upper_limit[i], 2);
     }
 
-    // Eigen::Vector3d collision_vector = m_model->offset("panda_link0", "panda_link7");
+    // Eigen::Vector3d collision_vector = dynamics->offset("panda_link0", "panda_link7");
     // cost += 1000 * std::pow(std::max(0.0, 0.35 - collision_vector.norm()), 2);
 
     return cost;

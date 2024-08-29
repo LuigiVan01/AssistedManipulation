@@ -3,7 +3,9 @@
 #include <nlohmann/json.hpp>
 
 #include "controller/mppi.hpp"
-#include "frankaridgeback/model.hpp"
+#include "frankaridgeback/control.hpp"
+#include "frankaridgeback/dynamics.hpp"
+#include "frankaridgeback/state.hpp"
 
 /**
  * @brief Objective function of the franka research 3 ridgeback assisted
@@ -46,9 +48,6 @@ public:
     };
 
     struct Configuration {
-
-        /// The configuration of the model.
-        FrankaRidgeback::Model::Configuration model;
 
         /// If joint limit costs are enabled.
         bool enable_joint_limit = true;
@@ -96,7 +95,7 @@ public:
 
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            model, enable_joint_limit, enable_reach_limit, 
+            enable_joint_limit, enable_reach_limit, 
             enable_maximise_manipulability, enable_minimise_power,
             enable_variable_damping, lower_joint_limit, upper_joint_limit,
             maximum_reach, minimum_reach, minimum_manipulability, maximum_power,
@@ -194,7 +193,7 @@ public:
 
     /**
      * 
-    */
+     */
     inline double get_variable_damping_cost() {
         return m_variable_damping_cost;
     }
@@ -204,6 +203,7 @@ public:
      * 
      * @param state The state of the system.
      * @param control The control parameters applied to the state.
+     * @param dynamics Pointer to the dynamics at the time step.
      * @param time The current time.
      * 
      * @returns The cost of the step.
@@ -211,6 +211,7 @@ public:
     double get(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
+        mppi::Dynamics *dynamics,
         double time
     ) override;
 
@@ -220,21 +221,11 @@ public:
     void reset() override {};
 
     /**
-     * @brief Get the franka ridgeback model.
-     */
-    std::unique_ptr<FrankaRidgeback::Model> &model() {
-        return m_model;
-    }
-
-    /**
      * @brief Make a copy of the objective function.
      */
     inline std::unique_ptr<mppi::Cost> copy() override {
         return std::unique_ptr<AssistedManipulation>(
-            new AssistedManipulation(
-                std::move(m_model->copy()),
-                m_configuration
-            )
+            new AssistedManipulation(m_configuration)
         );
     }
 
@@ -246,17 +237,14 @@ private:
      * @param model Pointer to the robot model.
      * @param configuration The configuration of the objective function.
      */
-    AssistedManipulation(
-        std::unique_ptr<FrankaRidgeback::Model> &&model,
-        const Configuration &configuration
-    );
+    AssistedManipulation(const Configuration &configuration);
 
     double power_cost(
         const FrankaRidgeback::State &state,
         const FrankaRidgeback::Control &control
     );
 
-    double manipulability_cost();
+    double manipulability_cost(FrankaRidgeback::Dynamics *dynamics);
 
     double joint_limit_cost(const FrankaRidgeback::State &state);
 
@@ -267,11 +255,8 @@ private:
     /// The configuration of the objective function.
     Configuration m_configuration;
 
-    /// Pointer to the model to calculate proximity to the point.
-    std::unique_ptr<FrankaRidgeback::Model> m_model;
-
     /// Spatial jacobian.
-    Eigen::MatrixXd m_space_jacobian;
+    Eigen::Matrix<double, 6, 6> m_space_jacobian;
 
     double m_cost;
 

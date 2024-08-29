@@ -15,7 +15,7 @@ bool ManipulabilityTest::run()
     configuration.folder = m_folder;
     configuration.duration = 60;
 
-    // configuration.actor.mppi.threads = 1;
+    configuration.actor.mppi.threads = 1;
 
     configuration.actor.controller_rate = 0.01;
     configuration.actor.controller_substeps = 1;

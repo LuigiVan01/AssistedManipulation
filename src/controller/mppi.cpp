@@ -275,7 +275,7 @@ void Trajectory::rollout()
         // Rollout trajectories from [start, stop)
         auto lambda = [this, thread, start, stop]() {
             for (int i = start; i < stop; i++) {
-                rollout(m_rollouts[i], *m_dynamics[thread], *m_cost[thread]);
+                rollout(&m_rollouts[i], m_dynamics[thread].get(), m_cost[thread].get());
             }
         };
 
@@ -288,37 +288,37 @@ void Trajectory::rollout()
         future.get();
 }
 
-void Trajectory::rollout(Rollout &rollout, Dynamics &dynamics, Cost &cost)
+void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
 {
     Eigen::VectorXd state = m_rollout_state;
-    dynamics.set(state);
-    cost.reset();
-    rollout.cost = 0.0;
+    dynamics->set(state);
+    cost->reset();
+    rollout->cost = 0.0;
 
     for (int step = 0; step < m_step_count; ++step) {
 
         // Add the rollout noise to the optimal control.
         Eigen::VectorXd control = (
             m_optimal_control_shifted.col(step) +
-            rollout.noise.col(step)
+            rollout->noise.col(step)
         );
 
         double step_cost = (
             std::pow(m_cost_discount_factor, step) *
-            cost.get(state, control, m_time_step)
+            cost->get(state, control, dynamics, m_time_step)
         );
 
         // Rollout weight is interpreted as zero during optimisation.
         if (std::isnan(step_cost)) {
-            rollout.cost = NAN;
+            rollout->cost = NAN;
             return;
         }
 
         // Cumulative running cost.
-        rollout.cost += step_cost;
+        rollout->cost += step_cost;
 
         // Step the dynamics simulation.
-        state = dynamics.step(control, m_time_step);
+        state = dynamics->step(control, m_time_step);
     }
 }
 
@@ -412,11 +412,11 @@ void Trajectory::optimise()
 void Trajectory::filter()
 {
     Eigen::VectorXd state = m_rollout_state;
-    Dynamics &dynamics = *m_dynamics[0];
-    Cost &cost = *m_cost[0];
+    Dynamics *dynamics = m_dynamics[0].get();
+    Cost *cost = m_cost[0].get();
 
-    dynamics.set(state);
-    cost.reset();
+    dynamics->set(state);
+    cost->reset();
     m_optimal_rollout.cost = 0.0;
 
     for (int step = 0; step < m_step_count; ++step) {
@@ -429,7 +429,7 @@ void Trajectory::filter()
 
         double step_cost = (
             std::pow(m_cost_discount_factor, step) *
-            cost.get(state, control, m_time_step)
+            cost->get(state, control, dynamics, m_time_step)
         );
 
         assert(!std::isnan(step_cost));
@@ -438,7 +438,7 @@ void Trajectory::filter()
         m_optimal_rollout.cost += step_cost;
 
         // Step the dynamics simulation.
-        state = dynamics.step(control, m_time_step);
+        state = dynamics->step(control, m_time_step);
     }
 }
 

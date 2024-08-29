@@ -2,6 +2,7 @@
 
 #include "controller/pid.hpp"
 #include "controller/mppi.hpp"
+#include "controller/energy.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
 #include "simulation/simulator.hpp"
@@ -48,12 +49,15 @@ public:
         /// The differential gain of the joint PD controller.
         FrankaRidgeback::Control differential_gain;
 
+        /// The initial available energy for the robot.
+        double energy;
+
         // JSON conversion for franka ridgeback actor configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             controller_rate, controller_substeps, urdf_filename,
             end_effector_frame, initial_state, proportional_gain,
-            differential_gain
+            differential_gain, energy
         )
     };
 
@@ -83,6 +87,35 @@ public:
     void set_end_effector_force(Eigen::Ref<Eigen::Vector3d> force);
 
     /**
+     * @brief Set the external end effector torque for the next action only.
+     * 
+     * Keep calling this function to apply continuous torques.
+     * 
+     * @param torque The torque to apply to the end effector, in the world frame.
+     */
+    void set_end_effector_torque(Eigen::Ref<Eigen::Vector3d> torque);
+
+    /**
+     * @brief Get the previously set end effector force.
+     */
+    inline Eigen::Vector3d get_end_effector_force()
+    {
+        /// TODO: Check if this is correct. Why index zero? Documentation says
+        // used for visualisation.
+        return m_robot->getExternalForce()[0].e();
+    }
+
+    /**
+     * @brief Get the previously set end effector torque.
+     */
+    inline Eigen::Vector3d get_end_effector_torque()
+    {
+        /// TODO: Check if this is correct. Why index zero? Documentation says
+        // used for visualisation.
+        return m_robot->getExternalTorque()[0].e();
+    }
+
+    /**
      * @brief Get the end effector position.
      * @returns The end effector position in world frame as (x, y, z).
      */
@@ -103,7 +136,7 @@ public:
         m_robot->getFrameOrientation(m_end_effector_frame_index, orientation);
         return Eigen::Quaterniond(orientation.e());
     }
-
+ 
     /**
      * @brief Get a pointer to the simulated articulated system.
      */
@@ -150,38 +183,39 @@ private:
      */
     void update(Simulator *simulator) override;
 
-    void get_end_effector_jacobian(Eigen::MatrixXd &J);
-
-    /**
-     * @brief Get the wrench on the end effectors body frame.
-     * @returns The external wrench. 
-     */
-    void get_end_effector_wrench(Eigen::VectorXd &wrench);
-
+    /// The configuration of the actor.
     Configuration m_configuration;
 
+    /// The owning simulator instance.
     Simulator *m_simulator;
 
+    /// The trajectory generator.
     std::unique_ptr<mppi::Trajectory> m_trajectory;
 
     /// The simulated articulated object, generated from the urdf file.
     raisim::ArticulatedSystem *m_robot;
 
+    /// The index of the end effector frame into raisim data structure.
     std::int64_t m_end_effector_frame_index;
 
+    /// Countdown to next trajectory update.
     std::int64_t m_trajectory_countdown;
 
+    /// The value to reset the countdown after update.
     std::int64_t m_trajectory_countdown_max;
 
     /// The simulated state.
     FrankaRidgeback::State m_state;
 
-    bool m_external_force_applied;
-
+    /// The joint torques experienced due to the end effector force.
     Eigen::VectorXd m_external_joint_torques;
 
-    Eigen::MatrixXd m_contact_jacobian;
+    /// The jacobian of the end effector frame.
+    Eigen::MatrixXd m_end_effector_jacobian;
 
     /// The current control action.
     FrankaRidgeback::Control m_control;
+
+    /// The available energy 
+    EnergyTank m_energy_tank;
 };

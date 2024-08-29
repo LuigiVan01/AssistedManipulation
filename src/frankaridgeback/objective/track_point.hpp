@@ -52,6 +52,7 @@ public:
     double get(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
+        mppi::Dynamics *dynamics,
         double time
     ) override;
 

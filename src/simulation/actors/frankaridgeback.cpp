@@ -95,12 +95,12 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
 }
 
 FrankaRidgebackActor::FrankaRidgebackActor(
-        const Configuration &configuration,
-        std::unique_ptr<mppi::Trajectory> &&controller,
-        Simulator *simulator,
-        raisim::ArticulatedSystem *robot,
-        std::size_t end_effector_index,
-        std::int64_t controller_countdown_max
+    const Configuration &configuration,
+    std::unique_ptr<mppi::Trajectory> &&controller,
+    Simulator *simulator,
+    raisim::ArticulatedSystem *robot,
+    std::size_t end_effector_index,
+    std::int64_t controller_countdown_max
 ) : m_configuration(std::move(configuration))
   , m_simulator(simulator)
   , m_trajectory(std::move(controller))
@@ -109,12 +109,12 @@ FrankaRidgebackActor::FrankaRidgebackActor(
   , m_trajectory_countdown(0) // Update on first step.
   , m_trajectory_countdown_max(controller_countdown_max)
   , m_state(FrankaRidgeback::State::Zero())
-  , m_external_force_applied(false)
   , m_external_joint_torques(FrankaRidgeback::DoF::JOINTS)
-  , m_contact_jacobian(3, FrankaRidgeback::DoF::JOINTS)
+  , m_end_effector_jacobian(3, FrankaRidgeback::DoF::JOINTS)
+  , m_energy_tank(configuration.energy)
 {
     m_external_joint_torques.setZero();
-    m_contact_jacobian.setZero();
+    m_end_effector_jacobian.setZero();
 
     FrankaRidgeback::State state = m_trajectory->get_rolled_out_state();
 
@@ -134,8 +134,15 @@ void FrankaRidgebackActor::set_end_effector_force(
         raisim::ArticulatedSystem::Frame::BODY_FRAME,
         raisim::Vec<3>()
     );
+}
 
-    m_external_force_applied = force.norm() > 1e-4;
+void FrankaRidgebackActor::set_end_effector_torque(
+    Eigen::Ref<Eigen::Vector3d> torque
+) {
+    m_robot->setExternalTorque(
+        m_robot->getFrameByIdx(m_end_effector_frame_index).parentId,
+        torque
+    );
 }
 
 void FrankaRidgebackActor::act(Simulator *simulator)
@@ -183,75 +190,40 @@ void FrankaRidgebackActor::update(Simulator *simulator)
     Eigen::VectorXd state_position, state_velocity;
     m_robot->getState(state_position, state_velocity);
 
-    // Update joint positions and velocities.
     m_state.position() = state_position;
     m_state.velocity() = state_velocity;
 
-    // Update the external joint torques.
-    // m_external_joint_torques.setZero();
-
-    // double yaw = m_state.base_yaw().value();
-
-    // for (const auto contact : m_robot->getContacts()) {
-    //     if (contact.skip() || contact.isSelfCollision())
-    //         continue;
-
-    //     m_contact_jacobian.setZero();
-    //     m_robot->getDenseJacobian(
-    //         contact.getlocalBodyIndex(),
-    //         contact.getPosition(),
-    //         m_contact_jacobian
-    //     );
-
-    //     // the base jacobian references the world frame, need to rotate
-    //     // to the base reference frame
-    //     m_contact_jacobian.topLeftCorner<3, 3>()
-    //         << std::cos(yaw), std::sin(yaw), 0,
-    //            -std::sin(yaw), std::cos(yaw), 0,
-    //            0, 0, 1;
-
-    //     // transform contact to force --> to force in world frame --> to reaction torques
-    //     m_external_joint_torques -= (
-    //         m_contact_jacobian.transpose() * contact.getContactFrame().e().transpose() *
-    //         contact.getImpulse().e() / m_simulator->get_world().getTimeStep()
-    //     );
-    // }
-
-    // // Add torque from end effector external force.
-    // if (m_external_force_applied) {
-    //     m_contact_jacobian.setZero();
-    //     m_robot->getDenseFrameJacobian(m_end_effector_frame_index, m_contact_jacobian);
-
-    //     m_contact_jacobian.topLeftCorner<3, 3>()
-    //         << std::cos(yaw), -std::sin(yaw), 0,
-    //            std::sin(yaw), std::cos(yaw), 0,
-    //            0, 0, 1;
-
-    //     m_external_joint_torques += (
-    //         m_contact_jacobian.transpose() * m_robot->getExternalForce()[0].e()
-    //     );
-    // }
-}
-
-void FrankaRidgebackActor::get_end_effector_jacobian(Eigen::MatrixXd &J)
-{
-    J.setZero(6, FrankaRidgeback::DoF::JOINTS);
-
+    // Get the end effector jacobian.
     Eigen::MatrixXd linear {3, FrankaRidgeback::DoF::JOINTS};
     linear.setZero();
     m_robot->getDenseFrameJacobian(m_end_effector_frame_index, linear);
-    J.topRows(3) = linear;
+    m_end_effector_jacobian.topRows(3) = linear;
 
     Eigen::MatrixXd angular {3, FrankaRidgeback::DoF::JOINTS};
     angular.setZero();
     m_robot->getDenseFrameRotationalJacobian(m_end_effector_frame_index, angular);
-    J.bottomRows(3) = angular;
+    m_end_effector_jacobian.bottomRows(3) = angular;
 
+    // Set the appropriate jacobian for the ridgeback.
     double yaw = m_state.base_yaw().value();
-
-    // Rotate to robot reference frame.
-    J.topLeftCorner<3, 3>() <<
+    m_end_effector_jacobian.topLeftCorner<3, 3>() <<
         std::cos(yaw), -std::sin(yaw), 0,
         std::sin(yaw), std::cos(yaw), 0,
         0, 0, 1;
+
+    // Update the external joint torques.
+    m_external_joint_torques = (
+        m_end_effector_jacobian.transpose() * get_end_effector_force()
+    );
+
+    // Update the energy tank.
+    m_energy_tank.step(
+        // m_robot->getKineticEnergy() / m_simulator->get_time_step(),
+        m_external_joint_torques.transpose() * state_velocity,
+        m_simulator->get_time_step()
+    );
+
+    m_state.end_effector_force() = get_end_effector_force();
+    m_state.end_effector_torque() = get_end_effector_torque();
+    m_state.available_energy() = m_energy_tank.get_energy();
 }

@@ -31,12 +31,12 @@ std::unique_ptr<KalmanFilter> KalmanFilter::create(
         configuration.states
     );
 
-    valid &= check_dimensions(
-        "control transition matrix",
-        configuration.control_transition_matrix,
-        configuration.states,
-        configuration.controls
-    );
+    // valid &= check_dimensions(
+    //     "control transition matrix",
+    //     configuration.control_transition_matrix,
+    //     configuration.states,
+    //     configuration.controls
+    // );
 
     valid &= check_dimensions(
         "transition covariance matrix",
@@ -66,11 +66,11 @@ std::unique_ptr<KalmanFilter> KalmanFilter::create(
 }
 
 void KalmanFilter::update(
-    Eigen::Ref<Eigen::VectorXd> observation,
-    Eigen::Ref<Eigen::VectorXd> control
+    Eigen::Ref<Eigen::VectorXd> observation
+    // Eigen::Ref<Eigen::VectorXd> control
 ) {
     assert(observation.size() == m_observed_state_size);
-    assert(control.size() == m_control_size);
+    // assert(control.size() == m_control_size);
 
     // Calculate the optimal kalman gain.
     auto optimal_kalman_gain = (
@@ -95,11 +95,23 @@ void KalmanFilter::update(
 
     // Predict the next state from the current state and control.
     m_next_state = (
-        m_state_transition_matrix * m_state +
-        m_control_transition_matrix * control
+        m_state_transition_matrix * m_state
+        // + m_control_transition_matrix * control
     );
 
     // Extrapolate the noise to the next state.
+    m_covariance = (
+        m_state_transition_matrix * m_covariance * m_state_transition_matrix.transpose() + 
+        m_transition_covariance
+    );
+}
+
+void KalmanFilter::predict()
+{
+    m_state = m_next_state;
+
+    m_next_state = m_state_transition_matrix * m_state;
+
     m_covariance = (
         m_state_transition_matrix * m_covariance * m_state_transition_matrix.transpose() + 
         m_transition_covariance

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <iostream>
 
 #include <nlohmann/json.hpp>
 
@@ -8,6 +9,7 @@
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/algorithm/frames.hpp>
 
+#include "controller/energy.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
 
@@ -81,41 +83,98 @@ public:
         return m_data.get();
     }
 
-    Eigen::Vector3d offset(
+    /**
+     * @brief Get the offset in the world space between two frames.
+     * 
+     * @param from_frame The first frame.
+     * @param to_frame The second frame.
+     * 
+     * @returns The offset between the frames.
+     */
+    inline Eigen::Vector3d get_offset(
         const std::string &from_frame,
         const std::string &to_frame
-    );
-
-    Eigen::Matrix<double, 6, 1> error(
-        const std::string &from_frame,
-        const std::string &to_frame
-    );
-
-    Eigen::Matrix<double, 6, 1> error(
-        const std::string &frame,
-        const Eigen::Quaterniond& rot,
-        const Eigen::Vector3d& trans
-    );
-
-    std::tuple<Eigen::Vector3d, Eigen::Quaterniond> pose(
-        const std::string &frame
-    );
+    ){
+        return m_data->oMf[m_model->getFrameId(to_frame)].translation() -
+        m_data->oMf[m_model->getFrameId(from_frame)].translation();
+    }
 
     /**
-     * @brief Get the end effector position and orientation.
+     * @brief Get the error screw error between two frames.
+     * 
+     * @param from_frame The first frame.
+     * @param to_frame The second frame.
+     * 
+     * @returns The offset and orientation difference between the frames.
      */
-    std::tuple<Eigen::Vector3d, Eigen::Quaterniond> end_effector_pose();
+    inline Eigen::Matrix<double, 6, 1> get_error(
+        const std::string &from_frame,
+        const std::string &to_frame
+    ) {
+        using namespace pinocchio;
+
+        return log6(
+            m_data->oMf[m_model->getFrameId(to_frame)].actInv(
+                m_data->oMf[m_model->getFrameId(from_frame)]
+            )
+        ).toVector();
+    }
+
+    /**
+     * @brief Get the pose of a frame.
+     * 
+     * @param frame 
+     * @return std::tuple<Eigen::Vector3d, Eigen::Quaterniond> 
+     */
+    inline std::tuple<Eigen::Vector3d, Eigen::Quaterniond> get_pose(
+        const std::string &frame
+    ){
+        return std::make_tuple(
+            m_data->oMf[m_model->getFrameId(frame)].translation(),
+            (Eigen::Quaterniond)m_data->oMf[m_model->getFrameId(frame)].rotation()
+        );
+    }
+
+    /**
+     * @brief Get the end effector pose.
+     */
+    inline std::tuple<Eigen::Vector3d, Eigen::Quaterniond> get_end_effector_pose()
+    {
+        return std::make_tuple(
+            m_data->oMf[m_end_effector_index].translation(),
+            (Eigen::Quaterniond)m_data->oMf[m_end_effector_index].rotation()
+        );
+    }
 
     /**
      * @brief Get the velocity of the end effector in the world frame.
      */
-    Eigen::Vector3d end_effector_velocity();
+    inline Eigen::Vector3d get_end_effector_velocity() {
+        return m_end_effector_velocity;
+    }
 
+    // inline Eigen::VectorXd get_joint_torques_from_external_force() {
+    //     return m_joint_torques;
+    // }
+
+    /**
+     * @brief Get the end effector jacobian, if calculation is enabled.
+     * 
+     * Jacobian is in the world frame.
+     */
+    inline Eigen::Ref<Eigen::Matrix<double, 6, DoF::JOINTS>> get_end_effector_jacobian() {
+        return m_end_effector_jacobian;
+    }
+
+    /**
+     * @brief Make a copy of the model.
+     */
     inline std::unique_ptr<Model> copy()
     {
         auto model = std::make_unique<pinocchio::Model>(*m_model);
         auto data = std::make_unique<pinocchio::Data>(*model);
         return std::unique_ptr<Model>(new Model(
+            m_configuration,
             std::move(model),
             std::move(data),
             m_end_effector_index
@@ -123,8 +182,6 @@ public:
     }
 
 private:
-
-    Model() = default;
 
     /**
      * @brief Initialise the dynamics model.
@@ -137,10 +194,14 @@ private:
      * end effector.
      */
     Model(
+        const Configuration &configuration,
         std::unique_ptr<pinocchio::Model> model,
         std::unique_ptr<pinocchio::Data> data,
         std::size_t end_effector_index
     );
+
+    /// The configuration of the model.
+    Configuration m_configuration;
 
     /// The robot model.
     std::unique_ptr<pinocchio::Model> m_model;
@@ -150,6 +211,14 @@ private:
 
     /// Index of the end effector frame in the frame vector.
     std::size_t m_end_effector_index;
+
+    /// End effector jacobian in the world frame if enabled.
+    Eigen::MatrixXd m_end_effector_jacobian;
+
+    /// The velocity of the end effector if enabled.
+    Eigen::VectorXd m_end_effector_velocity;
+
+    // Eigen::VectorXd m_joint_torques;
 };
 
 } // namespace FrankaRidgeback

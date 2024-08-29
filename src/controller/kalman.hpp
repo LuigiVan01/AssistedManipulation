@@ -24,14 +24,8 @@ public:
         /// The number of estimated states.
         unsigned int states;
 
-        /// The number of control inputs.
-        unsigned int controls;
-
         /// Maps a state observation to the next state.
         Eigen::MatrixXd state_transition_matrix;
-
-        /// Maps a control input to the next state.
-        Eigen::MatrixXd control_transition_matrix;
 
         /// The noise of the state transition mapping.
         Eigen::MatrixXd transition_covariance;
@@ -54,20 +48,13 @@ public:
      * @param configuration The various matricies used in the filter.
      * @return A pointer to the filter on success or nullptr on failure.
      */
-    std::unique_ptr<KalmanFilter> create(const Configuration &configuration);
+    static std::unique_ptr<KalmanFilter> create(const Configuration &configuration);
 
     /**
      * @brief Get the size of the observed state vector.
      */
     inline unsigned int get_observed_state_size() {
         return m_observed_state_size;
-    }
-
-    /**
-     * @brief Get the size of the control vector.
-     */
-    inline unsigned int get_control_size() {
-        return m_control_size;
     }
 
     /**
@@ -92,24 +79,48 @@ public:
     }
 
     /**
-     * @brief Update the Kalman filter with an observation.
+     * @brief Set the estimated state in the kalman filter.
+     * @param state The estimated state to set to.
+     */
+    inline void set_estimation(const Eigen::VectorXd &state) {
+        m_state = state;
+        m_next_state = m_state_transition_matrix * state;
+    }
+
+    /**
+     * @brief Set the covariance of the kalman filter.
+     */
+    inline void set_covariance(const Eigen::MatrixXd &covariance) {
+        m_covariance = covariance;
+    }
+
+    /**
+     * @brief Update the filter with an observation.
+     * 
+     * Updates the state and error based on the previous state, previous state
+     * confidence and an observation.
      * 
      * @param observation The observed state.
-     * @param control The control parameters.
      */
-    inline void update(
-        Eigen::Ref<Eigen::VectorXd> observation,
-        Eigen::Ref<Eigen::VectorXd> control
-    );
+    void update(Eigen::Ref<Eigen::VectorXd> observation);
+
+    /**
+     * @brief Predict the subsequent state.
+     * 
+     * Note that the covariance of the state increases after each prediction
+     * and predictions will become increasingly inaccurate.
+     * 
+     * Performs an update with the kalman gain to zero to rely only on the
+     * process model / state transition matrix.
+     */
+    void predict();
 
 private:
 
     KalmanFilter(const Configuration &config)
        : m_observed_state_size(config.observed_states)
-       , m_control_size(config.controls)
        , m_estimated_state_size(config.states)
        , m_state_transition_matrix(config.state_transition_matrix)
-       , m_control_transition_matrix(config.control_transition_matrix)
        , m_transition_covariance(config.transition_covariance)
        , m_observation_matrix(config.observation_matrix)
        , m_observation_covariance(config.observation_covariance)
@@ -121,17 +132,11 @@ private:
     /// The number of states in each observation.
     const unsigned int m_observed_state_size;
 
-    /// The number of control parameters.
-    const unsigned int m_control_size;
-
     /// The number of estimated states.
     const unsigned int m_estimated_state_size;
 
     /// Maps a state observation to the next state.
     const Eigen::MatrixXd m_state_transition_matrix;
-
-    /// Maps a control input to the next state.
-    const Eigen::MatrixXd m_control_transition_matrix;
 
     /// The noise of the state transition mapping.
     const Eigen::MatrixXd m_transition_covariance;

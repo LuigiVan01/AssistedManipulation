@@ -8,12 +8,14 @@ ReachForPoint::Configuration ReachForPoint::DEFAULT_CONFIGIURATION {
         .time_step = 0.005,
         .gravity = {0.0, 0.0, 9.81}
     },
-    .objective = {
-        .point = Eigen::Vector3d(1.0, 1.0, 1.0),
+    .dynamics = {
         .model = {
             .filename = "",
             .end_effector_frame = "panda_grasp"
         }
+    },
+    .objective = {
+        .point = Eigen::Vector3d(1.0, 1.0, 1.0),
     },
     .actor = {
         .mppi = {
@@ -102,17 +104,17 @@ std::unique_ptr<Test> ReachForPoint::create(const Configuration &configuration)
         return nullptr;
     }
 
-    auto cost_configuration = configuration.objective;
-    if (cost_configuration.model.filename.empty())
-        cost_configuration.model.filename = FrankaRidgeback::Model::find_path().string();
-
     auto cost = TrackPoint::create(configuration.objective);
     if (!cost) {
         std::cerr << "failed to create mppi cost" << std::endl;
         return nullptr;
     }
 
-    auto dynamics = FrankaRidgeback::Dynamics::create();
+    auto dynamics_configuration = configuration.dynamics;
+    if (dynamics_configuration.model.filename.empty())
+        dynamics_configuration.model.filename = FrankaRidgeback::Model::find_path().string();
+
+    auto dynamics = FrankaRidgeback::Dynamics::create(dynamics_configuration);
     if (!dynamics) {
         std::cerr << "failed to create mppi dynamics" << std::endl;
         return nullptr;

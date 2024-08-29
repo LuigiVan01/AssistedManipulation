@@ -34,7 +34,7 @@ namespace DoF {
 
     // Joint dimensions.
     constexpr const std::size_t
-        JOINTS = BASE + ARM + GRIPPER;
+        JOINTS = BASE + ARM /* + GRIPPER */;
 
     // End effector force.
     constexpr const std::size_t
@@ -54,10 +54,13 @@ namespace DoF {
     constexpr const std::size_t
         EXTERNAL_WRENCH = EXTERNAL_FORCE + EXTERNAL_TORQUE;
 
+    // Available energy in the energy tank.
+    constexpr const std::size_t AVAILABLE_ENERGY = 1;
+
     /**
-     * @brief Joint position, joint velocity and external torque.
+     * @brief Joint position, joint velocity, external torque and tank energy.
      */
-    constexpr const std::size_t STATE  = 2 * JOINTS + EXTERNAL_WRENCH;
+    constexpr const std::size_t STATE  = 2 * JOINTS + EXTERNAL_WRENCH + AVAILABLE_ENERGY;
 
     /**
      * @brief Base velocity, arm torque and gripper position.

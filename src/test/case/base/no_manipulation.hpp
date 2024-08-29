@@ -20,12 +20,15 @@ public:
 
         /// The output folder for the test.
         std::filesystem::path folder;
-        
+
         /// Duration of the test.
         double duration;
 
         /// Simulation configuration.
         Simulator::Configuration simulator;
+
+        /// Configuration of the franka ridgeback dynamics.
+        FrankaRidgeback::Dynamics::Configuration dynamics;
 
         /// The reach for point objective configuration.
         AssistedManipulation::Configuration objective;
@@ -39,7 +42,7 @@ public:
         // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, simulator, objective, actor, logger
+            folder, simulator, dynamics, objective, actor, logger
         )
     };
 

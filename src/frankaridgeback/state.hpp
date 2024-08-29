@@ -12,9 +12,9 @@ namespace FrankaRidgeback {
  * 
  * The state is given by (position, velocity, end effector forces) as
  * [
- *     x, y, yaw, theta1, theta2, theta3, theta4, theta5, theta6, theta7, gripper_x, gripper_y,
- *     vx, vy, rotation/s, w1, w2, w3, w4, w5, w6, w7, gripper_left_vx, gripper_right_vy,
- *     fx, fy, fz, tau_x, tau_y, tau_z
+ *     x, y, yaw, theta1, theta2, theta3, theta4, theta5, theta6, theta7,
+ *     vx, vy, rotation/s, w1, w2, w3, w4, w5, w6, w7, fx, fy, fz, tau_x, tau_y,
+ *     tau_z, available_energy
  * ]
  * 
  * Units:
@@ -91,13 +91,13 @@ struct State : public Eigen::Vector<double, DoF::STATE>
      * 
      * @returns The (left, right) gripper positions in metres.
      */
-    inline auto gripper_position() {
-        return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
-    }
+    // inline auto gripper_position() {
+    //     return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
+    // }
 
-    inline const auto gripper_position() const {
-        return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
-    }
+    // inline const auto gripper_position() const {
+    //     return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
+    // }
 
     /**
      * @brief Get all the joint positions of the robot.
@@ -217,31 +217,46 @@ struct State : public Eigen::Vector<double, DoF::STATE>
     /**
      * @brief Get the measured end effector torque.
      * 
-     * Slice of the last <DoF::EXTERNAL_TORQUE> elements.
+     * Slice of length <DoF::EXTERNAL_TORQUE> starting at index 2 * DoF::JOINTS + DoF::EXTERNAL_FORCE.
      * 
      * @returns The end effector torque [tau_x, tau_y, tau_z]
      */
     inline auto end_effector_torque() {
-        return tail<DoF::EXTERNAL_TORQUE>();
+        return segment<DoF::EXTERNAL_TORQUE>(2 * DoF::JOINTS + DoF::EXTERNAL_FORCE);
     }
 
     inline const auto end_effector_torque() const {
-        return tail<DoF::EXTERNAL_TORQUE>();
+        return segment<DoF::EXTERNAL_TORQUE>(2 * DoF::JOINTS + DoF::EXTERNAL_FORCE);
     }
 
     /**
      * @brief Get the measured end effector wrench.
      * 
-     * Slice of the last <DoF::EXTERNAL_WRENCH> elements.
+     * Slice of length DoF::EXTERNAL_WRENCH starting at index 2 * DoF::JOINTS.
      * 
      * @returns The end effector wrench [fx, fy, fz, tau_x, tau_y, tau_z]
      */
     inline auto end_effector_wrench() {
-        return tail<DoF::EXTERNAL_WRENCH>();
+        return segment<DoF::EXTERNAL_WRENCH>(2 * DoF::JOINTS);
     }
 
     inline const auto end_effector_wrench() const {
-        return tail<DoF::EXTERNAL_WRENCH>();
+        return segment<DoF::EXTERNAL_WRENCH>(2 * DoF::JOINTS);
+    }
+
+    /**
+     * @brief Get the available energy of the robot.
+     * 
+     * Slice of the last DoF::AVAILABLE_ENERGY elements.
+     * 
+     * @returns The available energy.
+     */
+    inline auto available_energy() {
+        return tail<DoF::AVAILABLE_ENERGY>();
+    }
+
+    inline const auto available_energy() const {
+        return tail<DoF::AVAILABLE_ENERGY>(); 
     }
 };
 

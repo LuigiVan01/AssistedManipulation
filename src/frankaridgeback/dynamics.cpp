@@ -8,13 +8,28 @@ using namespace std::string_literals;
 
 namespace FrankaRidgeback {
 
-Dynamics::Dynamics()
-    : m_state(State::Zero())
+Dynamics::Dynamics(
+    double energy,
+    std::unique_ptr<FrankaRidgeback::Model> &&model
+  ) : m_model(std::move(model))
+    , m_energy_tank(energy)
+    , m_state(State::Zero())
 {}
 
-std::unique_ptr<Dynamics> Dynamics::create()
+std::unique_ptr<Dynamics> Dynamics::create(const Configuration &configuration)
 {
-    return std::unique_ptr<Dynamics>(new Dynamics());
+    auto model = FrankaRidgeback::Model::create(configuration.model);
+    if (!model) {
+        std::cout << "failed to create dynamics model." << std::endl;
+        return nullptr;
+    }
+
+    return std::unique_ptr<Dynamics>(
+        new Dynamics(
+            configuration.energy,
+            std::move(model)
+        )
+    );
 }
 
 Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double dt)
@@ -38,6 +53,10 @@ Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double d
 
     // m_state.end_effector_force().setZero();
     // m_state.end_effector_torque().setZero();
+
+    m_model->set(m_state);
+
+    // m_energy_tank.step(m_state.velocity() , dt);
 
     return m_state;
 }
