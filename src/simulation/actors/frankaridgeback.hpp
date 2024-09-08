@@ -3,6 +3,7 @@
 #include "controller/pid.hpp"
 #include "controller/mppi.hpp"
 #include "controller/energy.hpp"
+#include "controller/force_prediction.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
 #include "simulation/simulator.hpp"
@@ -66,7 +67,10 @@ public:
      * 
      * @param configuration The configuration of the actor.
      * @param simulator Pointer to the owning simulator.
-     * 
+     * @param dynamics Pointer to the dynamics to use for trajectory generation.
+     * @param cost Pointer to the cost to use for trajectory generation.
+     * @param force_predictor Pointer to the optional force prediction algorithm.
+     * @param filter Pointer to the optional safety filter.
      * @returns A pointer to the actor on success, or nullptr on failure.
      */
     static std::shared_ptr<FrankaRidgebackActor> create(
@@ -136,6 +140,13 @@ public:
         m_robot->getFrameOrientation(m_end_effector_frame_index, orientation);
         return Eigen::Quaterniond(orientation.e());
     }
+
+    /**
+     * @brief Get the jacobian of the end effector.
+     */
+    inline const Eigen::MatrixXd &get_end_effector_jacobian() const {
+        return m_end_effector_jacobian;
+    }
  
     /**
      * @brief Get a pointer to the simulated articulated system.
@@ -165,6 +176,7 @@ private:
     FrankaRidgebackActor(
         const Configuration &configuration,
         std::unique_ptr<mppi::Trajectory> &&controller,
+        std::unique_ptr<ForcePredictor> &&force_predictor,
         Simulator *simulator,
         raisim::ArticulatedSystem *robot,
         std::size_t end_effector_index,
@@ -182,6 +194,11 @@ private:
      * @param simulator Pointer to the simulator to update state from.
      */
     void update(Simulator *simulator) override;
+
+    /**
+     * @brief Updates the end effector jacobian matrix.
+     */
+    void update_end_effector_jacobian();
 
     /// The configuration of the actor.
     Configuration m_configuration;
@@ -218,4 +235,7 @@ private:
 
     /// The available energy 
     EnergyTank m_energy_tank;
+
+    /// Filter used to store state estimation for mppi dynamics.
+    std::unique_ptr<ForcePredictor> m_force_predictor;
 };

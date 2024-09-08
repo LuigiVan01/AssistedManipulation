@@ -130,7 +130,7 @@ void MPPI::log(const mppi::Trajectory &trajectory)
     }
 
     if (m_optimal_cost) {
-        m_optimal_cost->write(iteration, trajectory.get_optimal_cost());
+        m_optimal_cost->write(iteration, trajectory.get_optimal_total_cost());
     }
 
     m_last_update = time;

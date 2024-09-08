@@ -106,14 +106,16 @@ void KalmanFilter::update(
     );
 }
 
-void KalmanFilter::predict()
+void KalmanFilter::predict(bool update_covariance)
 {
     m_state = m_next_state;
 
     m_next_state = m_state_transition_matrix * m_state;
 
-    m_covariance = (
-        m_state_transition_matrix * m_covariance * m_state_transition_matrix.transpose() + 
-        m_transition_covariance
-    );
+    if (update_covariance) {
+        m_covariance = (
+            m_state_transition_matrix * m_covariance * m_state_transition_matrix.transpose() + 
+            m_transition_covariance
+        );
+    }
 }

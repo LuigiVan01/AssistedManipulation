@@ -1,7 +1,67 @@
 #include "controller/force_prediction.hpp"
 
+#include <limits>
 #include <functional>
 #include <iostream>
+
+std::unique_ptr<AverageForcePredictor> AverageForcePredictor::create(
+    const Configuration &configuration
+) {
+    if (configuration.window < 0.0) {
+        std::cerr << "prediction window time is negative" << std::endl;
+        return nullptr;
+    }
+
+    return std::unique_ptr<AverageForcePredictor>(
+        new AverageForcePredictor()
+    );
+}
+
+AverageForcePredictor::AverageForcePredictor()
+    : m_buffer()
+    , m_average(Eigen::Vector3d::Zero())
+{
+    // The initial default force is zero. Will be erased on first update.
+    m_buffer.emplace_back(
+        std::numeric_limits<double>::min(),
+        Eigen::Vector3d::Zero()
+    );
+}
+
+void AverageForcePredictor::update(Eigen::Vector3d force, double time)
+{
+    std::unique_lock lock(m_mutex);
+
+    // Find the element that is older than the time window. 
+    auto it = std::upper_bound(
+        m_buffer.begin(),
+        m_buffer.end(),
+        time,
+        [](double time, const std::pair<double, Eigen::Vector3d> &element){
+            return time < element.first < time;
+        }
+    );
+
+    // Remove old elements from the buffer. If all elements except the most
+    // recent would be erased, then skip. I.e always keep the most recent
+    // force.
+    if (it != m_buffer.end() && it != m_buffer.end() - 1) {
+        m_buffer.erase(m_buffer.begin(), it);
+    }
+
+    // Calculate the average.
+    Eigen::Vector3d total = Eigen::Vector3d::Zero();
+    for (auto &[time, force] : m_buffer)
+        total += force;
+
+    m_average = total / m_buffer.size();
+}
+
+Eigen::Vector3d AverageForcePredictor::predict(double /* time */)
+{
+    std::shared_lock lock(m_mutex);
+    return m_average;
+}
 
 std::unique_ptr<KalmanForcePredictor> KalmanForcePredictor::create(
     const Configuration &configuration
@@ -76,18 +136,25 @@ Eigen::MatrixXd KalmanForcePredictor::create_euler_state_transition_matrix(
 
     unsigned int dimension = 3 * (order + 1);
 
-    // Each state (one of x, y or z) has an associated (order x order) square
-    // sub-matrix of size (order + 1, order + 1).
+    // Each state (one of x, y or z) has an associated (order x order)
+    // triangular sub-matrix of size (order + 1, order + 1).
     Eigen::MatrixXd matrix {dimension, dimension};
 
-    // Initialise the square sub-matrix for x, y and z.
+    // Initialise the triangular sub-matrix for x, y and z.
     for (unsigned int state = 0; state < 3; state++) {
-        for (unsigned int order = 0; order < order; order++) {
-            unsigned int col = 3 * (order + 1) + order;
 
-            // Loop through the column from bottom to top, filling out the order.
-            for (unsigned int i = 0; i <= order; i++) {
-                unsigned int row = 3 * state + order - i;
+        // The offset of both rows and columns to the state sub-matrix.
+        unsigned int offset = state * order;
+
+        // Populate each column of the triangular sub-matrix, being each order.
+        for (unsigned int ord = 0; ord < ord; ord++) {
+            unsigned int col = offset + ord;
+
+            // Loop through the column of the triangular matrix from bottom to
+            // top. Each additional column has an additional element
+            // (triangular).
+            for (unsigned int i = 0; i <= ord; i++) {
+                unsigned int row = offset + ord - i;
                 matrix(row, col) = 1 / factorial(i) * std::pow(time_step, i);
             }
         }
@@ -98,13 +165,15 @@ Eigen::MatrixXd KalmanForcePredictor::create_euler_state_transition_matrix(
 
 void KalmanForcePredictor::update(Eigen::Vector3d force, double time)
 {
+    std::unique_lock lock(m_mutex);
+
     m_last_update = time;
     m_kalman->update(force);
 
     m_predictor->set_estimation(m_kalman->get_estimation());
     m_predictor->set_covariance(m_kalman->get_covariance());
 
-    // Generate the predicted forces over the horison.
+    // Generate the predicted force over the time horison.
     for (int i = 0; i < m_steps; i++) {
         m_prediction.col(i) = m_predictor->get_estimation();
         m_predictor->predict();
@@ -113,26 +182,20 @@ void KalmanForcePredictor::update(Eigen::Vector3d force, double time)
 
 void KalmanForcePredictor::update(double time)
 {
+    // Update the kalman filter using prediction only, and propagate process
+    // covariance.
     m_kalman->predict();
 }
 
 Eigen::Vector3d KalmanForcePredictor::predict(double time)
 {
-    assert(time >= m_last_update);
+    std::shared_lock lock(m_mutex);
 
-    static auto get_force = [&](int col) -> Eigen::Vector3d {
-        // Todo, rearrange transition matrix to make this
-        // m_prediction.topRightCorner(3, 1)
-        return Eigen::Vector3d{
-            m_prediction(                            0, col),
-            m_prediction(    m_prediction.rows() / 3, col),
-            m_prediction(2 * m_prediction.rows() / 3, col)
-        };
-    };
+    assert(time >= m_last_update);
 
     // If predicting past the horison, return the last predicted force.
     if (time > m_horison)
-        return get_force(m_steps - 1);
+        return m_prediction.rightCols(1);
 
     // Steps into the current horison.
     double t = (time - m_last_update) / m_time_step;
@@ -145,5 +208,5 @@ Eigen::Vector3d KalmanForcePredictor::predict(double time)
     t -= lower;
 
     // Linear interpolation between closest predictions.
-    return (1.0 - t) * get_force(lower) + t * get_force(upper);
+    return (1.0 - t) * m_prediction.col(lower) + t * m_prediction.col(upper);
 }

@@ -112,8 +112,10 @@ public:
      * 
      * Performs an update with the kalman gain to zero to rely only on the
      * process model / state transition matrix.
+     * 
+     * @param update_covariance Whether to update the covariance matrix.
      */
-    void predict();
+    void predict(bool update_covariance = true);
 
 private:
 
@@ -128,6 +130,7 @@ private:
        , m_covariance()
        , m_state(config.initial_state)
     {}
+
 
     /// The number of states in each observation.
     const unsigned int m_observed_state_size;

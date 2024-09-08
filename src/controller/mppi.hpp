@@ -429,8 +429,16 @@ public:
     /**
      * @brief Get the optimal rollout cost.
      */
-    inline double get_optimal_cost() const {
+    inline double get_optimal_total_cost() const {
         return m_optimal_rollout.cost;
+    }
+
+    inline const Cost &get_optimal_cost() const {
+        return *m_cost[0];
+    }
+
+    inline const Dynamics &get_optimal_dynamics() const {
+        return *m_dynamics[0];
     }
 
     /**

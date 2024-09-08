@@ -8,16 +8,10 @@ using namespace std::string_literals;
 
 namespace FrankaRidgeback {
 
-Dynamics::Dynamics(
-    double energy,
-    std::unique_ptr<FrankaRidgeback::Model> &&model
-  ) : m_model(std::move(model))
-    , m_energy_tank(energy)
-    , m_state(State::Zero())
-{}
-
-std::unique_ptr<Dynamics> Dynamics::create(const Configuration &configuration)
-{
+std::unique_ptr<Dynamics> Dynamics::create(
+    const Configuration &configuration,
+    ForcePredictor *force_predictor
+) {
     auto model = FrankaRidgeback::Model::create(configuration.model);
     if (!model) {
         std::cout << "failed to create dynamics model." << std::endl;
@@ -27,9 +21,42 @@ std::unique_ptr<Dynamics> Dynamics::create(const Configuration &configuration)
     return std::unique_ptr<Dynamics>(
         new Dynamics(
             configuration.energy,
-            std::move(model)
+            std::move(model),
+            std::move(force_predictor->create_handle())
         )
     );
+}
+
+Dynamics::Dynamics(
+    double energy,
+    std::unique_ptr<FrankaRidgeback::Model> &&model,
+    std::unique_ptr<ForcePredictor::Handle> &&force_predictor_handle
+  ) : m_model(std::move(model))
+    , m_energy_tank(energy)
+    , m_state(State::Zero())
+    , m_force_predictor_handle(std::move(force_predictor_handle))
+{}
+
+std::unique_ptr<mppi::Dynamics> Dynamics::copy()
+{
+    std::unique_ptr<ForcePredictor::Handle> predictor = nullptr;
+    if (m_force_predictor_handle)
+        predictor = m_force_predictor_handle->copy();
+
+    return std::unique_ptr<Dynamics>(
+        new Dynamics(
+            m_energy_tank.get_energy(),
+            std::move(m_model->copy()),
+            std::move(predictor)
+        )
+    );
+}
+
+void Dynamics::set(const Eigen::VectorXd &state)
+{
+    m_model->set(state);
+    m_energy_tank.set_energy(state.available_energy());
+    m_state = state;
 }
 
 Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double dt)
@@ -55,6 +82,8 @@ Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double d
     // m_state.end_effector_torque().setZero();
 
     m_model->set(m_state);
+
+    m_force_predictor_handle->predict();
 
     // m_energy_tank.step(m_state.velocity() , dt);
 

@@ -1,7 +1,10 @@
 #pragma once
 
+#include <variant>
+#include <shared_mutex>
 #include <deque>
 
+#include "controller/json.hpp"
 #include "controller/kalman.hpp"
 
 /**
@@ -9,6 +12,55 @@
  */
 class ForcePredictor
 {
+public:
+
+    enum Type {
+        AVERAGE,
+        KALMAN
+    };
+
+    class Configuration;
+
+    /**
+     * @brief A handle to a force predictor.
+     * 
+     * Used to copy amongst multiple dynamics instances to allow multithreading.
+     * Typically the predict() methods would hold a shared read only lock
+     * with the other handles. The parent holds an exclusive write lock when
+     * the force prediction update occurs.
+     */
+    class Handle
+    {
+    public:
+
+        /**
+         * @brief Predict the force at a time in the future.
+         * 
+         * @param time The time of the force prdiction
+         * @returns The predicted force.
+         */
+        virtual Eigen::Vector3d predict(double time) = 0;
+
+        /**
+         * @brief Make a copy of the handle.
+         */
+        virtual std::unique_ptr<Handle> copy() = 0;
+    };
+
+    /**
+     * @brief Create a handle to the force predictor.
+     */
+    virtual std::unique_ptr<Handle> create_handle() = 0;
+
+    /**
+     * @brief Create a force predictor.
+     * 
+     * @param configuration The configuration of the force predictor.
+     */
+    static std::unique_ptr<ForcePredictor> create(
+        const Configuration &configuration
+    );
+
     /**
      * @brief Update the predictor with an observed force.
      * 
@@ -38,11 +90,80 @@ class ForcePredictor
 };
 
 /**
- * @brief A trivial constant force, that returns the observed force.
+ * @brief A trivial average force, that returns the observed force.
  */
-class ConstantForcePredictor : public ForcePredictor
+class AverageForcePredictor : public ForcePredictor
 {
 public:
+
+    class Configuration {
+
+        /// The period of time over which to calculate the average force.
+        double window;
+
+        /// JSON conversion for average force predictor configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, window);
+    };
+
+    /**
+     * @brief A prediction only handle to a average force predictor.
+     */
+    class Handle : public ForcePredictor::Handle
+    {
+    public:
+
+        /**
+         * @brief Yields the average force predictor force.
+         * 
+         * @param time The time of the force, unused.
+         * @returns The average predicted force.
+         */
+        inline Eigen::Vector3d predict(double time) override {
+            std::shared_lock lock(m_parent->m_mutex);
+            return m_parent->m_average;
+        };
+
+        /**
+         * @brief Make a copy of the average force predictor handle.
+         * 
+         * Used to copy amongst dynamics objects for multi-threading.
+         */
+        inline std::unique_ptr<ForcePredictor::Handle> copy() override {
+            return m_parent->create_handle();
+        }
+
+    private:
+
+        friend class AverageForcePredictor;
+
+        /**
+         * @brief Initialise a average force predictor handle.
+         * @param parent The owning average force predictor.
+         */
+        Handle(AverageForcePredictor *parent)
+            : m_parent(parent)
+        {}
+
+        /// Pointer to the average force predictor.
+        std::unique_ptr<AverageForcePredictor> m_parent;
+    };
+
+    /**
+     * @brief Create an average force predictor.
+     * 
+     * @param configuration 
+     * @return std::unique_ptr<AverageForcePredictor> 
+     */
+    static std::unique_ptr<AverageForcePredictor> create(
+        const Configuration &configuration
+    );
+
+    /**
+     * @brief Create a handle to the average force predictor.
+     */
+    inline std::unique_ptr<ForcePredictor::Handle> create_handle() override {
+        return std::unique_ptr<Handle>(new Handle(this));
+    }
 
     /**
      * @brief Update the predictor with an observed force.
@@ -50,9 +171,7 @@ public:
      * @param force The observed force.
      * @param time The time of the observation.
      */
-    inline void update(Eigen::Vector3d force, double time) override {
-        m_force = force;
-    }
+    inline void update(Eigen::Vector3d force, double time) override;
 
     /**
      * @brief Does nothing.
@@ -63,27 +182,27 @@ public:
      * @brief Predict the force as the last observed force, regardless of
      * time.
      * 
-     * @param time The time of the force prdiction
+     * @param time The time of the force prediction, unused.
      * @returns The last observed force.
      */
-    inline Eigen::Vector3d predict(double /* time */) override {
-        return m_force;
-    }
+    inline Eigen::Vector3d predict(double /* time */) override;
 
 private:
 
-    /// The last observed force.
-    Eigen::Vector3d m_force;
+    friend class Handle;
+
+    AverageForcePredictor();
+
+    /// Mutex protecting concurrent force read / write.
+    std::shared_mutex m_mutex;
+
+    /// The window of forces to average over. The most recent force is always
+    /// kept regardless of its age.
+    std::vector<std::pair<double, Eigen::Vector3d>> m_buffer;
+
+    /// The average of the force window.
+    Eigen::Vector3d m_average;
 };
-
-// class AverageForcePredictor : public ForcePredictor
-// {
-// public:
-
-// private:
-
-//     std::deque<Eigen::Vector3d> m_forces;
-// };
 
 /**
  * @brief A force predictor based on a kalman filter.
@@ -111,6 +230,53 @@ public:
 
         /// Set to {var(x), var(y), var(z), var(dx), var(dy), var(dz), ...}
         Eigen::VectorXd observation_variance;
+
+        /// JSON conversion for kalman force predictor configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            time_step, horison, order, transition_variance, observation_variance
+        );
+    };
+
+    /**
+     * @brief A read only handle to a KalmanForcePredictor.
+     */
+    class Handle : public ForcePredictor::Handle
+    {
+    public:
+
+        /**
+         * @brief Predict the force at a time since the last kalman force
+         * predictor update.
+         * 
+         * @param time The time of the force prediction.
+         * @returns The predicted force.
+         */
+        inline Eigen::Vector3d predict(double time) {
+            return m_parent->predict(time);
+        }
+
+        /**
+         * @brief Create a copy of the kalman force predictor handle.
+         */
+        inline std::unique_ptr<ForcePredictor::Handle> copy() override {
+            return std::unique_ptr<Handle>(m_parent.get());
+        }
+
+    private:
+
+        friend class KalmanForcePredictor;
+
+        /**
+         * @brief Initialise a kalman force predictor handle.
+         * @param parent The kalman force predictor.
+         */
+        Handle(KalmanForcePredictor *parent)
+            : m_parent(parent)
+        {}
+
+        /// Pointer to the kalman force predictor.
+        std::shared_ptr<KalmanForcePredictor> m_parent;
     };
 
     /**
@@ -124,6 +290,13 @@ public:
     );
 
     /**
+     * @brief Create a handle to the force predictor.
+     */
+    inline std::unique_ptr<ForcePredictor::Handle> create_handle() override {
+        return std::unique_ptr<Handle>(new Handle(this));
+    }
+
+    /**
      * @brief Create a state transition matrix of a given order.
      * 
      * The order is the highest derivative in each observation, that is used to
@@ -134,7 +307,7 @@ public:
      * 
      * @returns The state transition matrix.
      */
-    Eigen::MatrixXd create_euler_state_transition_matrix(
+    static Eigen::MatrixXd create_euler_state_transition_matrix(
         double time_step,
         unsigned int order
     );
@@ -163,6 +336,8 @@ public:
 
 private:
 
+    friend class Handle;
+
     KalmanForcePredictor() = default;
 
     /// The period of time over which the prediction is made.
@@ -177,6 +352,8 @@ private:
     /// The time of the last update.
     double m_last_update;
 
+    std::shared_mutex m_mutex;
+
     /// The kalman filter used to estimate the current force.
     std::unique_ptr<KalmanFilter> m_kalman;
 
@@ -188,4 +365,45 @@ private:
 
     /// The latest updated horison.
     Eigen::MatrixXd m_prediction;
+};
+
+/**
+ * @brief Configuration of a force predictor.
+ * 
+ * Postpone configuration until types are fully declared.
+ */
+class ForcePredictor::Configuration
+{
+    /// The type of force predictor.
+    ForcePredictor::Type type;
+
+    std::variant<
+        AverageForcePredictor::Configuration,
+        KalmanForcePredictor::Configuration
+    > conf;
+
+    inline void to_json(json &j, const ForcePredictor::Configuration &configuration)
+    {
+        if (std::holds_alternative<AverageForcePredictor::Configuration>(configuration.conf)) {
+            j["type"] = "average";
+            j["configuration"] = std::get<AverageForcePredictor::Configuration>(configuration.conf);
+        }
+        else if (std::holds_alternative<KalmanForcePredictor::Configuration>(configuration.conf)) {
+            j["type"] = "kalman";
+            j["configuration"] = std::get<KalmanForcePredictor::Configuration>(configuration.conf);
+        }
+    }
+
+    inline void from_json(const json &j, ForcePredictor::Configuration &configuration)
+    {
+        auto type = j.at("type").get<std::string>();
+        if (type == "average") {
+            configuration.type = ForcePredictor::Type::AVERAGE;
+            configuration.conf = (AverageForcePredictor::Configuration)j.at("configuration");
+        }
+        else if (type == "kalman") {
+            configuration.type = ForcePredictor::Type::KALMAN;
+            configuration.conf = (KalmanForcePredictor::Configuration)j.at("configuration");
+        }
+    }
 };

@@ -126,10 +126,14 @@ Trajectory::Trajectory(
         rollout.noise.setZero();
     }
 
+    // Ensure the passed dynamics and cost are not destroyed.
+    m_dynamics[0] = std::move(dynamics);
+    m_cost[0] = std::move(cost);
+
     // Initialise thread data.
-    for (unsigned int i = 0; i < configuration.threads; i++) {
-        m_dynamics[i] = dynamics->copy();
-        m_cost[i] = cost->copy();
+    for (unsigned int i = 1; i < configuration.threads; i++) {
+        m_dynamics[i] = m_dynamics[0]->copy();
+        m_cost[i] = m_cost[0]->copy();
     }
 
     if (configuration.smoothing) {

@@ -29,9 +29,23 @@ public:
         return m_energy;
     }
 
+    inline void set_energy(double energy)
+    {
+        m_energy = energy,
+        m_state = std::sqrt(2.0 * energy);
+    }
+
+    inline void set_state(double state)
+    {
+        m_energy = 0.5 * state * state;
+        m_state = state;
+    }
+
 private:
 
+    /// The amount of energy stored in the tank.
     double m_energy;
 
+    /// The state of the tank (todo: figure out what this equates to).
     double m_state;
 };
