@@ -78,6 +78,7 @@ public:
         Simulator *simulator,
         std::unique_ptr<mppi::Dynamics> &&dynamics,
         std::unique_ptr<mppi::Cost> &&cost,
+        std::unique_ptr<ForcePredictor> &&force_predictor = nullptr,
         std::unique_ptr<mppi::Filter> &&filter = nullptr
     );
 

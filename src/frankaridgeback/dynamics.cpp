@@ -18,11 +18,15 @@ std::unique_ptr<Dynamics> Dynamics::create(
         return nullptr;
     }
 
+    std::unique_ptr<ForcePredictor::Handle> handle = nullptr;
+    if (force_predictor)
+        handle = force_predictor->create_handle();
+
     return std::unique_ptr<Dynamics>(
         new Dynamics(
             configuration.energy,
             std::move(model),
-            std::move(force_predictor->create_handle())
+            std::move(handle)
         )
     );
 }
@@ -52,10 +56,11 @@ std::unique_ptr<mppi::Dynamics> Dynamics::copy()
     );
 }
 
-void Dynamics::set(const Eigen::VectorXd &state)
+void Dynamics::set(const Eigen::VectorXd &s)
 {
+    const FrankaRidgeback::State &state = s;
     m_model->set(state);
-    m_energy_tank.set_energy(state.available_energy());
+    m_energy_tank.set_energy(state.available_energy().value());
     m_state = state;
 }
 
@@ -83,7 +88,8 @@ Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double d
 
     m_model->set(m_state);
 
-    m_force_predictor_handle->predict();
+    if (m_force_predictor_handle)
+        m_force_predictor_handle->predict(dt);
 
     // m_energy_tank.step(m_state.velocity() , dt);
 

@@ -29,19 +29,16 @@ ReachForPoint::Configuration ReachForPoint::DEFAULT_CONFIGIURATION {
             .cost_discount_factor = 1.0,
             .covariance = FrankaRidgeback::Control{
                 0.0, 0.0, 0.2, // base
-                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
-                0.0, 0.0 // gripper
+                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0 // arm
             }.asDiagonal(),
             .control_bound = false,
             .control_min = FrankaRidgeback::Control{
                 -0.2, -0.2, -0.2, // base
-                -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, //arm
-                -0.05, -0.05 // gripper
+                -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0 //arm
             },
             .control_max = FrankaRidgeback::Control{
                 0.2, 0.2, 0.2, // base
-                5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // arm
-                0.05, 0.05 // gripper
+                5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 // arm
             },
             .control_default = FrankaRidgeback::Control::Zero(),
             .smoothing = std::nullopt,
@@ -54,13 +51,11 @@ ReachForPoint::Configuration ReachForPoint::DEFAULT_CONFIGIURATION {
         .initial_state = FrankaRidgeback::State::Zero(),
         .proportional_gain = FrankaRidgeback::Control{
             0.0, 0.0, 0.0, // base
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
-            100.0, 100.0 //gripper
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 // arm
         },
         .differential_gain = FrankaRidgeback::Control{
             1000.0, 1000.0, 1.0, // base
-            10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
-            50.0, 50.0 // gripper
+            10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0 // arm
         },
     },
     .logger = {

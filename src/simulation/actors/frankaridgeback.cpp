@@ -5,6 +5,7 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
     Simulator *simulator,
     std::unique_ptr<mppi::Dynamics> &&dynamics,
     std::unique_ptr<mppi::Cost> &&cost,
+    std::unique_ptr<ForcePredictor> &&force_predictor, 
     std::unique_ptr<mppi::Filter> &&filter
 ) {
     using namespace controller;
@@ -209,13 +210,14 @@ void FrankaRidgebackActor::update(Simulator *simulator)
     m_energy_tank.step(power, m_simulator->get_time_step());
 
     // Update the force prediction.
-    m_force_predictor->update(get_end_effector_force(), simulator->get_time());
+    if (m_force_predictor)
+        m_force_predictor->update(get_end_effector_force(), simulator->get_time());
 
     m_state.position() = position;
     m_state.velocity() = velocity;
     m_state.end_effector_force() = get_end_effector_force();
     m_state.end_effector_torque() = get_end_effector_torque();
-    m_state.available_energy().value() = m_energy_tank.get_energy();
+    m_state.available_energy().setConstant(m_energy_tank.get_energy());
 }
 
 void FrankaRidgebackActor::update_end_effector_jacobian()

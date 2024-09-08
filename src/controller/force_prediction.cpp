@@ -4,6 +4,19 @@
 #include <functional>
 #include <iostream>
 
+std::unique_ptr<ForcePredictor> ForcePredictor::create(
+    const Configuration &configuration
+) {
+    if (std::holds_alternative<AverageForcePredictor::Configuration>(configuration.config))
+        return AverageForcePredictor::create(std::get<AverageForcePredictor::Configuration>(configuration.config));
+
+    if (std::holds_alternative<KalmanForcePredictor::Configuration>(configuration.config))
+        return KalmanForcePredictor::create(std::get<KalmanForcePredictor::Configuration>(configuration.config));
+
+    std::cerr << "unknown force predictor type" << std::endl;
+    return nullptr;
+}
+
 std::unique_ptr<AverageForcePredictor> AverageForcePredictor::create(
     const Configuration &configuration
 ) {

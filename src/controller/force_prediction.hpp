@@ -260,7 +260,7 @@ public:
          * @brief Create a copy of the kalman force predictor handle.
          */
         inline std::unique_ptr<ForcePredictor::Handle> copy() override {
-            return std::unique_ptr<Handle>(m_parent.get());
+            return m_parent->create_handle();
         }
 
     private:
@@ -285,7 +285,7 @@ public:
      * @param configuration The configuration of the predictor.
      * @returns A pointer to the predictor on success or nullptr on failure.
      */
-    std::unique_ptr<KalmanForcePredictor> create(
+    static std::unique_ptr<KalmanForcePredictor> create(
         const Configuration &configuration
     );
 
@@ -374,23 +374,20 @@ private:
  */
 class ForcePredictor::Configuration
 {
-    /// The type of force predictor.
-    ForcePredictor::Type type;
-
     std::variant<
         AverageForcePredictor::Configuration,
         KalmanForcePredictor::Configuration
-    > conf;
+    > config;
 
     inline void to_json(json &j, const ForcePredictor::Configuration &configuration)
     {
-        if (std::holds_alternative<AverageForcePredictor::Configuration>(configuration.conf)) {
+        if (std::holds_alternative<AverageForcePredictor::Configuration>(configuration.config)) {
             j["type"] = "average";
-            j["configuration"] = std::get<AverageForcePredictor::Configuration>(configuration.conf);
+            j["configuration"] = std::get<AverageForcePredictor::Configuration>(configuration.config);
         }
-        else if (std::holds_alternative<KalmanForcePredictor::Configuration>(configuration.conf)) {
+        else if (std::holds_alternative<KalmanForcePredictor::Configuration>(configuration.config)) {
             j["type"] = "kalman";
-            j["configuration"] = std::get<KalmanForcePredictor::Configuration>(configuration.conf);
+            j["configuration"] = std::get<KalmanForcePredictor::Configuration>(configuration.config);
         }
     }
 
@@ -398,12 +395,10 @@ class ForcePredictor::Configuration
     {
         auto type = j.at("type").get<std::string>();
         if (type == "average") {
-            configuration.type = ForcePredictor::Type::AVERAGE;
-            configuration.conf = (AverageForcePredictor::Configuration)j.at("configuration");
+            configuration.config = (AverageForcePredictor::Configuration)j.at("configuration");
         }
         else if (type == "kalman") {
-            configuration.type = ForcePredictor::Type::KALMAN;
-            configuration.conf = (KalmanForcePredictor::Configuration)j.at("configuration");
+            configuration.config = (KalmanForcePredictor::Configuration)j.at("configuration");
         }
     }
 };

@@ -309,7 +309,7 @@ void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
 
         double step_cost = (
             std::pow(m_cost_discount_factor, step) *
-            cost->get(state, control, dynamics, m_time_step)
+            cost->get(state, control, dynamics, m_rollout_time + step * m_time_step)
         );
 
         // Rollout weight is interpreted as zero during optimisation.
@@ -433,7 +433,7 @@ void Trajectory::filter()
 
         double step_cost = (
             std::pow(m_cost_discount_factor, step) *
-            cost->get(state, control, dynamics, m_time_step)
+            cost->get(state, control, dynamics, m_rollout_time + step * m_time_step)
         );
 
         assert(!std::isnan(step_cost));

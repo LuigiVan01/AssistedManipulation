@@ -43,7 +43,7 @@ public:
      */
     static std::unique_ptr<Dynamics> create(
         const Configuration &configuration,
-        ForcePredictor *force_predictor
+        ForcePredictor *force_predictor = nullptr
     );
 
     /**
@@ -93,11 +93,7 @@ public:
     /**
      * @brief Copy the dynamics.
      */
-    inline std::unique_ptr<mppi::Dynamics> copy() override {
-        return std::unique_ptr<Dynamics>(
-            new Dynamics(m_energy_tank.get_energy(), std::move(m_model->copy()))
-        );
-    }
+    std::unique_ptr<mppi::Dynamics> copy() override;
 
 private:
 
