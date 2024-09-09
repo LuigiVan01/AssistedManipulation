@@ -83,8 +83,8 @@ double AssistedManipulation::manipulability_cost(FrankaRidgeback::Dynamics *dyna
     const auto &minimum = m_configuration.minimum_manipulability;
 
     m_space_jacobian = (
-        dynamics->get_model()->get_end_effector_jacobian() *
-        dynamics->get_model()->get_end_effector_jacobian().transpose()
+        dynamics->get_end_effector_jacobian() *
+        dynamics->get_end_effector_jacobian().transpose()
     );
 
     // Value proportional to the volumne of the manipulability ellipsoid.

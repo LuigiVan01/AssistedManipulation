@@ -48,9 +48,11 @@ public:
 
     /**
      * @brief Set the dynamics to a given parameterised state.
+     * 
      * @param state The system state.
+     * @param time The time of the state.
      */
-    virtual void set(const Eigen::VectorXd &state) = 0;
+    virtual void set(const Eigen::VectorXd &state, double time) = 0;
 
     /**
      * @brief Update the parameters of the dynamics state with a step in time,

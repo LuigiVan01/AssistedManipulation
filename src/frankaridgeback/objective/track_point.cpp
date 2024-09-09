@@ -5,26 +5,6 @@
 #include <iostream>
 #include <random>
 
-std::unique_ptr<TrackPoint> TrackPoint::create(const Configuration &configuration)
-{
-    auto model = FrankaRidgeback::Model::create(std::move(configuration.model));
-    if (!model) {
-        std::cout << "failed to create dynamics model" << std::endl;
-        return nullptr;
-    }
-
-    return std::unique_ptr<TrackPoint>(
-        new TrackPoint(configuration.point, std::move(model))
-    );
-}
-
-TrackPoint::TrackPoint(
-    Eigen::Vector3d point,
-    std::unique_ptr<FrankaRidgeback::Model> &&model
-  ) : m_point(point)
-    , m_model(std::move(model))
-{}
-
 double TrackPoint::get(
     const Eigen::VectorXd & s,
     const Eigen::VectorXd & /*control */,
@@ -34,8 +14,7 @@ double TrackPoint::get(
     const FrankaRidgeback::State &state = s;
     auto dynamics = static_cast<FrankaRidgeback::Dynamics*>(d);
 
-    dynamics->set(state);
-    auto [position, orientation] = dynamics->get_model()->get_end_effector_pose();
+    auto [position, orientation] = dynamics->get_end_effector_pose();
 
     // Target end effector at point (1.0, 1.0, 1.0)    
     Eigen::Vector3d target = Eigen::Vector3d(1.0, 1.0, 1.0);

@@ -34,7 +34,7 @@ namespace DoF {
 
     // Joint dimensions.
     constexpr const std::size_t
-        JOINTS = BASE + ARM /* + GRIPPER */;
+        JOINTS = BASE + ARM + GRIPPER;
 
     // End effector force.
     constexpr const std::size_t

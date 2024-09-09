@@ -2,7 +2,7 @@
 
 #include "controller/json.hpp"
 #include "controller/mppi.hpp"
-#include "frankaridgeback/model.hpp"
+#include "frankaridgeback/dynamics.hpp"
 
 /**
  * @brief Cost function of the panda research 3 ridgeback assisted manipulation
@@ -17,12 +17,15 @@ public:
         /// The position in 3D space to track.
         Eigen::Vector3d point;
 
-        /// The configuration of the model.
-        FrankaRidgeback::Model::Configuration model;
-
         // JSON conversion for track point objective configuration.
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, point, model)
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, point)
     };
+
+    inline TrackPoint(const Eigen::Vector3d point)
+        : m_point(point)
+    {}
+
+    TrackPoint(const TrackPoint &) = default;
 
     inline constexpr int state_dof() override {
         return FrankaRidgeback::DoF::STATE;
@@ -38,7 +41,11 @@ public:
      * @param configuration The configuration of the objective function.
      * @return A pointer to the cost instance on success, or nullptr on failure.
      */
-    static std::unique_ptr<TrackPoint> create(const Configuration &configuration);
+    static inline std::unique_ptr<TrackPoint> create(
+        const Configuration &configuration
+    ) {
+        return std::make_unique<TrackPoint>(configuration.point);
+    }
 
     /**
      * @brief Get the cost of a state and control input over dt.
@@ -58,32 +65,12 @@ public:
 
     void reset() override {};
 
-    std::unique_ptr<FrankaRidgeback::Model> &model() {
-        return m_model;
-    }
-
     inline std::unique_ptr<mppi::Cost> copy() override {
-        return std::unique_ptr<TrackPoint>(
-            new TrackPoint(m_point, std::move(m_model->copy()))
-        );
+        return std::make_unique<TrackPoint>(*this);
     }
 
 private:
 
-    /**
-     * @brief Initialise the assisted manipulation cost.
-     * 
-     * @param point The point in world space to track.
-     * @param model Pointer robot model.
-     */
-    TrackPoint(
-        Eigen::Vector3d point,
-        std::unique_ptr<FrankaRidgeback::Model> &&model
-    );
-
     /// The point in space to track.
     Eigen::Vector3d m_point;
-
-    /// Pointer to the model to calculate proximity to the point.
-    std::unique_ptr<FrankaRidgeback::Model> m_model;
 };

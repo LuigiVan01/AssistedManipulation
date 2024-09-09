@@ -3,7 +3,7 @@
 #include "controller/pid.hpp"
 #include "controller/mppi.hpp"
 #include "controller/energy.hpp"
-#include "controller/force_prediction.hpp"
+#include "controller/forecast.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
 #include "simulation/simulator.hpp"
@@ -69,7 +69,7 @@ public:
      * @param simulator Pointer to the owning simulator.
      * @param dynamics Pointer to the dynamics to use for trajectory generation.
      * @param cost Pointer to the cost to use for trajectory generation.
-     * @param force_predictor Pointer to the optional force prediction algorithm.
+     * @param force_forecast Pointer to the optional force prediction algorithm.
      * @param filter Pointer to the optional safety filter.
      * @returns A pointer to the actor on success, or nullptr on failure.
      */
@@ -78,7 +78,7 @@ public:
         Simulator *simulator,
         std::unique_ptr<mppi::Dynamics> &&dynamics,
         std::unique_ptr<mppi::Cost> &&cost,
-        std::unique_ptr<ForcePredictor> &&force_predictor = nullptr,
+        std::unique_ptr<Forecast> &&force_forecast = nullptr,
         std::unique_ptr<mppi::Filter> &&filter = nullptr
     );
 
@@ -177,7 +177,7 @@ private:
     FrankaRidgebackActor(
         const Configuration &configuration,
         std::unique_ptr<mppi::Trajectory> &&controller,
-        std::unique_ptr<ForcePredictor> &&force_predictor,
+        std::unique_ptr<Forecast> &&force_forecast,
         Simulator *simulator,
         raisim::ArticulatedSystem *robot,
         std::size_t end_effector_index,
@@ -238,5 +238,5 @@ private:
     EnergyTank m_energy_tank;
 
     /// Filter used to store state estimation for mppi dynamics.
-    std::unique_ptr<ForcePredictor> m_force_predictor;
+    std::unique_ptr<Forecast> m_force_forecast;
 };

@@ -295,7 +295,7 @@ void Trajectory::rollout()
 void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
 {
     Eigen::VectorXd state = m_rollout_state;
-    dynamics->set(state);
+    dynamics->set(state, m_rollout_time);
     cost->reset();
     rollout->cost = 0.0;
 
@@ -419,7 +419,7 @@ void Trajectory::filter()
     Dynamics *dynamics = m_dynamics[0].get();
     Cost *cost = m_cost[0].get();
 
-    dynamics->set(state);
+    dynamics->set(state, m_rollout_time);
     cost->reset();
     m_optimal_rollout.cost = 0.0;
 

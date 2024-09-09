@@ -10,10 +10,8 @@ Circle::Configuration Circle::DEFAULT_CONFIGURATION {
         .gravity = {0.0, 0.0, 9.81}
     },
     .dynamics = {
-        .model = {
-            .filename = "",
-            .end_effector_frame = "panda_grasp_joint"
-        }
+        .filename = "",
+        .end_effector_frame = "panda_grasp_joint"
     },
     .objective = {
         .enable_joint_limit = true,
@@ -36,16 +34,19 @@ Circle::Configuration Circle::DEFAULT_CONFIGURATION {
             .cost_discount_factor = 1.0,
             .covariance = FrankaRidgeback::Control{
                 0.1, 0.1, 0.2, // base
-                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0,// arm
+                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                0.0, 0.0 // gripper
             }.asDiagonal(),
             .control_bound = false,
             .control_min = FrankaRidgeback::Control{
-                -0, -0, -0, // base
-                -0, -0, -0, -0, -0, -0, -0 //arm
+                -0.2, -0.2, -0.2, // base
+                -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, //arm
+                -0.05, -0.05 // gripper
             },
             .control_max = FrankaRidgeback::Control{
-                0, 0, 0, // base
-                0, 0, 0, 0, 0, 0, 0 // arm
+                0.2, 0.2, 0.2, // base
+                5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // arm
+                0.05, 0.05 // gripper
             },
             .control_default = FrankaRidgeback::Control::Zero(),
             .smoothing = std::nullopt,
@@ -58,11 +59,13 @@ Circle::Configuration Circle::DEFAULT_CONFIGURATION {
         .initial_state = FrankaRidgeback::State::Zero(),
         .proportional_gain = FrankaRidgeback::Control{
             0.0, 0.0, 0.0, // base
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 // arm
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
+            100.0, 100.0
         },
         .differential_gain = FrankaRidgeback::Control{
             1000.0, 1000.0, 1.0, // base
-            10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0 // arm
+            10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+            50.0, 50.0
         },
     },
     .circle_actor = {
@@ -146,8 +149,8 @@ std::unique_ptr<Test> Circle::create(const Configuration &configuration)
     }
 
     auto dynamics_configuration = configuration.dynamics;
-    if (dynamics_configuration.model.filename.empty())
-        dynamics_configuration.model.filename = FrankaRidgeback::Model::find_path().string();
+    if (dynamics_configuration.filename.empty())
+        dynamics_configuration.filename = FrankaRidgeback::Dynamics::find_path().string();
 
     auto dynamics = FrankaRidgeback::Dynamics::create(dynamics_configuration);
     if (!dynamics) {
@@ -157,7 +160,7 @@ std::unique_ptr<Test> Circle::create(const Configuration &configuration)
 
     auto robot_configuration = configuration.frankaridgeback_actor;
     if (robot_configuration.urdf_filename.empty())
-        robot_configuration.urdf_filename = FrankaRidgeback::Model::find_path().string();
+        robot_configuration.urdf_filename = FrankaRidgeback::Dynamics::find_path().string();
 
     auto robot = FrankaRidgebackActor::create(
         robot_configuration,

@@ -35,10 +35,10 @@ add_executable(
     controller/filter.cpp
     controller/mppi.cpp
     controller/kalman.cpp
+    controller/forecast.cpp
     # controller/qp.cpp
 
     frankaridgeback/dynamics.cpp
-    frankaridgeback/model.cpp
     frankaridgeback/objective/track_point.cpp
     frankaridgeback/objective/assisted_manipulation.cpp
 

@@ -59,11 +59,32 @@ std::unique_ptr<KalmanFilter> KalmanFilter::create(
         configuration.states
     );
 
-    if (!valid)
+    if (!valid) {
+        std::cerr << "invalid kalman filter configuration" << std::endl;
         return nullptr;
+    }
+
+    auto filter = std::unique_ptr<KalmanFilter>(new KalmanFilter(configuration));
+    filter->m_state = configuration.initial_state;
+    filter->m_next_state = (
+        configuration.state_transition_matrix * filter->m_next_state
+    );
 
     return std::unique_ptr<KalmanFilter>(new KalmanFilter(configuration));
 }
+
+KalmanFilter::KalmanFilter(const Configuration &config)
+    : m_observed_state_size(config.observed_states)
+    , m_estimated_state_size(config.states)
+    , m_state_transition_matrix(config.state_transition_matrix)
+    , m_transition_covariance(config.transition_covariance)
+    , m_observation_matrix(config.observation_matrix)
+    , m_observation_covariance(config.observation_covariance)
+    , m_identity(Eigen::MatrixXd::Identity(config.states, config.states))
+    , m_covariance(config.observation_covariance)
+    , m_state(config.initial_state)
+    , m_next_state(m_state_transition_matrix * config.initial_state)
+{}
 
 void KalmanFilter::update(
     Eigen::Ref<Eigen::VectorXd> observation

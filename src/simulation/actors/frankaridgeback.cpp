@@ -5,7 +5,7 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
     Simulator *simulator,
     std::unique_ptr<mppi::Dynamics> &&dynamics,
     std::unique_ptr<mppi::Cost> &&cost,
-    std::unique_ptr<ForcePredictor> &&force_predictor, 
+    std::unique_ptr<Forecast> &&force_forecast, 
     std::unique_ptr<mppi::Filter> &&filter
 ) {
     using namespace controller;
@@ -87,7 +87,7 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
         new FrankaRidgebackActor(
             configuration,
             std::move(controller),
-            std::move(force_predictor),
+            std::move(force_forecast),
             simulator,
             robot,
             end_effector_frame_index,
@@ -99,7 +99,7 @@ std::shared_ptr<FrankaRidgebackActor> FrankaRidgebackActor::create(
 FrankaRidgebackActor::FrankaRidgebackActor(
     const Configuration &configuration,
     std::unique_ptr<mppi::Trajectory> &&controller,
-    std::unique_ptr<ForcePredictor> &&force_predictor,
+    std::unique_ptr<Forecast> &&force_forecast,
     Simulator *simulator,
     raisim::ArticulatedSystem *robot,
     std::size_t end_effector_index,
@@ -115,7 +115,7 @@ FrankaRidgebackActor::FrankaRidgebackActor(
   , m_external_joint_torques(FrankaRidgeback::DoF::JOINTS)
   , m_end_effector_jacobian(3, FrankaRidgeback::DoF::JOINTS)
   , m_energy_tank(configuration.energy)
-  , m_force_predictor(std::move(force_predictor))
+  , m_force_forecast(std::move(force_forecast))
 {
     m_external_joint_torques.setZero();
     m_end_effector_jacobian.setZero();
@@ -210,8 +210,8 @@ void FrankaRidgebackActor::update(Simulator *simulator)
     m_energy_tank.step(power, m_simulator->get_time_step());
 
     // Update the force prediction.
-    if (m_force_predictor)
-        m_force_predictor->update(get_end_effector_force(), simulator->get_time());
+    if (m_force_forecast)
+        m_force_forecast->update(get_end_effector_force(), simulator->get_time());
 
     m_state.position() = position;
     m_state.velocity() = velocity;

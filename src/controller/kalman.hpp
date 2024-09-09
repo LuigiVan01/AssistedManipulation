@@ -119,18 +119,7 @@ public:
 
 private:
 
-    KalmanFilter(const Configuration &config)
-       : m_observed_state_size(config.observed_states)
-       , m_estimated_state_size(config.states)
-       , m_state_transition_matrix(config.state_transition_matrix)
-       , m_transition_covariance(config.transition_covariance)
-       , m_observation_matrix(config.observation_matrix)
-       , m_observation_covariance(config.observation_covariance)
-       , m_identity(Eigen::MatrixXd::Identity(config.states, config.states))
-       , m_covariance()
-       , m_state(config.initial_state)
-    {}
-
+    KalmanFilter(const Configuration &config);
 
     /// The number of states in each observation.
     const unsigned int m_observed_state_size;

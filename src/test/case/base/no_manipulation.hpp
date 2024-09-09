@@ -28,7 +28,7 @@ public:
         Simulator::Configuration simulator;
 
         /// Optional force prediction for the dynamics.
-        std::optional<ForcePredictor::Configuration> force_prediction;
+        std::optional<Forecast::Configuration> force_prediction;
 
         /// Configuration of the franka ridgeback dynamics.
         FrankaRidgeback::Dynamics::Configuration dynamics;
