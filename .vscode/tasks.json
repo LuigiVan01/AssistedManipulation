@@ -101,7 +101,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Start Raisim",
+            "label": "Start Visualiser",
             "detail": "Start the raisim server and visualiser. Must be run outside of the development container.",
             "type": "shell",
             "linux": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64"},

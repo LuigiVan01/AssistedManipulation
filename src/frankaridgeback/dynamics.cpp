@@ -166,7 +166,7 @@ Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double d
     // Set the joint torque as the control torque + end effector wrench torque.
     m_torque.setZero();
     m_torque.segment<DoF::ARM>(DoF::BASE) = control.arm_torque();
-    m_torque += m_end_effector_jacobian * m_state.end_effector_wrench();
+    m_torque += m_end_effector_jacobian.transpose() * m_state.end_effector_wrench();
 
     // Calculate the joint accelerations.
     m_acceleration = pinocchio::aba(

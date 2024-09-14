@@ -11,7 +11,7 @@ const static PinocchioDynamicsTest::Configuration DEFAULT_CONFIGURATION {
         .energy = 10.0
     },
     .force = {
-        .observation = Eigen::Vector3d(0, 0, 1);
+        .observation = Eigen::Vector<double, 6>(0, 0, 0, 0, 0, 0)
     },
     .initial_state = {
         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -43,10 +43,10 @@ std::unique_ptr<Test> PinocchioDynamicsTest::create(const Configuration &configu
     }
 
     FrankaRidgeback::Dynamics::Configuration dynamics_configuration = configuration.dynamics;
-    if (dynamics_configuration.model.filename.empty())
-        dynamics_configuration.model.filename = FrankaRidgeback::Dynamics::find_path().string();
+    if (dynamics_configuration.filename.empty())
+        dynamics_configuration.filename = FrankaRidgeback::Dynamics::find_path().string();
 
-    auto dynamics = FrankaRidgeback::Dynamics::create(configuration.dynamics, force.get());
+    auto dynamics = FrankaRidgeback::Dynamics::create(dynamics_configuration, force.get());
     if (!dynamics) {
         std::cerr << "failed to create dynamics" << std::endl;
         return nullptr;
@@ -63,18 +63,42 @@ std::unique_ptr<Test> PinocchioDynamicsTest::create(const Configuration &configu
         return nullptr;
     }
 
-    auto test = std::unique_ptr<PinocchioDynamicsTest>(new PinocchioDynamicsTest());
-    test->m_simulator = std::move(simulator);
-    test->m_dynamics = std::move(dynamics);
-    test->m_visual = std::move(visual);
-    return test;
+    return std::unique_ptr<PinocchioDynamicsTest>(
+        new PinocchioDynamicsTest(
+            std::move(simulator),
+            std::move(dynamics),
+            std::move(force),
+            visual,
+            configuration.duration
+        )
+    );
 }
+
+PinocchioDynamicsTest::PinocchioDynamicsTest(
+        std::unique_ptr<Simulator> &&simulator,
+        std::unique_ptr<FrankaRidgeback::Dynamics> &&dynamics,
+        std::unique_ptr<LOCFForecast> &&force,
+        raisim::ArticulatedSystemVisual *visual,
+        double duration
+  ) : m_duration(duration)
+    , m_simulator(std::move(simulator))
+    , m_dynamics(std::move(dynamics))
+    , m_force(std::move(force))
+    , m_visual(visual)
+{}
 
 bool PinocchioDynamicsTest::run()
 {
     double time = 0.0;
-    while (time < time.) {
-        
-        m_visual->setGeneralizedCoordinate();
+    auto zero = FrankaRidgeback::Control::Zero();
+
+    while (time < m_duration) {
+        raisim::TimedLoop(m_simulator->get_world().getTimeStep() * 1e6);
+        FrankaRidgeback::State state = m_dynamics->step(zero, m_simulator->get_time_step());
+        m_visual->setGeneralizedCoordinate(state.position());
+        m_simulator->step();
+        time += m_simulator->get_time_step();
     }
+
+    return true;
 }

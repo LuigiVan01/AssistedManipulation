@@ -27,6 +27,7 @@ add_executable(
     test/case/base/no_manipulation.cpp
     test/case/power_minimisation.cpp
     test/case/manipulability.cpp
+    test/case/pinocchio.cpp
 
     simulation/simulator.cpp
     simulation/actors/frankaridgeback.cpp

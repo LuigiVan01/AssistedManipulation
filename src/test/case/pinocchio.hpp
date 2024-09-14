@@ -1,9 +1,9 @@
 #pragma once
 
+#include "simulation/simulator.hpp"
 #include "test/test.hpp"
 #include "frankaridgeback/dynamics.hpp"
 #include "controller/forecast.hpp"
-#include "simulator/simulator.hpp"
 
 class PinocchioDynamicsTest : public RegisteredTest<PinocchioDynamicsTest>
 {
@@ -17,7 +17,7 @@ public:
 
         FrankaRidgeback::Dynamics::Configuration dynamics;
 
-        Forecast::LOCFForecast::Configuration force;
+        LOCFForecast::Configuration force;
 
         FrankaRidgeback::State initial_state;
 
@@ -34,9 +34,7 @@ public:
      * 
      * @return A pointer to the test on success or nullptr on failure.
      */
-    static inline std::unique_ptr<Test> create(Options &options) {
-        return create(options.)
-    }
+    static std::unique_ptr<Test> create(Options &options);
 
     static std::unique_ptr<Test> create(const Configuration &configuration);
 
@@ -48,7 +46,13 @@ public:
 
 private:
 
-    PinocchioDynamicsTest() = default;
+    PinocchioDynamicsTest(
+        std::unique_ptr<Simulator> &&simulator,
+        std::unique_ptr<FrankaRidgeback::Dynamics> &&dynamics,
+        std::unique_ptr<LOCFForecast> &&force,
+        raisim::ArticulatedSystemVisual *visual,
+        double duration
+    );
 
     double m_duration;
 
@@ -58,5 +62,5 @@ private:
 
     std::unique_ptr<LOCFForecast> m_force;
 
-    ArticulatedSystemVisual *m_visual;
+    raisim::ArticulatedSystemVisual *m_visual;
 };

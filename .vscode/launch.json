@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/install/bin/test.exe",
-            "args": ["--test", "manipulability", "--out", "${workspaceFolder}/results"],
+            "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results"],
             "environment": [
                 {
                     "name": "RAISIM_ACTIVATION",
@@ -58,7 +58,8 @@
             "id": "test",
             "description": "The test to run.",
             "options": ["manipulability", "power", "pinocchio", "reach"],
-            "type": "pickString"
+            "type": "pickString",
+            "default": "pinocchio"
         }
     ]
 }
