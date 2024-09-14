@@ -90,7 +90,129 @@ public:
 };
 
 /**
- * @brief A trivial average forecast, that returns the average observation.
+ * @brief A trivial last observation carried forward (LOCF) forecast that
+ * returns the most recent observation.
+ */
+class LOCFForecast : public Forecast
+{
+public:
+
+    struct Configuration {
+
+        /// The most recent observation.
+        Eigen::VectorXd observation;
+
+        /// JSON conversion for average forecast configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, observation);
+    };
+
+    /**
+     * @brief A prediction only handle to a last observation carried forward
+     * forecast.
+     */
+    class Handle : public Forecast::Handle
+    {
+    public:
+
+        /**
+         * @brief Get the last observation carried forward.
+         * 
+         * @param time The time of the observation, unused.
+         * @returns The last observation.
+         */
+        inline Eigen::VectorXd forecast(double time) override {
+            std::shared_lock lock(m_parent->m_mutex);
+            return m_parent->m_observation;
+        };
+
+        /**
+         * @brief Make a copy of the last observation carried forward forecast
+         * handle.
+         * 
+         * Used to copy amongst dynamics objects for multi-threading.
+         */
+        inline std::unique_ptr<Forecast::Handle> copy() override {
+            return std::unique_ptr<Forecast::Handle>(new Handle(*this));
+        }
+
+    private:
+
+        friend class LOCFForecast;
+
+        inline Handle(LOCFForecast *parent)
+            : m_parent(parent)
+        {}
+
+        /// Pointer to the parent forecaster.
+        LOCFForecast *m_parent;
+    };
+
+    /**
+     * @brief Create a last observation carried forward forecast.
+     * 
+     * @param configuration The forecast configuration.
+     * @return Pointer to the forecast on success or nullptr on failure.
+     */
+    static inline std::unique_ptr<LOCFForecast> create(
+        const Configuration &configuration
+    ) {
+        return std::unique_ptr<LOCFForecast>(
+            new LOCFForecast(configuration.observation)
+        );
+    }
+
+    /**
+     * @brief Create a handle to the last observation carried forward forecast.
+     */
+    inline std::unique_ptr<Forecast::Handle> create_handle() override {
+        return std::unique_ptr<Handle>(new Handle(this));
+    }
+
+    /**
+     * @brief Update the last observation.
+     * 
+     * @param measurement The measurement or observation.
+     * @param time The time of the measurement, unused.
+     */
+    inline void update(Eigen::VectorXd measurement, double time) override {
+        std::unique_lock lock(m_mutex);
+        m_observation = measurement;
+    }
+
+    /**
+     * @brief Updating without a reference does nothing.
+     * @param time The time of the observation, unused.
+     */
+    inline void update(double time) override {}
+
+    /**
+     * @brief Get the last observation carried forward.
+     * 
+     * @param time The time of the observation, unused.
+     * @returns The last observation.
+     */
+    inline Eigen::VectorXd forecast(double /* time */) override {
+        std::shared_lock lock(m_mutex);
+        return m_observation;
+    }
+
+private:
+
+    LOCFForecast(Eigen::VectorXd observation)
+        : m_observation(observation)
+    {}
+
+    /// Mutex protecting concurrent access to the last observation.
+    std::shared_mutex m_mutex;
+
+    /// The last observation.
+    Eigen::VectorXd m_observation;
+};
+
+/**
+ * @brief An average forecast that returns the average observation over an
+ * averaging window, always including the most recent measurement even when
+ * outside of the window (constant forecast).
  */
 class AverageForecast : public Forecast
 {
@@ -383,13 +505,18 @@ private:
 struct Forecast::Configuration
 {
     std::variant<
+        LOCFForecast::Configuration,
         AverageForecast::Configuration,
         KalmanForecast::Configuration
     > config;
 
     inline void to_json(json &j, const Forecast::Configuration &configuration)
     {
-        if (std::holds_alternative<AverageForecast::Configuration>(configuration.config)) {
+        if (std::holds_alternative<LOCFForecast::Configuration>(configuration.config)) {
+            j["type"] = "constant";
+            j["configuration"] = std::get<LOCFForecast::Configuration>(configuration.config);
+        }
+        else if (std::holds_alternative<AverageForecast::Configuration>(configuration.config)) {
             j["type"] = "average";
             j["configuration"] = std::get<AverageForecast::Configuration>(configuration.config);
         }
@@ -402,7 +529,10 @@ struct Forecast::Configuration
     inline void from_json(const json &j, Forecast::Configuration &configuration)
     {
         auto type = j.at("type").get<std::string>();
-        if (type == "average") {
+        if (type == "constant") {
+            configuration.config = (LOCFForecast::Configuration)j.at("configuration");
+        }
+        else if (type == "average") {
             configuration.config = (AverageForecast::Configuration)j.at("configuration");
         }
         else if (type == "kalman") {

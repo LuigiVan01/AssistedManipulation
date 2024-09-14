@@ -7,6 +7,10 @@
 std::unique_ptr<Forecast> Forecast::create(
     const Configuration &configuration
 ) {
+    if (std::holds_alternative<LOCFForecast::Configuration>(configuration.config)) {
+        return LOCFForecast::create(std::get<LOCFForecast::Configuration>(configuration.config));
+    }
+
     if (std::holds_alternative<AverageForecast::Configuration>(configuration.config))
         return AverageForecast::create(std::get<AverageForecast::Configuration>(configuration.config));
 

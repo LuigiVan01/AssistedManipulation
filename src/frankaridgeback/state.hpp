@@ -13,8 +13,8 @@ namespace FrankaRidgeback {
  * The state is given by (position, velocity, end effector forces) as
  * [
  *     x, y, yaw, theta1, theta2, theta3, theta4, theta5, theta6, theta7,
- *     vx, vy, rotation/s, w1, w2, w3, w4, w5, w6, w7, fx, fy, fz, tau_x, tau_y,
- *     tau_z, available_energy
+ *     gripper_x, gripper_y, vx, vy, rotation/s, w1, w2, w3, w4, w5, w6, w7,
+ *     gripper_vx, gripper_vy, fx, fy, fz, tau_x, tau_y, tau_z, available_energy
  * ]
  * 
  * Units:

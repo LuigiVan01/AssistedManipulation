@@ -26,7 +26,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/install/bin/test",
-            "args": ["--test", "reach", "--out", "${workspaceFolder}/results/reach"],
+            "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results/reach"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
@@ -51,6 +51,14 @@
                 "circle", "run", "out"
             ],
             "cwd": "${workspaceFolder}",
+        }
+    ],
+    "inputs": [
+        {
+            "id": "test",
+            "description": "The test to run.",
+            "options": ["manipulability", "power", "pinocchio", "reach"],
+            "type": "pickString"
         }
     ]
 }
