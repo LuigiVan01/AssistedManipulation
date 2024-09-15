@@ -69,6 +69,7 @@ Actor::Actor(
     raisim::ArticulatedSystemVisual *visual,
     std::int64_t controller_countdown_max
 ) : m_configuration(std::move(configuration))
+  , m_dynamics(std::move(dynamics))
   , m_trajectory(std::move(controller))
   , m_visual(visual)
   , m_trajectory_countdown(0) // Update on first step.

@@ -226,7 +226,7 @@ std::unique_ptr<Test> Circle::create(const Configuration &configuration)
 bool Circle::run()
 {
     while (m_simulator->get_time() < m_duration) {
-        // raisim::TimedLoop(m_simulator->get_time_step() * 1e6);
+        raisim::TimedLoop(m_simulator->get_time_step() * 1e6);
         m_simulator->step();
         m_mppi_logger->log(m_robot->get_trajectory());
         m_pid_logger->log(m_actor->get_pid());

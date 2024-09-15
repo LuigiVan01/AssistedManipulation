@@ -120,7 +120,7 @@ public:
     }
 
     double get_power() override {
-        return 0.0;
+        return m_power;
     }
 
     /**
@@ -146,7 +146,9 @@ public:
      * @brief Copy the dynamics.
      */
     inline std::unique_ptr<mppi::Dynamics> copy() override {
-        return create(m_configuration, std::move(m_forecast->copy()));
+        if (m_forecast)
+            return create(m_configuration, std::move(m_forecast->copy()));
+        return create(m_configuration, nullptr);
     }
 
 private:
@@ -158,6 +160,8 @@ private:
         raisim::ArticulatedSystem *robot,
         std::int64_t end_effector_frame_index
     );
+
+    void update_kinematics();
 
     /// The configuration of the frankaridgeback dynamics.
     Configuration m_configuration;
@@ -180,10 +184,16 @@ private:
     /// The current joint velocities.
     Eigen::VectorXd m_velocity;
 
+    Eigen::VectorXd m_external_torque;
+
     std::unique_ptr<Forecast::Handle> m_forecast;
 
     /// The index of the end effector frame into raisim data structure.
     std::int64_t m_end_effector_frame_index;
+
+    Eigen::MatrixXd m_end_effector_linear_jacobian;
+
+    Eigen::MatrixXd m_end_effector_angular_jacobian;
 
     /// End effector jacobian in the world frame if enabled.
     Eigen::MatrixXd m_end_effector_jacobian;
@@ -192,6 +202,8 @@ private:
     Eigen::Vector3d m_end_effector_velocity;
 
     Eigen::Vector3d m_external_end_effector_force;
+
+    double m_power;
 
     /// The available energy.
     EnergyTank m_energy_tank;

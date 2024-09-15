@@ -63,16 +63,19 @@ RaisimDynamics::RaisimDynamics(
    , m_velocity_command(DoF::CONTROL)
    , m_position(DoF::CONTROL)
    , m_velocity(DoF::CONTROL)
-   , m_end_effector_frame_index(end_effector_frame_index)
+   , m_external_torque(DoF::CONTROL)
    , m_forecast(std::move(forecast_handle))
+   , m_end_effector_frame_index(end_effector_frame_index)
+   , m_end_effector_linear_jacobian(3, FrankaRidgeback::DoF::JOINTS)
+   , m_end_effector_angular_jacobian(3, FrankaRidgeback::DoF::JOINTS)
    , m_end_effector_jacobian(6, FrankaRidgeback::DoF::JOINTS)
-   , m_end_effector_velocity(6, 1)
+   , m_end_effector_velocity(Eigen::Vector3d::Zero())
+   , m_external_end_effector_force(Eigen::Vector3d::Zero())
+   , m_power(0.0)
    , m_energy_tank(configuration.energy)
    , m_state(configuration.initial_state)
+   , m_time(0.0)
 {
-    m_end_effector_jacobian.setZero();
-    m_end_effector_velocity.setZero();
-    m_external_end_effector_force.setZero();
     m_position_command.setZero();
     m_velocity_command.setZero();
     m_position.setZero();
@@ -85,10 +88,10 @@ void RaisimDynamics::set_state(
     double time
 ) {
     m_state = state;
-    m_position = m_state.position();
-    m_velocity = m_state.velocity();
-    m_robot->setState(m_state.position(), m_state.velocity());
     m_energy_tank.set_energy(m_state.available_energy().value());
+
+    m_robot->setState(m_state.position(), m_state.velocity());
+    update_kinematics();
 }
 
 Eigen::Ref<Eigen::VectorXd> RaisimDynamics::step(
@@ -118,41 +121,17 @@ Eigen::Ref<Eigen::VectorXd> RaisimDynamics::step(
         m_external_end_effector_force += m_forecast->forecast(m_world->getWorldTime());
     }
 
+    m_world->integrate();
+
     m_robot->setExternalForce(
-        m_end_effector_frame_index,
+        m_robot->getFrameByIdx(m_end_effector_frame_index).parentId,
         m_external_end_effector_force
     );
 
-    m_world->integrate();
-    m_robot->getState(m_position, m_velocity);
-
-    // Update the end effector jacobian.
-    m_end_effector_jacobian.setZero();
-    m_robot->getDenseFrameJacobian(m_end_effector_frame_index, m_end_effector_jacobian);
-
-    // Update the base jacobian to be relative to the arm.
-    double yaw = m_state.base_yaw().value();
-    m_end_effector_jacobian.topLeftCorner<3, 3>()
-        << std::cos(yaw), -std::sin(yaw), 0,
-           std::sin(yaw), std::cos(yaw), 0,
-           0, 0, 1;
-
-    // Update the end effector velocity.
-    raisim::Vec<3> velocity;
-    m_robot->getFrameVelocity(
-        m_robot->getFrameByIdx(m_end_effector_frame_index),
-        velocity
-    );
-    m_end_effector_velocity = velocity.e();
-
-    double power = (m_state.velocity().transpose() * m_end_effector_jacobian).value();
-    // double power = (
-    //     control.arm_velocity().transpose() * m_state.arm_velocity() +
-    //     m_external_joint_torques.transpose() * velocity
-    // ).value();
+    update_kinematics();
 
     // Update the energy tank.
-    m_energy_tank.step(power, m_world->getTimeStep());
+    m_energy_tank.step(m_power, m_world->getTimeStep());
 
     m_robot->getState(m_position, m_velocity);
     m_state.position() = m_position;
@@ -165,6 +144,50 @@ Eigen::Ref<Eigen::VectorXd> RaisimDynamics::step(
     m_external_end_effector_force.setZero();
 
     return m_state;
+}
+
+void RaisimDynamics::update_kinematics()
+{
+    m_robot->getState(m_position, m_velocity);
+
+    m_end_effector_linear_jacobian.setZero();
+    m_robot->getDenseFrameRotationalJacobian(
+        m_end_effector_frame_index,
+        m_end_effector_linear_jacobian
+    );
+
+    m_end_effector_angular_jacobian.setZero();
+    m_robot->getDenseFrameRotationalJacobian(
+        m_end_effector_frame_index,
+        m_end_effector_angular_jacobian
+    );
+
+    m_end_effector_jacobian.topRows(3) = m_end_effector_linear_jacobian;
+    m_end_effector_jacobian.bottomRows(3) = m_end_effector_angular_jacobian;
+
+    // Update the base jacobian to be relative to the arm.
+    double yaw = m_state.base_yaw().value();
+    m_end_effector_jacobian.topLeftCorner<3, 3>()
+        << std::cos(yaw), -std::sin(yaw), 0,
+           std::sin(yaw), std::cos(yaw), 0,
+           0, 0, 1;
+
+    // Get the torques on joints from external force.
+    if (!m_external_end_effector_force.isZero())
+        m_external_torque = m_end_effector_linear_jacobian.transpose() * get_end_effector_force();
+    else
+        m_external_torque.setZero();
+
+    // Update the power usage.
+    m_power = (m_state.velocity().transpose() * m_external_torque).value();
+
+    // Update the end effector velocity.
+    raisim::Vec<3> velocity;
+    m_robot->getFrameVelocity(
+        m_robot->getFrameByIdx(m_end_effector_frame_index),
+        velocity
+    );
+    m_end_effector_velocity = velocity.e();
 }
 
 } // namespace FrankaRidgeback
