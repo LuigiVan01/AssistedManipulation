@@ -56,7 +56,7 @@ public:
      * 
      * @returns The cost of the step.
      */
-    double get(
+    double get_cost(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
         mppi::Dynamics *dynamics,

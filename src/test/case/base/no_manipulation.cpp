@@ -122,7 +122,7 @@ std::unique_ptr<Test> NoManipulation::create(const Configuration &configuration)
     if (configuration.force_prediction)
         force_predictor = Forecast::create(*configuration.force_prediction);
 
-    auto dynamics = FrankaRidgeback::Dynamics::create(dynamics_configuration);
+    auto dynamics = FrankaRidgeback::RaisimDynamics::create(dynamics_configuration);
     if (!dynamics) {
         std::cerr << "failed to create mppi dynamics" << std::endl;
         return nullptr;
@@ -132,7 +132,7 @@ std::unique_ptr<Test> NoManipulation::create(const Configuration &configuration)
     if (actor_configuration.urdf_filename.empty())
         actor_configuration.urdf_filename = FrankaRidgeback::Dynamics::find_path().string();
 
-    auto robot = FrankaRidgebackActor::create(
+    auto robot = FrankaRidgeback::Actor::create(
         actor_configuration,
         simulator.get(),
         std::move(dynamics),

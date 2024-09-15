@@ -51,6 +51,11 @@ public:
     };
 
     /**
+     * @brief Activate the raisim licence.
+     */
+    static void activate();
+
+    /**
      * @brief Create a new instance of the simulator.
      * @returns A pointer to the simulator on success, or nullptr on failure.
      */

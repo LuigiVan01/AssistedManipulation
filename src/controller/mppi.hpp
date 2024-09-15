@@ -52,7 +52,7 @@ public:
      * @param state The system state.
      * @param time The time of the state.
      */
-    virtual void set(const Eigen::VectorXd &state, double time) = 0;
+    virtual void set_state(const Eigen::VectorXd &state, double time) = 0;
 
     /**
      * @brief Update the parameters of the dynamics state with a step in time,
@@ -118,7 +118,7 @@ public:
      * 
      * @returns The cost of the step.
      */
-    virtual double get(
+    virtual double get_cost(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
         Dynamics *dynamics,

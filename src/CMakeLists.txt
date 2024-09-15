@@ -22,15 +22,16 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${yaml_cpp_INCLUDE_DIRS} ${pinnocchio
 add_executable(
     test
     test/main.cpp
-    test/case/base/reach.cpp
+    # test/case/base/reach.cpp
     test/case/base/circle.cpp
-    test/case/base/no_manipulation.cpp
-    test/case/power_minimisation.cpp
-    test/case/manipulability.cpp
-    test/case/pinocchio.cpp
+    # test/case/base/no_manipulation.cpp
+    # test/case/power_minimisation.cpp
+    # test/case/manipulability.cpp
+    # test/case/pinocchio.cpp
 
     simulation/simulator.cpp
     simulation/actors/frankaridgeback.cpp
+    simulation/raisim_dynamics.cpp
 
     controller/gram_savitzky_golay/gram_savitzky_golay.cpp
     controller/filter.cpp
@@ -39,7 +40,7 @@ add_executable(
     controller/forecast.cpp
     # controller/qp.cpp
 
-    frankaridgeback/dynamics.cpp
+    # frankaridgeback/dynamics.cpp
     frankaridgeback/objective/track_point.cpp
     frankaridgeback/objective/assisted_manipulation.cpp
 

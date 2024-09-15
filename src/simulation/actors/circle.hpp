@@ -118,7 +118,7 @@ public:
     static inline std::shared_ptr<CircleActor> create(
         const Configuration &configuration,
         Simulator *simulator,
-        FrankaRidgebackActor *robot
+        FrankaRidgeback::Actor *robot
      ) {
         if (robot == nullptr) {
             std::cerr << "point actor robot pointer is nullptr" << std::endl;
@@ -145,7 +145,7 @@ public:
         // Display the new position in the simulator.
         m_tracking_sphere->setPosition(reference);
 
-        auto position = m_robot->get_end_effector_position();
+        auto position = m_robot->get_dynamics()->get_end_effector_position();
 
         // Update the pid controller.
         m_pid.set_reference(reference);
@@ -153,7 +153,7 @@ public:
 
         // Apply the pid controller for to the end effector.
         Eigen::Vector3d control = m_pid.get_control();
-        m_robot->set_end_effector_force(control);
+        m_robot->get_dynamics()->set_end_effector_force(control);
     }
 
     inline void update(Simulator *simulator) override {}
@@ -170,7 +170,7 @@ private:
     CircleActor(
         const Configuration &configuration,
         Simulator *simulator,
-        FrankaRidgebackActor *robot
+        FrankaRidgeback::Actor *robot
       ) : m_configuration(configuration)
         , m_rotating_point(configuration.rotating_point)
         , m_pid(configuration.pid)
@@ -196,7 +196,7 @@ private:
     controller::PID m_pid;
 
     /// Pointer to the robot.
-    FrankaRidgebackActor *m_robot;
+    FrankaRidgeback::Actor *m_robot;
 
     /// Visual sphere of the point being tracked.
     raisim::Visuals *m_tracking_sphere;

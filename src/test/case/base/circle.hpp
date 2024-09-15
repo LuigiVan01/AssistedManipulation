@@ -26,11 +26,9 @@ public:
 
         Simulator::Configuration simulator;
 
-        FrankaRidgeback::Dynamics::Configuration dynamics;
-
         AssistedManipulation::Configuration objective;
 
-        FrankaRidgebackActor::Configuration frankaridgeback_actor;
+        FrankaRidgeback::Actor::Configuration frankaridgeback_actor;
 
         CircleActor::Configuration circle_actor;
 
@@ -40,8 +38,8 @@ public:
 
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, simulator, dynamics, objective, frankaridgeback_actor,
-            circle_actor, mppi_logger, pid_logger
+            folder, simulator, objective, frankaridgeback_actor, circle_actor,
+            mppi_logger, pid_logger
         )
     };
 
@@ -71,7 +69,7 @@ private:
 
     std::unique_ptr<Simulator> m_simulator;
 
-    std::shared_ptr<FrankaRidgebackActor> m_robot;
+    std::shared_ptr<FrankaRidgeback::Actor> m_robot;
 
     std::shared_ptr<CircleActor> m_actor;
 

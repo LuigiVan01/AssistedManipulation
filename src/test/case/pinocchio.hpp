@@ -2,7 +2,7 @@
 
 #include "simulation/simulator.hpp"
 #include "test/test.hpp"
-#include "frankaridgeback/dynamics.hpp"
+#include "frankaridgeback/pinocchio_dynamics.hpp"
 #include "controller/forecast.hpp"
 
 class PinocchioDynamicsTest : public RegisteredTest<PinocchioDynamicsTest>
@@ -15,7 +15,7 @@ public:
 
         Simulator::Configuration simulator;
 
-        FrankaRidgeback::Dynamics::Configuration dynamics;
+        FrankaRidgeback::PinocchioDynamics::Configuration dynamics;
 
         LOCFForecast::Configuration force;
 

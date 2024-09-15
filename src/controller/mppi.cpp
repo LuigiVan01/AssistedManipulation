@@ -295,7 +295,7 @@ void Trajectory::rollout()
 void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
 {
     Eigen::VectorXd state = m_rollout_state;
-    dynamics->set(state, m_rollout_time);
+    dynamics->set_state(state, m_rollout_time);
     cost->reset();
     rollout->cost = 0.0;
 
@@ -309,7 +309,7 @@ void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
 
         double step_cost = (
             std::pow(m_cost_discount_factor, step) *
-            cost->get(state, control, dynamics, m_rollout_time + step * m_time_step)
+            cost->get_cost(state, control, dynamics, m_rollout_time + step * m_time_step)
         );
 
         // Rollout weight is interpreted as zero during optimisation.
@@ -419,7 +419,7 @@ void Trajectory::filter()
     Dynamics *dynamics = m_dynamics[0].get();
     Cost *cost = m_cost[0].get();
 
-    dynamics->set(state, m_rollout_time);
+    dynamics->set_state(state, m_rollout_time);
     cost->reset();
     m_optimal_rollout.cost = 0.0;
 
@@ -433,7 +433,7 @@ void Trajectory::filter()
 
         double step_cost = (
             std::pow(m_cost_discount_factor, step) *
-            cost->get(state, control, dynamics, m_rollout_time + step * m_time_step)
+            cost->get_cost(state, control, dynamics, m_rollout_time + step * m_time_step)
         );
 
         assert(!std::isnan(step_cost));

@@ -22,7 +22,7 @@ AssistedManipulation::AssistedManipulation(
     , m_reach_cost(0.0)
 {}
 
-double AssistedManipulation::get(
+double AssistedManipulation::get_cost(
     const Eigen::VectorXd & s,
     const Eigen::VectorXd & c,
     mppi::Dynamics *d,
@@ -34,7 +34,7 @@ double AssistedManipulation::get(
     auto dynamics = static_cast<FrankaRidgeback::Dynamics*>(d);
 
     if (m_configuration.enable_minimise_power)
-        m_power_cost = power_cost(state, control);
+        m_power_cost = power_cost(dynamics);
 
     if (m_configuration.enable_maximise_manipulability)
         m_manipulability_cost = manipulability_cost(dynamics);
@@ -58,16 +58,11 @@ double AssistedManipulation::get(
     return m_cost;
 }
 
-double AssistedManipulation::power_cost(
-    const FrankaRidgeback::State &state,
-    const FrankaRidgeback::Control &control
-) {
+double AssistedManipulation::power_cost(FrankaRidgeback::Dynamics *dynamics)
+{
     // Minimise power.
     const auto &maximum = m_configuration.maximum_power;
-
-    double power = (
-        state.arm_velocity().transpose() * control.arm_torque()
-    ).eval().value();
+    double power = dynamics->get_power();
 
     if (power < maximum.limit)
         return 0.0;

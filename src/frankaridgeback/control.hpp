@@ -60,18 +60,18 @@ struct Control : public Eigen::Vector<double, DoF::CONTROL>
     }
 
     /**
-     * @brief Get the torque [Nm] of the franka research 3 joints.
+     * @brief Get the velocity commandsof the franka research 3 joints.
      * 
      * Slice of length <DoF::ARM> starting at index (DoF::BASE).
      * 
-     * @returns The torques [tau1, tau2, tau3, tau4, tau5, tau6, tau7] ordered
-     * from the base to the end effector, in newton metres.
+     * @returns The torques [v1, v2, v3, v4, v5, v6, v7] ordered
+     * from the base to the end effector, in rad/s.
      */
-    inline auto arm_torque() {
+    inline auto arm_velocity() {
         return segment<DoF::ARM>(DoF::BASE);
     }
 
-    inline const auto arm_torque() const {
+    inline const auto arm_velocity() const {
         return segment<DoF::ARM>(DoF::BASE);
     }
 

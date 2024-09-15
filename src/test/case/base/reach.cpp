@@ -122,7 +122,7 @@ std::unique_ptr<Test> ReachForPoint::create(const Configuration &configuration)
     if (actor_configuration.urdf_filename.empty())
         actor_configuration.urdf_filename = FrankaRidgeback::Dynamics::find_path().string();
 
-    auto robot = FrankaRidgebackActor::create(
+    auto robot = FrankaRidgeback::Actor::create(
         actor_configuration,
         simulator.get(),
         std::move(dynamics),

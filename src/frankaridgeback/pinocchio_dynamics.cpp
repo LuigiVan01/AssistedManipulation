@@ -1,4 +1,4 @@
-#include "dynamics.hpp"
+#include "PinocchioDynamics.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -14,7 +14,7 @@ using namespace std::string_literals;
 
 namespace FrankaRidgeback {
 
-std::unique_ptr<Dynamics> Dynamics::create(
+std::unique_ptr<PinocchioDynamics> PinocchioDynamics::create(
     const Configuration &configuration,
     Forecast *force_predictor
 ) {
@@ -55,8 +55,8 @@ std::unique_ptr<Dynamics> Dynamics::create(
     if (force_predictor)
         handle = force_predictor->create_handle();
 
-    return std::unique_ptr<Dynamics>(
-        new Dynamics(
+    return std::unique_ptr<PinocchioDynamics>(
+        new PinocchioDynamics(
             std::move(model),
             std::move(data),
             std::move(handle),
@@ -66,7 +66,7 @@ std::unique_ptr<Dynamics> Dynamics::create(
     );
 }
 
-Dynamics::Dynamics(
+PinocchioDynamics::PinocchioDynamics(
     std::unique_ptr<pinocchio::Model> &&model,
     std::unique_ptr<pinocchio::Data> &&data,
     std::unique_ptr<Forecast::Handle> &&force_predictor_handle,
@@ -87,7 +87,7 @@ Dynamics::Dynamics(
     m_acceleration.setZero();
 }
 
-std::unique_ptr<mppi::Dynamics> Dynamics::copy()
+std::unique_ptr<mppi::Dynamics> PinocchioDynamics::copy()
 {
     auto model = std::make_unique<pinocchio::Model>(*m_model);
     auto data = std::make_unique<pinocchio::Data>(*model);
@@ -96,8 +96,8 @@ std::unique_ptr<mppi::Dynamics> Dynamics::copy()
     if (m_wrench_forecast)
         predictor = m_wrench_forecast->copy();
 
-    return std::unique_ptr<Dynamics>(
-        new Dynamics(
+    return std::unique_ptr<PinocchioDynamics>(
+        new PinocchioDynamics(
             std::move(model),
             std::move(data),
             std::move(predictor),
@@ -107,7 +107,7 @@ std::unique_ptr<mppi::Dynamics> Dynamics::copy()
     );
 }
 
-void Dynamics::update_kinematics()
+void PinocchioDynamics::update_kinematics()
 {
     // Update the robot joints with the previously cal.
     pinocchio::forwardKinematics(*m_model, *m_data, m_position, m_velocity);
@@ -139,7 +139,7 @@ void Dynamics::update_kinematics()
     ).toVector();
 }
 
-void Dynamics::set(const Eigen::VectorXd &state, double time)
+void PinocchioDynamics::set(const Eigen::VectorXd &state, double time)
 {
     m_time = time;
     m_state = state;
@@ -150,7 +150,7 @@ void Dynamics::set(const Eigen::VectorXd &state, double time)
     update_kinematics();
 }
 
-Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double dt)
+Eigen::Ref<Eigen::VectorXd> PinocchioDynamics::step(const Eigen::VectorXd &ctrl, double dt)
 {
     const Control &control = ctrl;
 
@@ -167,6 +167,9 @@ Eigen::Ref<Eigen::VectorXd> Dynamics::step(const Eigen::VectorXd &ctrl, double d
     m_torque.setZero();
     m_torque.segment<DoF::ARM>(DoF::BASE) = control.arm_torque();
     m_torque += m_end_effector_jacobian.transpose() * m_state.end_effector_wrench();
+
+    /// @warning The following algorithm diverges quickly, and is not very
+    /// debuggable. See simulation/dynamics.hpp for a raisim based dynamics.
 
     // Calculate the joint accelerations.
     m_acceleration = pinocchio::aba(

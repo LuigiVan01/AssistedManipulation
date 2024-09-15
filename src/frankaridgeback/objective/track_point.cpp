@@ -5,7 +5,7 @@
 #include <iostream>
 #include <random>
 
-double TrackPoint::get(
+double TrackPoint::get_cost(
     const Eigen::VectorXd & s,
     const Eigen::VectorXd & /*control */,
     mppi::Dynamics *d,
@@ -14,7 +14,7 @@ double TrackPoint::get(
     const FrankaRidgeback::State &state = s;
     auto dynamics = static_cast<FrankaRidgeback::Dynamics*>(d);
 
-    auto [position, orientation] = dynamics->get_end_effector_pose();
+    auto position = dynamics->get_end_effector_position();
 
     // Target end effector at point (1.0, 1.0, 1.0)    
     Eigen::Vector3d target = Eigen::Vector3d(1.0, 1.0, 1.0);

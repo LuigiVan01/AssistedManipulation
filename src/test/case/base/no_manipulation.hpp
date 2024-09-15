@@ -5,7 +5,7 @@
 
 #include "simulation/simulator.hpp"
 #include "simulation/actors/frankaridgeback.hpp"
-#include "frankaridgeback/dynamics.hpp"
+#include "simulation/raisim_dynamics.hpp"
 #include "frankaridgeback/objective/assisted_manipulation.hpp"
 #include "logging/mppi.hpp"
 #include "test/test.hpp"
@@ -31,13 +31,13 @@ public:
         std::optional<Forecast::Configuration> force_prediction;
 
         /// Configuration of the franka ridgeback dynamics.
-        FrankaRidgeback::Dynamics::Configuration dynamics;
+        FrankaRidgeback::RaisimDynamics::Configuration dynamics;
 
         /// The reach for point objective configuration.
         AssistedManipulation::Configuration objective;
 
         /// The actors configuration including controller update rate.
-        FrankaRidgebackActor::Configuration actor;
+        FrankaRidgeback::Actor::Configuration actor;
 
         /// MPPI logging configuration.
         logger::MPPI::Configuration logger;
@@ -75,7 +75,7 @@ private:
 
     std::unique_ptr<Simulator> m_simulator;
 
-    std::shared_ptr<FrankaRidgebackActor> m_robot;
+    std::shared_ptr<FrankaRidgeback::Actor> m_robot;
 
     std::unique_ptr<logger::MPPI> m_mppi_logger;
 };

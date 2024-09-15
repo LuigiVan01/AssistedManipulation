@@ -208,7 +208,7 @@ public:
      * 
      * @returns The cost of the step.
      */
-    double get(
+    double get_cost(
         const Eigen::VectorXd &state,
         const Eigen::VectorXd &control,
         mppi::Dynamics *dynamics,
@@ -239,10 +239,7 @@ private:
      */
     AssistedManipulation(const Configuration &configuration);
 
-    double power_cost(
-        const FrankaRidgeback::State &state,
-        const FrankaRidgeback::Control &control
-    );
+    double power_cost(FrankaRidgeback::Dynamics *dynamics);
 
     double manipulability_cost(FrankaRidgeback::Dynamics *dynamics);
 

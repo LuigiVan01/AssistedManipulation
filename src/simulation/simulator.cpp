@@ -1,12 +1,17 @@
 #include "simulator.hpp"
 
-std::unique_ptr<Simulator> Simulator::create(const Configuration &configuration)
+void Simulator::activate()
 {
     std::string key = std::getenv("RAISIM_ACTIVATION");
     if (key.empty())
         key = "activation.raisim";
 
     raisim::World::setActivationKey(key.c_str());
+}
+
+std::unique_ptr<Simulator> Simulator::create(const Configuration &configuration)
+{
+    activate();
 
     auto world = std::make_unique<raisim::World>();
     world->setTimeStep(configuration.time_step);
