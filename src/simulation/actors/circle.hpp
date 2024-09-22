@@ -152,8 +152,8 @@ public:
         m_pid.update(position, simulator->get_time());
 
         // Apply the pid controller for to the end effector.
-        Eigen::Vector3d control = m_pid.get_control();
-        m_robot->get_dynamics()->set_end_effector_force(control);
+        Eigen::Vector<double, 6> control = m_pid.get_control();
+        m_robot->get_dynamics()->add_end_effector_true_wrench(control);
     }
 
     inline void update(Simulator *simulator) override {}

@@ -79,11 +79,11 @@ Circle::Configuration Circle::DEFAULT_CONFIGURATION {
             .angular_velocity = M_PI / 3
         },
         .pid = {
-            .state_dof = 3,
-            .control_dof = 3,
-            .kp = Eigen::Vector3d(500.0, 500.0, 500.0),
-            .kd = Eigen::Vector3d(50.0, 50.0, 50.0),
-            .ki = Eigen::Vector3d(0.0, 0.0, 0.0),
+            .state_dof = 6,
+            .control_dof = 6,
+            .kp = Vector6d(500.0, 500.0, 500.0, 0.0, 0.0, 0.0),
+            .kd = Vector6d(50.0, 50.0, 50.0, 0.0, 0.0, 0.0),
+            .ki = Vector6d(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
             .minimum = Eigen::Vector3d(-10000.0, -10000.0, -10000.0),
             .maximum = Eigen::Vector3d(10000.0, 10000.0, 10000.0),
             .reference = Eigen::Vector3d::Zero()

@@ -32,27 +32,20 @@ class Dynamics
 {
 public:
 
+    /**
+     * @brief Virtual destructor for derived classes.
+     */
     virtual ~Dynamics() = default;
 
     /**
-     * @brief Get the degrees of freedom for the dynamics control input.
-     * @returns The degrees of freedom of the dynamics control input.
-     */
-    virtual constexpr int control_dof() = 0;
-
-    /**
-     * @brief Get the degrees of freedom of the dynamics state.
-     * @returns The degrees of freedom of the dynamics state.
-     */
-    virtual constexpr int state_dof() = 0;
-
-    /**
-     * @brief Set the dynamics to a given parameterised state.
+     * @brief Make a copy of this parameterised dynamics.
      * 
-     * @param state The system state.
-     * @param time The time of the state.
+     * This function is used to make copies of the parameterised dynamics for
+     * each thread performing rollouts.
+     * 
+     * @returns A std::unique_ptr to the parameterised dynamics copy.
      */
-    virtual void set_state(const Eigen::VectorXd &state, double time) = 0;
+    virtual std::unique_ptr<Dynamics> copy() = 0;
 
     /**
      * @brief Update the parameters of the dynamics state with a step in time,
@@ -69,14 +62,30 @@ public:
     ) = 0;
 
     /**
-     * @brief Make a copy of this parameterised dynamics.
+     * @brief Set the dynamics to a given parameterised state.
      * 
-     * This function is used to make copies of the parameterised dynamics for
-     * each thread performing rollouts.
-     * 
-     * @returns A std::unique_ptr to the parameterised dynamics copy.
+     * @param state The system state.
+     * @param time The time of the state.
      */
-    virtual std::unique_ptr<Dynamics> copy() = 0;
+    virtual void set_state(const Eigen::VectorXd &state, double time) = 0;
+
+    /**
+     * @brief Get the dynamics state.
+     * @returns The state of the dynamics.
+     */
+    virtual Eigen::Ref<Eigen::VectorXd> get_state() = 0;
+
+    /**
+     * @brief Get the degrees of freedom for the dynamics control input.
+     * @returns The degrees of freedom of the dynamics control input.
+     */
+    virtual constexpr int get_control_dof() = 0;
+
+    /**
+     * @brief Get the degrees of freedom of the dynamics state.
+     * @returns The degrees of freedom of the dynamics state.
+     */
+    virtual constexpr int get_state_dof() = 0;
 };
 
 /**
@@ -89,19 +98,20 @@ class Cost
 {
 public:
 
+    /**
+     * @brief Virtual destructor for derived classes.
+     */
     virtual ~Cost() = default;
 
     /**
-     * @brief Get the expected degrees of freedom of the dynamics control input.
-     * @returns The expected degrees of freedom of the dynamics control input.
+     * @brief Make a copy of this objective function.
+     * 
+     * This function is used to make copies of the objective function for each
+     * thread performing rollouts.
+     * 
+     * @returns A std::unique_ptr to the objective function copy.
      */
-    virtual constexpr int control_dof() = 0;
-
-    /**
-     * @brief Get the expected degrees of freedom of the dynamics state.
-     * @returns The expected degrees of freedom of the dynamics state.
-     */
-    virtual constexpr int state_dof() = 0;
+    virtual std::unique_ptr<Cost> copy() = 0;
 
     /**
      * @brief Reset the cost.
@@ -126,14 +136,16 @@ public:
     ) = 0;
 
     /**
-     * @brief Make a copy of this objective function.
-     * 
-     * This function is used to make copies of the objective function for each
-     * thread performing rollouts.
-     * 
-     * @returns A std::unique_ptr to the objective function copy.
+     * @brief Get the expected degrees of freedom of the dynamics control input.
+     * @returns The expected degrees of freedom of the dynamics control input.
      */
-    virtual std::unique_ptr<Cost> copy() = 0;
+    virtual constexpr int get_control_dof() = 0;
+
+    /**
+     * @brief Get the expected degrees of freedom of the dynamics state.
+     * @returns The expected degrees of freedom of the dynamics state.
+     */
+    virtual constexpr int get_state_dof() = 0;
 };
 
 /**

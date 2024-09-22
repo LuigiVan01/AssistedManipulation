@@ -14,13 +14,15 @@
 namespace FrankaRidgeback {
 
 /**
- * @brief The dynamics of the model parameters.
+ * @brief Model predictive path integral control dynamics for the
+ * frankaridgeback implemented with pinocchio.
+ * 
+ * @note See simulation/raisim_dynamics.hpp for a raisim based dynamics
+ * implementation.
  * 
  * @warning This class is broken due to the pinocchio articulated body algorithm
  * function diverging. This class also expects torque control (not velocity
  * control).
- * 
- * Defines how State evolves with Control input.
  */
 class PinocchioDynamics : public Dynamics
 {
@@ -59,27 +61,176 @@ public:
     );
 
     /**
-     * @brief Get the number of degrees of freedom for the frankaridgeback
-     * state.
+     * @brief Copy the dynamics.
      */
-    inline constexpr int state_dof() override {
-        return DoF::STATE;
+    std::unique_ptr<mppi::Dynamics> copy() override;
+
+    /**
+     * @brief Step the dynamics simulation.
+     * 
+     * @param control The controls applied at the current state (before dt).
+     * @param dt The change in time.
+     */
+    Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) override;
+
+    /**
+     * @brief Set the dynamics simulation to a given state.
+     * @param state The system state.
+     * @param time The time of the dynamincs state.
+     */
+    void set_state(const Eigen::VectorXd &state, double time) override;
+
+    /**
+     * @brief Get the dynamics state.
+     */
+    inline Eigen::Ref<Eigen::VectorXd> get_state() override
+    {
+        return m_state;
     }
 
     /**
      * @brief Get the number of degrees of freedom for the frankaridgeback
      * control.
      */
-    inline constexpr int control_dof() override {
+    inline constexpr int get_control_dof() override
+    {
         return DoF::CONTROL;
     }
 
     /**
-     * @brief Get the dynamics state.
+     * @brief Get the number of degrees of freedom for the frankaridgeback
+     * state.
      */
-    inline Eigen::Ref<Eigen::VectorXd> get() {
-        return m_state;
+    inline constexpr int get_state_dof() override
+    {
+        return DoF::STATE;
     }
+
+    /**
+     * @brief Get the position of the end effector in world space.
+     */
+    virtual Vector3d get_end_effector_position()
+    {
+        return m_data->oMf[m_end_effector_frame_index].translation();
+    }
+
+    /**
+     * @brief Get the orientation of the end effector in world space.
+     */
+    virtual Quaterniond get_end_effector_orientation()
+    {
+        return m_data->oMf[m_end_effector_frame_index].rotation();
+    }
+
+    /**
+     * @brief Get the linear velocity (vx, vy, vz) of the end effector in world
+     * space.
+     */
+    virtual Vector3d get_end_effector_linear_velocity()
+    {
+        return m_end_effector_spatial_velocity.head<3>();
+    }
+
+    /**
+     * @brief Get the angular velocity (wx, wy, wz) of the end effector in world
+     * space.
+     */
+    virtual Vector3d get_end_effector_angular_velocity()
+    {
+        return m_end_effector_spatial_velocity.tail<3>();
+    }
+
+    /**
+     * @brief Get the linear acceleration (ax, ay, az) of the end effector in
+     * world space.
+     */
+    virtual Vector3d get_end_effector_linear_acceleration()
+    {
+        return ;
+    }
+
+    /**
+     * @brief Get the angular acceleration (alpha_x, alpha_y, alpha_z) of the
+     * end effector in world space.
+     */
+    virtual Vector3d get_end_effector_angular_acceleration()
+    {
+        return ;
+    }
+
+    /**
+     * @brief Get the jacobian of the end effector.
+     */
+    virtual Eigen::Ref<Jacobian> get_end_effector_jacobian()
+    {
+        return m_end_effector_jacobian;
+    }
+
+    /**
+     * @brief Get the current dynamics power usage.
+     * 
+     * This is given by the sum of generalised joint force multiplied by their
+     * generalised velocities. This is torque * angular velocity for revolute
+     * joints and force * linear velocity for prismatic joints.
+     * 
+     * @return The current power usage in joules/s.
+     */
+    virtual double get_power()
+    {
+        return ;
+    }
+
+    /**
+     * @brief Get the end effector forecast wrench.
+     * 
+     * A prediction of the wrench applied to the end effector during rollout.
+     * 
+     * @returns The wrench (fx, fy, fz, tau_x, tau_y, tau_z) expected at the end
+     * effector.
+     */
+    virtual Vector6d get_end_effector_forecast_wrench()
+    {
+        return ;
+    }
+
+    /**
+     * @brief Get the end effector virtual wrench.
+     * 
+     * The virtual wrench is the wrench that would be applied to the end
+     * effector to produce its current linear and angular acceleration.
+     * 
+     * @note This can be compared against the forecasted end effector wrench to
+     * reward rollouts that 
+     * 
+     * @returns A wrench (fx, fy, fz, tau_x, tau_y, tau_z) at the end effector
+     * in the world frame, that results in the current end effector
+     * acceleration.
+     */
+    virtual Vector6d get_end_effector_virtual_wrench()
+    {
+        return ;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * @brief Get the underlying pinocchio model.
@@ -109,7 +260,7 @@ public:
      * 
      * @returns The offset between the frames.
      */
-    inline Eigen::Vector3d get_offset(
+    inline Eigen::Vector3d get_frame_offset(
         const std::string &from_frame,
         const std::string &to_frame
     ){
@@ -125,7 +276,7 @@ public:
      * 
      * @returns The offset and orientation difference between the frames.
      */
-    inline Eigen::Matrix<double, 6, 1> get_error(
+    inline Eigen::Matrix<double, 6, 1> get_frame_error(
         const std::string &from_frame,
         const std::string &to_frame
     ) {
@@ -144,7 +295,7 @@ public:
      * @param frame 
      * @return std::tuple<Eigen::Vector3d, Eigen::Quaterniond> 
      */
-    inline std::tuple<Eigen::Vector3d, Eigen::Quaterniond> get_pose(
+    inline std::tuple<Eigen::Vector3d, Eigen::Quaterniond> get_frame_pose(
         const std::string &frame
     ){
         return std::make_tuple(
@@ -152,53 +303,6 @@ public:
             (Eigen::Quaterniond)m_data->oMf[m_model->getFrameId(frame)].rotation()
         );
     }
-
-    /**
-     * @brief Get the end effector pose.
-     */
-    inline std::tuple<Eigen::Vector3d, Eigen::Quaterniond> get_end_effector_pose()
-    {
-        return std::make_tuple(
-            m_data->oMf[m_end_effector_index].translation(),
-            (Eigen::Quaterniond)m_data->oMf[m_end_effector_index].rotation()
-        );
-    }
-
-    /**
-     * @brief Get the velocity of the end effector in the world frame.
-     */
-    inline Eigen::Vector3d get_end_effector_velocity() {
-        return m_end_effector_velocity;
-    }
-
-    /**
-     * @brief Get the end effector jacobian, if calculation is enabled.
-     * 
-     * Jacobian is in the world frame.
-     */
-    inline Eigen::Ref<Eigen::Matrix<double, 6, DoF::JOINTS>> get_end_effector_jacobian() {
-        return m_end_effector_jacobian;
-    }
-
-    /**
-     * @brief Set the dynamics simulation to a given state.
-     * @param state The system state.
-     * @param time The time of the dynamincs state.
-     */
-    void set_state(const Eigen::VectorXd &state, double time) override;
-
-    /**
-     * @brief Step the dynamics simulation.
-     * 
-     * @param control The controls applied at the current state (before dt).
-     * @param dt The change in time.
-     */
-    Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) override;
-
-    /**
-     * @brief Copy the dynamics.
-     */
-    std::unique_ptr<mppi::Dynamics> copy() override;
 
 private:
 
@@ -232,29 +336,21 @@ private:
     /// Data used for model calculations.
     std::unique_ptr<pinocchio::Data> m_data;
 
-    /// Optional pointer to the force predictor.
-    std::unique_ptr<Forecast::Handle> m_wrench_forecast;
-
-    /// The current joint positions.
-    Eigen::Vector<double, DoF::JOINTS> m_position;
-
-    /// The current joint velocities.
-    Eigen::Vector<double, DoF::JOINTS> m_velocity;
-
-    /// The current torques applied by the controller to the joints.
-    Eigen::Vector<double, DoF::JOINTS> m_torque;
-
-    /// The acceleration of the joints from forward dynamics.
-    Eigen::Vector<double, DoF::JOINTS> m_acceleration;
-
     /// Index of the end effector frame in the frame vector.
-    std::size_t m_end_effector_index;
+    std::size_t m_end_effector_frame_index;
+
+    /// Optional pointer to the force predictor.
+    std::unique_ptr<Forecast::Handle> m_forecast;
 
     /// End effector jacobian in the world frame if enabled.
-    Eigen::MatrixXd m_end_effector_jacobian;
+    Jacobian m_end_effector_jacobian;
 
-    /// The velocity of the end effector if enabled.
-    Eigen::VectorXd m_end_effector_velocity;
+    /// The velocity (vx, vy, vz, wx, wy, wz) of the end effector in the world
+    /// frame.
+    Vector6d m_end_effector_spatial_velocity;
+
+    /// Get the acceleration of the end effector 
+    Vector6d m_end_effector_spatial_acceleration;
 
     /// The energy tank.
     EnergyTank m_energy_tank;
