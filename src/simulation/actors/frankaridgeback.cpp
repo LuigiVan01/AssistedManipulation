@@ -3,7 +3,7 @@
 namespace FrankaRidgeback {
 
 std::shared_ptr<Actor> Actor::create(
-    const Configuration &configuration,
+    Configuration configuration,
     Simulator *simulator,
     std::unique_ptr<mppi::Cost> &&cost,
     std::unique_ptr<Forecast::Handle> &&force_forecast, 
@@ -11,18 +11,43 @@ std::shared_ptr<Actor> Actor::create(
 ) {
     using namespace controller;
 
-    auto dynamics = FrankaRidgeback::RaisimDynamics::create(
-        configuration.dynamics,
-        std::move(force_forecast)
-    );
-    if (!dynamics) {
-        std::cerr << "failed to create frankaridgeback raisim dynamics" << std::endl;
+    std::unique_ptr<mppi::Dynamics> mppi_dynamics = nullptr;
+
+    // Create the dynamics for the mppi controller.
+    if (configuration.mppi_dynamics_type == Type::RAISIM) {
+        if (!configuration.mppi_dynamics_raisim) {
+            std::cerr << "no mppi raisim dynamics configuration provided" << std::endl;
+            return nullptr;
+        }
+        mppi_dynamics = RaisimDynamics::create(
+            *configuration.mppi_dynamics_raisim,
+            std::move(force_forecast->copy())
+        );
+    }
+    else if (configuration.mppi_dynamics_type == Type::PINOCCHIO) {
+        if (!configuration.mppi_dynamics_pinocchio) {
+            std::cerr << "no mppi pinocchio dynamics configuration provided" << std::endl;
+            return nullptr;
+        }
+        mppi_dynamics = PinocchioDynamics::create(
+            *configuration.mppi_dynamics_pinocchio,
+            std::move(force_forecast->copy())
+        );
+    }
+    else {
+        std::cerr << "unrecognised mppi dynamics type " << configuration.mppi_dynamics_type << std::endl;
+        return nullptr;
+    }
+
+    // Verify the dynamics was created successfully.
+    if (!mppi_dynamics) {
+        std::cerr << "failed to create mppi dynamics" << std::endl;
         return nullptr;
     }
 
     auto controller = mppi::Trajectory::create(
         configuration.mppi,
-        std::move(dynamics->copy()),
+        std::move(mppi_dynamics),
         std::move(cost),
         std::move(filter)
     );
@@ -31,12 +56,17 @@ std::shared_ptr<Actor> Actor::create(
         return nullptr;
     }
 
-    auto visual = simulator->get_server().addVisualArticulatedSystem(
-        "frankaridgeback",
-        configuration.dynamics.filename
+    // Use the passed in raisim world, rather than instantiating another one.
+    configuration.simulated_dynamics.simulator = std::nullopt;
+
+    // Create the raisim dynamics to simulate the robot with.
+    auto simulated_dynamics = FrankaRidgeback::RaisimDynamics::create(
+        configuration.simulated_dynamics,
+        std::move(force_forecast->copy()),
+        simulator->get_world()
     );
-    if (!visual) {
-        std::cerr << "failed to create frankaridgeback actor visual" << std::endl;
+    if (!simulated_dynamics) {
+        std::cerr << "failed to create frankaridgeback raisim dynamics for simulation" << std::endl;
         return nullptr;
     }
 
@@ -53,28 +83,25 @@ std::shared_ptr<Actor> Actor::create(
 
     return std::shared_ptr<Actor>(
         new Actor(
-            configuration,
-            std::move(dynamics),
+            std::move(configuration),
+            std::move(simulated_dynamics),
             std::move(controller),
-            visual,
             controller_countdown_max
         )
     );
 }
 
 Actor::Actor(
-    const Configuration &configuration,
+    Configuration &&configuration,
     std::unique_ptr<RaisimDynamics> &&dynamics,
     std::unique_ptr<mppi::Trajectory> &&controller,
-    raisim::ArticulatedSystemVisual *visual,
     std::int64_t controller_countdown_max
 ) : m_configuration(std::move(configuration))
   , m_dynamics(std::move(dynamics))
-  , m_trajectory(std::move(controller))
-  , m_visual(visual)
+  , m_controller(std::move(controller))
   , m_trajectory_countdown(0) // Update on first step.
   , m_trajectory_countdown_max(controller_countdown_max)
-  , m_state(FrankaRidgeback::State::Zero())
+  , m_control(FrankaRidgeback::Control::Zero())
 {}
 
 void Actor::act(Simulator *simulator)
@@ -87,17 +114,17 @@ void Actor::act(Simulator *simulator)
         m_trajectory_countdown = m_trajectory_countdown_max;
 
         for (unsigned int i = 0; i < m_configuration.controller_substeps; i++)
-            m_trajectory->update(m_state, simulator->get_time());
+            m_controller->update(m_dynamics->get_state(), simulator->get_time());
     }
 
     // Get the controls to apply to the dynamics.
-    m_trajectory->get(m_control, simulator->get_time());
-    m_state = m_dynamics->step(m_control, simulator->get_time_step());
+    m_controller->get(m_control, simulator->get_time());
+    m_dynamics->act(m_control);
 }
 
 void Actor::update(Simulator *simulator)
 {
-    m_visual->setGeneralizedCoordinate(m_state.position());
+    m_dynamics->update();
 }
 
 } // namespace FrankaRidgeback

@@ -3,43 +3,60 @@
 namespace FrankaRidgeback {
 
 std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
-    const Configuration &configuration,
-    std::unique_ptr<Forecast::Handle> &&forecast
+    Configuration configuration,
+    std::unique_ptr<Forecast::Handle> &&forecast,
+    std::shared_ptr<raisim::World> world
 ) {
-    auto world = std::make_unique<raisim::World>();
-    world->setTimeStep(configuration.simulator.time_step);
-    world->setGravity(configuration.simulator.gravity);
-    world->addGround();
+    if (configuration.filename.empty())
+        configuration.filename = find_path().string();
+
+    // For simulating the system as a whole (not using for mppi trajectory
+    // generation), the dynamics references a world created outside of this
+    // instance. In this case, integrating the world is handled externally.
+    // When using the mppi trajectory generation, the dynamics requires its own
+    // world to simulate rollouts in, based on the provided simulator
+    // configuration.
+    if (!world) {
+        if (!configuration.simulator) {
+            std::cerr << "simulation configuration when raisim dynamics world not provided" << std::endl;
+            return nullptr;
+        }
+
+        world = std::make_shared<raisim::World>();
+        world->setTimeStep(configuration.simulator->time_step);
+        world->setGravity(configuration.simulator->gravity);
+        world->addGround();
+    }
 
     // Ensure computing the inverse dynamics is enabled to get the end effector
     // frame acceleration.
-    auto robot = world->addArticulatedSystem(configuration.filename);
-    robot->setComputeInverseDynamics(true);
-    robot->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
+    auto frankaridgeback = world->addArticulatedSystem(configuration.filename);
+    frankaridgeback->setComputeInverseDynamics(true);
+    frankaridgeback->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
 
-    std::size_t end_effector_frame_index = robot->getFrameIdxByName(
+    std::size_t end_effector_frame_index = frankaridgeback->getFrameIdxByName(
         configuration.end_effector_frame
     );
 
-    if (end_effector_frame_index > robot->getFrames().size() - 1) {
+    if (end_effector_frame_index > frankaridgeback->getFrames().size() - 1) {
         std::cerr << "end effector frame \""
                   << configuration.end_effector_frame
                   << "\" does not exist " << std::endl;
         std::cerr << "existing frames: ";
-        for (auto &x : robot->getFrames())
+        for (auto &x : frankaridgeback->getFrames())
             std::cerr << x.name << ", ";
         std::cerr << std::endl;
         return nullptr;
     }
 
-    robot->setPdGains(
+    frankaridgeback->setPdGains(
         configuration.proportional_gain,
         configuration.differential_gain
     );
 
     // Start with zero force on the joints.
-    robot->setGeneralizedForce(
-        Eigen::VectorXd::Zero((Eigen::Index)robot->getDOF())
+    frankaridgeback->setGeneralizedForce(
+        Eigen::VectorXd::Zero((Eigen::Index)frankaridgeback->getDOF())
     );
 
     return std::unique_ptr<RaisimDynamics>(
@@ -47,7 +64,7 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
             configuration,
             std::move(world),
             std::move(forecast),
-            robot,
+            frankaridgeback,
             end_effector_frame_index,
             configuration.end_effector_frame
         )
@@ -56,7 +73,7 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
 
 RaisimDynamics::RaisimDynamics(
     const Configuration &configuration,
-    std::unique_ptr<raisim::World> &&world,
+    std::shared_ptr<raisim::World> &&world,
     std::unique_ptr<Forecast::Handle> &&forecast_handle,
     raisim::ArticulatedSystem *robot,
     std::int64_t end_effector_frame_index,
@@ -91,6 +108,7 @@ RaisimDynamics::RaisimDynamics(
     m_velocity.setZero();
     m_end_effector_linear_jacobian.setZero();
     m_end_effector_angular_jacobian.setZero();
+
     set_state(configuration.initial_state, m_world->getWorldTime());
 }
 
@@ -102,7 +120,7 @@ void RaisimDynamics::set_state(const Eigen::VectorXd &state, double time)
     m_energy_tank.set_energy(m_state.available_energy().value());
     m_robot->setState(m_state.position(), m_state.velocity());
 
-    update_derived();
+    calculate();
 }
 
 void RaisimDynamics::add_end_effector_true_wrench(
@@ -128,7 +146,7 @@ void RaisimDynamics::add_end_effector_true_wrench(
     std::cout << "applied torque now " << get_end_effector_true_torque().transpose() << std::endl;
 }
 
-void RaisimDynamics::update_derived()
+void RaisimDynamics::calculate()
 {
     m_robot->getState(m_position, m_velocity);
 
@@ -183,12 +201,8 @@ void RaisimDynamics::update_derived()
     m_end_effector_angular_acceleration.setZero();
 }
 
-Eigen::Ref<Eigen::VectorXd> RaisimDynamics::step(
-    const Eigen::VectorXd &c,
-    double dt
-) {
-    const Control &control = c;
-
+void RaisimDynamics::act(const Control &control)
+{
     // Gripper positional controls.
     m_position_command.tail<DoF::GRIPPER>() = control.gripper_position();
 
@@ -207,15 +221,13 @@ Eigen::Ref<Eigen::VectorXd> RaisimDynamics::step(
  
     // We could simulate the forecasted end effector wrench, but this would make
     // the calculation of the user observed end effector force incorrect.
+}
 
-    m_world->integrate();
+void RaisimDynamics::update()
+{
     m_end_effector_true_wrench.setZero();
 
-    update_derived();
-
-    // Update position and velocity.
-    m_state.position() = m_position;
-    m_state.velocity() = m_velocity;
+    calculate();
 
     // Calculate the wrench on the end effector.
     if (m_forecast) {
@@ -227,9 +239,22 @@ Eigen::Ref<Eigen::VectorXd> RaisimDynamics::step(
         m_state.end_effector_wrench().setZero();
     }
 
+    // Update position and velocity.
+    m_state.position() = m_position;
+    m_state.velocity() = m_velocity;
+
     // Update the energy tank.
     m_energy_tank.step(m_power, m_world->getTimeStep());
     m_state.available_energy().setConstant(m_energy_tank.get_energy());
+}
+
+Eigen::Ref<Eigen::VectorXd> RaisimDynamics::step(
+    const Eigen::VectorXd &control,
+    double dt
+) {
+    act(control);
+    m_world->integrate();
+    update();
 
     return m_state;
 }

@@ -13,7 +13,8 @@ std::unique_ptr<Simulator> Simulator::create(const Configuration &configuration)
 {
     activate();
 
-    auto world = std::make_unique<raisim::World>();
+    auto world = std::make_shared<raisim::World>();
+    world->setWorldTime(0.0);
     world->setTimeStep(configuration.time_step);
     world->setGravity(configuration.gravity);
 
@@ -28,9 +29,8 @@ std::unique_ptr<Simulator> Simulator::create(const Configuration &configuration)
 
 Simulator::Simulator(
     const Configuration &configuration,
-    std::unique_ptr<raisim::World> &&world
+    std::shared_ptr<raisim::World> &&world
 ) : m_configuration(configuration)
-  , m_time(0.0)
   , m_world(std::move(world))
   , m_server(m_world.get())
 {
@@ -46,7 +46,6 @@ void Simulator::step()
 
     // Simulate!
     m_server.integrateWorldThreadSafe();
-    m_time += m_configuration.time_step;
 
     // Update actor states.
     for (auto &actor : m_actors) {

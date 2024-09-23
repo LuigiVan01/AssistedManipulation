@@ -14,29 +14,29 @@ std::unique_ptr<Trajectory> Trajectory::create(
     std::unique_ptr<Filter> &&filter
 ) {
     // Ensure dynamics and cost expect the same control.
-    if (dynamics->control_dof() != cost->control_dof()) {
+    if (dynamics->get_control_dof() != cost->get_control_dof()) {
         std::cerr << "controller dynamics control dof "
-                  << dynamics->control_dof()
+                  << dynamics->get_control_dof()
                   << " != cost control dof "
-                  << cost->control_dof()
+                  << cost->get_control_dof()
                   << std::endl;
         return nullptr;
     }
 
     // Ensure dynamics and cost expect the same state.
-    if (dynamics->state_dof() != cost->state_dof()) {
+    if (dynamics->get_state_dof() != cost->get_state_dof()) {
         std::cerr << "controller dynamics state dof "
-                  << dynamics->state_dof()
+                  << dynamics->get_state_dof()
                   << " != cost state dof "
-                  << cost->state_dof()
+                  << cost->get_state_dof()
                   << std::endl;
         return nullptr;
     }
 
-    if (configuration.control_min.size() != dynamics->control_dof() ||
-        configuration.control_max.size() != dynamics->control_dof()) {
+    if (configuration.control_min.size() != dynamics->get_control_dof() ||
+        configuration.control_max.size() != dynamics->get_control_dof()) {
         std::cerr << "controller maximum and minimum must have length "
-                  << dynamics->control_dof() << std::endl;
+                  << dynamics->get_control_dof() << std::endl;
         return nullptr;
     }
 
@@ -45,9 +45,9 @@ std::unique_ptr<Trajectory> Trajectory::create(
         return nullptr;
     }
 
-    if (configuration.covariance.rows() != dynamics->control_dof()) {
+    if (configuration.covariance.rows() != dynamics->get_control_dof()) {
         std::cerr << "controller sample variance dof " << configuration.covariance.rows()
-                  << " != dynamics and cost control dof " <<  dynamics->control_dof()
+                  << " != dynamics and cost control dof " <<  dynamics->get_control_dof()
                   << std::endl;
         return nullptr;
     }
@@ -85,8 +85,8 @@ Trajectory::Trajectory(
   , m_time_step(configuration.time_step)
   , m_rollout_count(configuration.rollouts + s_static_rollouts)
   , m_thread_count(configuration.threads)
-  , m_state_dof(dynamics->state_dof())
-  , m_control_dof(dynamics->control_dof())
+  , m_state_dof(dynamics->get_state_dof())
+  , m_control_dof(dynamics->get_control_dof())
   , m_update_last(0)
   , m_update_duration(0)
   , m_update_count(0)
@@ -102,14 +102,14 @@ Trajectory::Trajectory(
   , m_cost_scale(configuration.cost_scale)
   , m_shift_by(0)
   , m_shifted(0)
-  , m_rollouts(m_rollout_count, Rollout(dynamics->control_dof(), m_step_count))
+  , m_rollouts(m_rollout_count, Rollout(dynamics->get_control_dof(), m_step_count))
   , m_weights(m_rollout_count, 1) // (rows, cols) ...
-  , m_gradient(dynamics->control_dof(), m_step_count)
+  , m_gradient(dynamics->get_control_dof(), m_step_count)
   , m_gradient_step(configuration.gradient_step)
   , m_filter(std::move(filter))
-  , m_optimal_control_shifted(dynamics->control_dof(), m_step_count)
-  , m_optimal_rollout(dynamics->control_dof(), m_step_count)
-  , m_optimal_control(dynamics->control_dof(), m_step_count)
+  , m_optimal_control_shifted(dynamics->get_control_dof(), m_step_count)
+  , m_optimal_rollout(dynamics->get_control_dof(), m_step_count)
+  , m_optimal_control(dynamics->get_control_dof(), m_step_count)
   , m_keep_best_rollouts(configuration.keep_best_rollouts)
   , m_ordered_rollouts(configuration.rollouts)
   , m_bound_control(configuration.control_bound)

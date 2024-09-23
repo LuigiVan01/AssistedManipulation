@@ -3,27 +3,33 @@
 // https://github.com/devcontainers/templates/tree/main/src/docker-existing-docker-compose
 // https://containers.dev/implementors/json_reference/
 // https://github.com/microsoft/wslg/blob/main/samples/container/Containers.md
+// https://github.com/microsoft/wslg/blob/main/samples/container/Containers.md
 {
-    "name": "ROS1",
+    "name": "ROS2 Iron",
 	"build": {
-        "dockerfile": "dockerfile"
+        "dockerfile": "dockerfile",
+		"args": {
+            "USERNAME": "assist"
+		}
 	},
+	"privileged": true,
+	"capAdd": ["SYS_PTRACE"],
+	"securityOpt": ["seccomp=unconfined"],
 	"runArgs": [
-        "--cap-add=SYS_PTRACE",
-		"--security-opt",
-		"seccomp=unconfined",
-		"--privileged",
-		"--network=host"
-        // "--device /dev/dri/renderD128", // GPU support
+		"--net=host",
+		"--pid=host",
+		"--ipc=host"
+        // "--device /dev/dri/renderD128", // Windows GPU support
         // "--device /dev/dri/card0",
         // "--device=/dev/dxg",
 	],
 	"mounts": [
 		"source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
+		"source=/dev/dri,target=/dev/dri,type=bind,consistency=cached",
 		"source=/mnt/wslg,target=/mnt/wslg,type=bind,consistency=cached"
 	],
 	"containerEnv": {
-		"DISPLAY": ":0", // ":${localEnv:DISPLAY}",
+		"DISPLAY": "${env:DISPLAY}",
 		"WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
 		"XDG_RUNTIME_DIR": "${localEnv:$XDG_RUNTIME_DIR}",
 		"PULSE_SERVER": "${localEnv:PULSE_SERVER}"

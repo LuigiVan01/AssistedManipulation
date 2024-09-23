@@ -504,39 +504,27 @@ private:
  */
 struct Forecast::Configuration
 {
-    std::variant<
-        LOCFForecast::Configuration,
-        AverageForecast::Configuration,
-        KalmanForecast::Configuration
-    > config;
+    enum Type {
+        LOCF,
+        AVERAGE,
+        KALMAN
+    };
 
-    inline void to_json(json &j, const Forecast::Configuration &configuration)
-    {
-        if (std::holds_alternative<LOCFForecast::Configuration>(configuration.config)) {
-            j["type"] = "constant";
-            j["configuration"] = std::get<LOCFForecast::Configuration>(configuration.config);
-        }
-        else if (std::holds_alternative<AverageForecast::Configuration>(configuration.config)) {
-            j["type"] = "average";
-            j["configuration"] = std::get<AverageForecast::Configuration>(configuration.config);
-        }
-        else if (std::holds_alternative<KalmanForecast::Configuration>(configuration.config)) {
-            j["type"] = "kalman";
-            j["configuration"] = std::get<KalmanForecast::Configuration>(configuration.config);
-        }
-    }
+    /// The configured forecast.
+    Type type;
 
-    inline void from_json(const json &j, Forecast::Configuration &configuration)
-    {
-        auto type = j.at("type").get<std::string>();
-        if (type == "constant") {
-            configuration.config = (LOCFForecast::Configuration)j.at("configuration");
-        }
-        else if (type == "average") {
-            configuration.config = (AverageForecast::Configuration)j.at("configuration");
-        }
-        else if (type == "kalman") {
-            configuration.config = (KalmanForecast::Configuration)j.at("configuration");
-        }
-    }
+    /// Configuration for last observation carried forward.
+    std::optional<LOCFForecast::Configuration> locf;
+
+    /// Configuration for average forecast
+    std::optional<AverageForecast::Configuration> average;
+
+    /// Configuration for average kalman.
+    std::optional<KalmanForecast::Configuration> kalman;
+
+    /// JSON conversion for forecast configuration.
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        Forecast::Configuration,
+        type, locf, average, kalman
+    )
 };

@@ -1,23 +1,28 @@
-#include "PinocchioDynamics.hpp"
+#include "frankaridgeback/pinocchio_dynamics.hpp"
 
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <utility>
 
+#include <pinocchio/fwd.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/aba.hpp>
 #include <pinocchio/parsers/urdf.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
 
 using namespace std::string_literals;
 
 namespace FrankaRidgeback {
 
 std::unique_ptr<PinocchioDynamics> PinocchioDynamics::create(
-    const Configuration &configuration,
-    Forecast *force_predictor
+    Configuration configuration,
+    std::unique_ptr<Forecast::Handle> &&wrench_forecast_handle
 ) {
+    if (configuration.filename.empty())
+        configuration.filename = find_path().string();
+
     // Open the file.
     std::ifstream file {configuration.filename, std::ios::in};
 
@@ -37,60 +42,88 @@ std::unique_ptr<PinocchioDynamics> PinocchioDynamics::create(
         return nullptr;
     }
 
+    // Build geometry: https://docs.ros.org/en/noetic/api/pinocchio/html/namespacepinocchio_1_1urdf.html
+
     std::unique_ptr<pinocchio::Model> model;
     std::unique_ptr<pinocchio::Data> data;
+    std::unique_ptr<pinocchio::GeometryModel> geometry_model;
+    std::unique_ptr<pinocchio::GeometryData> geometry_data;
     try {
         model = std::make_unique<pinocchio::Model>();
         pinocchio::urdf::buildModelFromXML(urdf.str(), *model);
         data = std::make_unique<pinocchio::Data>(*model);
+
+        geometry_model = std::make_unique<pinocchio::GeometryModel>();
+        pinocchio::urdf::buildGeom(
+            *model,
+            configuration.filename,
+            pinocchio::GeometryType::COLLISION,
+            *geometry_model
+        );
+        geometry_data = std::make_unique<pinocchio::GeometryData>(*geometry_model);
     }
     catch (const std::exception &err) {
         std::cout << "failed to create model. " << err.what() << std::endl;
         return nullptr;
     }
 
-    auto end_effector_index = model->getFrameId(configuration.end_effector_frame);
-
-    std::unique_ptr<Forecast::Handle> handle = nullptr;
-    if (force_predictor)
-        handle = force_predictor->create_handle();
+    auto end_effector_frame_index = model->getFrameId(configuration.end_effector_frame);
 
     return std::unique_ptr<PinocchioDynamics>(
         new PinocchioDynamics(
+            configuration,
             std::move(model),
             std::move(data),
-            std::move(handle),
-            end_effector_index,
-            configuration.energy
+            std::move(geometry_model),
+            std::move(geometry_data),
+            std::move(wrench_forecast_handle),
+            end_effector_frame_index
         )
     );
 }
 
 PinocchioDynamics::PinocchioDynamics(
+    const Configuration &configuration,
     std::unique_ptr<pinocchio::Model> &&model,
     std::unique_ptr<pinocchio::Data> &&data,
+    std::unique_ptr<pinocchio::GeometryModel> &&geometry_model,
+    std::unique_ptr<pinocchio::GeometryData> &&geometry_data,
     std::unique_ptr<Forecast::Handle> &&force_predictor_handle,
-    std::size_t end_effector_index,
-    double energy
-  ) : m_model(std::move(model))
+    std::size_t end_effector_frame_index
+  ) : m_configuration(configuration)
+    , m_model(std::move(model))
     , m_data(std::move(data))
-    , m_forecast(std::move(force_predictor_handle))
-    , m_end_effector_frame_index(end_effector_index)
+    , m_geometry_model(std::move(geometry_model))
+    , m_end_effector_frame_index(end_effector_frame_index)
+    , m_joint_position()
+    , m_joint_velocity()
+    , m_joint_torque()
+    , m_joint_acceleration()
     , m_end_effector_jacobian(Jacobian::Zero())
     , m_end_effector_spatial_velocity(Vector6d::Zero())
-    , m_energy_tank(energy)
+    , m_end_effector_spatial_acceleration(Vector6d::Zero())
+    , m_forecast(std::move(force_predictor_handle))
+    , m_end_effector_forecast_wrench(Vector6d::Zero())
+    , m_end_effector_virtual_wrench(Vector6d::Zero())
+    , m_power(0.0)
+    , m_energy_tank(configuration.energy)
+    , m_state()
     , m_time(0.0)
 {
     m_joint_position.setZero();
     m_joint_velocity.setZero();
     m_joint_torque.setZero();
     m_joint_acceleration.setZero();
+
+    set_state(configuration.initial_state, m_time);
 }
 
 std::unique_ptr<mppi::Dynamics> PinocchioDynamics::copy()
 {
     auto model = std::make_unique<pinocchio::Model>(*m_model);
     auto data = std::make_unique<pinocchio::Data>(*model);
+    auto geometry_model = std::make_unique<pinocchio::GeometryModel>(*m_geometry_model);
+    auto geometry_data = std::make_unique<pinocchio::GeometryData>(*m_geometry_data);
 
     std::unique_ptr<Forecast::Handle> predictor = nullptr;
     if (m_forecast)
@@ -98,41 +131,65 @@ std::unique_ptr<mppi::Dynamics> PinocchioDynamics::copy()
 
     return std::unique_ptr<PinocchioDynamics>(
         new PinocchioDynamics(
+            m_configuration,
             std::move(model),
             std::move(data),
+            std::move(geometry_model),
+            std::move(geometry_data),
             std::move(predictor),
-            m_end_effector_frame_index,
-            m_energy_tank.get_energy()
+            m_end_effector_frame_index
         )
     );
 }
 
-void PinocchioDynamics::set(const Eigen::VectorXd &state, double time)
+void PinocchioDynamics::set_state(const Eigen::VectorXd &state, double time)
 {
     m_time = time;
     m_state = state;
+    m_joint_position = m_state.position();
+    m_joint_velocity = m_state.velocity();
     m_energy_tank.set_energy(m_state.available_energy().value());
 
-    update_kinematics();
+    calculate();
 }
 
-void PinocchioDynamics::update_kinematics()
+void PinocchioDynamics::calculate()
 {
-    // Update the robot joints with the previously cal.
+    // Gravity compensation.
+    m_joint_torque += pinocchio::nonLinearEffects(
+        *m_model.get(),
+        *m_data.get(),
+        m_joint_position,
+        m_joint_velocity
+    );
+
+    // Calculate the joint accelerations.
+    // https://gepettoweb.laas.fr/doc/stack-of-tasks/pinocchio/topic/doc-v2/doxygen-html/namespacese3.html#a60ee959532506ecafc6790cadce323a2
+    m_joint_acceleration = pinocchio::aba(
+        *m_model.get(),
+        *m_data.get(),
+        m_joint_position,
+        m_joint_velocity,
+        m_joint_torque
+    );
+
+    // Second order forward kinematics for acceleration calculations.
     pinocchio::forwardKinematics(
         *m_model,
         *m_data,
-        m_state.position(),
-        m_state.velocity()
+        m_joint_position,
+        m_joint_velocity,
+        m_joint_acceleration
     );
 
     pinocchio::updateFramePlacements(*m_model, *m_data);
 
-    // Calculate the external torque from the externally applied force.
-    pinocchio::computeJointJacobians(*m_model, *m_data);
-    pinocchio::getFrameJacobian(
-        *m_model,
-        *m_data,
+    // Get the end effector jacobian.
+    m_end_effector_jacobian.setZero();
+    pinocchio::computeFrameJacobian(
+        *m_model.get(),
+        *m_data.get(),
+        m_joint_position,
         m_end_effector_frame_index,
         pinocchio::ReferenceFrame::WORLD,
         m_end_effector_jacobian
@@ -162,59 +219,9 @@ void PinocchioDynamics::update_kinematics()
     ).toVector();
 }
 
-Eigen::Ref<Eigen::VectorXd> PinocchioDynamics::step(
-    const Eigen::VectorXd &c,
-    double dt
-) {
-    const Control &control = ctrl;
-
-    // Rotate the base velocity from to the ridgeback frame of reference to the
-    // world frame.
-    double yaw = m_state.base_yaw().value();
-    auto rotated_base_velocity = (Eigen::Rotation2Dd(yaw) * control.base_velocity()).eval();
-
-    // Rotate base velocity to the robot frame of reference.
-    m_state.base_position() += rotated_base_velocity * dt;
-    m_state.base_yaw() += control.base_angular_velocity() * dt;
-
-    // Double integrate arm torque to position. Should use a better numerical
-    // method.
-    m_state.arm_position() += control.arm_velocity() * dt;
-
-    update_kinematics();
-
-    double power = m_joint_torque.transpose() * m_joint_velocity;
-    m_energy_tank.step(power, dt);
-
-    m_state.position() = m_joint_position;
-    m_state.velocity() = m_joint_velocity;
-    m_state.available_energy().setConstant(m_energy_tank.get_energy());
-
-    if (m_forecast)
-        m_state.end_effector_wrench() = m_forecast->forecast(m_time);
-    else
-        m_state.end_effector_wrench().setZero();
-
-    return m_state;
-}
-
-Eigen::Ref<Eigen::VectorXd> PinocchioDynamics::step_aba(const Eigen::VectorXd &ctrl, double dt)
+Eigen::Ref<Eigen::VectorXd> PinocchioDynamics::step(const Eigen::VectorXd &c, double dt)
 {
-    // /// The current joint positions.
-    // Eigen::Vector<double, DoF::JOINTS> m_joint_position;
-
-    // /// The current joint velocities.
-    // Eigen::Vector<double, DoF::JOINTS> m_joint_velocity;
-
-    // /// The current torques applied by the controller to the joints.
-    // Eigen::Vector<double, DoF::JOINTS> m_joint_torque;
-
-    // /// The acceleration of the joints from forward dynamics.
-    // Eigen::Vector<double, DoF::JOINTS> m_joint_acceleration;
-
-    const Control &control = ctrl;
-
-    m_time += dt;
+    const Control &control = c;
 
     // The current yaw of the robot.
     double yaw = m_joint_position[2];
@@ -224,41 +231,42 @@ Eigen::Ref<Eigen::VectorXd> PinocchioDynamics::step_aba(const Eigen::VectorXd &c
     m_joint_velocity[2] = control.base_angular_velocity().value();
 
     // Set the joint torque as the control torque + end effector wrench torque.
+    m_joint_torque.setZero();
+    m_joint_torque.segment<DoF::ARM>(DoF::BASE) = control.arm_velocity();
+    // m_joint_torque += m_end_effector_jacobian.transpose() * m_state.end_effector_wrench();
 
-    // The following algorithm diverges quickly, and is not very debuggable.
-    // m_joint_torque.setZero();
-    // m_joint_torque.segment<DoF::ARM>(DoF::BASE) = control.arm_joint_torque();
-    // m_joint_torque = m_end_effector_jacobian.transpose() * m_state.end_effector_wrench();
-
-    // Calculate the joint accelerations.
-    // m_joint_acceleration = pinocchio::aba(
-    //     *m_model.get(),
-    //     *m_data.get(),
-    //     m_joint_position,
-    //     m_joint_velocity,
-    //     m_joint_torque
-    // );
+    calculate();
 
     // Euler integrate the forward dynamics.
-    // m_joint_velocity += m_joint_acceleration * dt;
-    // m_joint_position += m_joint_velocity * dt;
+    m_joint_velocity += m_joint_acceleration * dt;
+    m_joint_position += m_joint_velocity * dt;
 
-    // Update the positions.
-    update_kinematics();
+    // Integrate the energy tank with current power consumption.
+    m_power = m_joint_torque.transpose() * m_joint_velocity;
+    m_energy_tank.step(m_power, dt);
+    m_state.available_energy().setConstant(m_energy_tank.get_energy());
 
-    double power = m_joint_torque.transpose() * m_joint_velocity;
-    m_energy_tank.step(power, dt);
+    // Update the time of the wrench forecast.
+    m_time += dt;
+
+    if (m_forecast) {
+        m_end_effector_virtual_wrench = calculate_virtual_end_effector_wrench();
+        m_end_effector_forecast_wrench = m_forecast->forecast(m_time);
+        m_state.end_effector_wrench() = m_end_effector_forecast_wrench - m_end_effector_virtual_wrench;
+    }
+    else {
+        m_state.end_effector_wrench().setZero();
+    }
 
     m_state.position() = m_joint_position;
     m_state.velocity() = m_joint_velocity;
-    m_state.available_energy().setConstant(m_energy_tank.get_energy());
-
-    if (m_forecast)
-        m_state.end_effector_wrench() = m_forecast->forecast(m_time);
-    else
-        m_state.end_effector_wrench().setZero();
 
     return m_state;
+}
+
+Vector6d PinocchioDynamics::calculate_virtual_end_effector_wrench()
+{
+    return Vector6d::Zero();
 }
 
 } // namespace FrankaRidgeback

@@ -3,14 +3,9 @@
 #include <cstdlib>
 #include <filesystem>
 
-#include "simulation/simulator.hpp"
-#include "frankaridgeback/dynamics.hpp"
-#include "frankaridgeback/objective/assisted_manipulation.hpp"
-#include "simulation/actors/frankaridgeback.hpp"
+#include "test/case/base.hpp"
 #include "simulation/actors/circle.hpp"
-#include "logging/mppi.hpp"
 #include "logging/pid.hpp"
-#include "test/test.hpp"
 
 class Circle : public RegisteredTest<Circle>
 {
@@ -20,15 +15,7 @@ public:
 
     struct Configuration {
 
-        std::filesystem::path folder;
-
-        double duration;
-
-        Simulator::Configuration simulator;
-
-        AssistedManipulation::Configuration objective;
-
-        FrankaRidgeback::Actor::Configuration frankaridgeback_actor;
+        BaseSimulation::Configuration base;
 
         CircleActor::Configuration circle_actor;
 

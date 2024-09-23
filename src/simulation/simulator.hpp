@@ -77,8 +77,8 @@ public:
     /**
      * @brief Get a pointer to the simulator world.
      */
-    raisim::World &get_world() {
-        return *m_world;
+    std::shared_ptr<raisim::World> get_world() {
+        return m_world;
     }
 
     /**
@@ -93,7 +93,7 @@ public:
      * @returns The time elapsed in seconds.
      */
     double get_time() const {
-        return m_time;
+        return m_world->getWorldTime();
     }
 
     /**
@@ -108,21 +108,18 @@ private:
 
     Simulator(
         const Configuration &configuration,
-        std::unique_ptr<raisim::World> &&world
+        std::shared_ptr<raisim::World> &&world
     );
 
     /// The simulators configuration.
     Configuration m_configuration;
 
     /// The simulated world.
-    std::unique_ptr<raisim::World> m_world;
+    std::shared_ptr<raisim::World> m_world;
 
     /// The server that can be connected to by the raisim viewer.
     raisim::RaisimServer m_server;
 
     /// The actors in the simulation.
     std::vector<std::shared_ptr<Actor>> m_actors;
-
-    /// The time in the simulation.
-    double m_time;
 };

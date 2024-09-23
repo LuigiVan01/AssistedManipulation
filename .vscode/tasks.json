@@ -17,7 +17,7 @@
             "detail": "Generate build files for the project.",
             "type": "shell",
             "windows": { "command": "call scripts/windows/configure.bat Debug" },
-            "linux": { "command": ""},
+            "linux": { "command": "./scripts/linux/configure.bash"},
             "args": [ "${workspaceFolder}/src" ],
             "options": { "cwd": "${workspaceFolder}" },
             "presentation": {

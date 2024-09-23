@@ -8,6 +8,7 @@ CMakeFiles
 reference_paper_example
 src/model/mppi_manipulation_resources
 src/model/mppi_panda_resources
+colcon_ws
 
 # Other files
 activation.raisim

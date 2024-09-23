@@ -13,7 +13,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
-find_package(osqp REQUIRED)
+# find_package(osqp REQUIRED)
 find_package(raisim CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
@@ -23,7 +23,7 @@ add_executable(
     test
     test/main.cpp
     # test/case/base/reach.cpp
-    test/case/base/circle.cpp
+    test/case/base.cpp
     # test/case/base/no_manipulation.cpp
     # test/case/power_minimisation.cpp
     # test/case/manipulability.cpp
@@ -41,8 +41,9 @@ add_executable(
     # controller/qp.cpp
 
     # frankaridgeback/dynamics.cpp
-    frankaridgeback/objective/track_point.cpp
+    # frankaridgeback/objective/track_point.cpp
     frankaridgeback/objective/assisted_manipulation.cpp
+    frankaridgeback/pinocchio_dynamics.cpp
 
     logging/mppi.cpp
     logging/pid.cpp
@@ -59,7 +60,7 @@ if (UNIX)
         test PUBLIC 
         raisim::raisim
         pinocchio::pinocchio
-        osqp::osqp
+        # osqp::osqp
         nlohmann_json::nlohmann_json
         pthread
         -static
@@ -71,7 +72,7 @@ elseif (WIN32)
         test PUBLIC 
         raisim::raisim
         pinocchio::pinocchio
-        osqp::osqp
+        # osqp::osqp
         nlohmann_json::nlohmann_json
         Ws2_32
     )

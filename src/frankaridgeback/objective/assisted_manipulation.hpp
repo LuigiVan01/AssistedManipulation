@@ -142,14 +142,14 @@ public:
     /**
      * @brief Get the number of state degrees of freedom.
      */
-    inline constexpr int state_dof() override {
+    inline constexpr int get_state_dof() override {
         return FrankaRidgeback::DoF::STATE;
     }
 
     /**
      * @brief Get the number of control degrees of freedom.
      */
-    inline constexpr int control_dof() override {
+    inline constexpr int get_control_dof() override {
         return FrankaRidgeback::DoF::CONTROL;
     }
 

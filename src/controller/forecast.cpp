@@ -7,17 +7,34 @@
 std::unique_ptr<Forecast> Forecast::create(
     const Configuration &configuration
 ) {
-    if (std::holds_alternative<LOCFForecast::Configuration>(configuration.config)) {
-        return LOCFForecast::create(std::get<LOCFForecast::Configuration>(configuration.config));
+    if (configuration.type == Configuration::Type::LOCF) {
+        if (!configuration.locf) {
+            std::cerr << "locf forecast selected with no configuration provided" << std::endl;
+            return nullptr;
+        }
+
+        return LOCFForecast::create(*configuration.locf);
     }
 
-    if (std::holds_alternative<AverageForecast::Configuration>(configuration.config))
-        return AverageForecast::create(std::get<AverageForecast::Configuration>(configuration.config));
+    if (configuration.type == Configuration::Type::AVERAGE) {
+        if (!configuration.locf) {
+            std::cerr << "average forecast selected with no configuration provided" << std::endl;
+            return nullptr;
+        }
 
-    if (std::holds_alternative<KalmanForecast::Configuration>(configuration.config))
-        return KalmanForecast::create(std::get<KalmanForecast::Configuration>(configuration.config));
+        return AverageForecast::create(*configuration.average);
+    }
 
-    std::cerr << "unknown force predictor type" << std::endl;
+    if (configuration.type == Configuration::Type::KALMAN) {
+        if (!configuration.kalman) {
+            std::cerr << "kalman forecast selected with no configuration provided" << std::endl;
+            return nullptr;
+        }
+
+        return KalmanForecast::create(*configuration.kalman);
+    }
+
+    std::cerr << "unknown forecast type " << configuration.type << "selected" << std::endl;
     return nullptr;
 }
 

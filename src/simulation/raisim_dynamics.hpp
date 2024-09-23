@@ -25,8 +25,8 @@ public:
 
     struct Configuration {
 
-        /// The simulator configuration.
-        Simulator::Configuration simulator;
+        /// The simulator configuration if the simulator is not passed
+        std::optional<Simulator::Configuration> simulator;
 
         /// The file name of the robot definition.
         std::string filename;
@@ -57,14 +57,19 @@ public:
     /**
      * @brief Create a new franka-ridgeback raisim dynamics instance.
      * 
-     * @param configuration 
-     * @param force_forecast 
+     * Copies the configuration.
+     * 
+     * @param configuration The configuration of the raisim dynamics.
+     * @param force_forecast Handle to the force forecaster.
+     * @param world Optional pointer to the world in which to simulate the
+     * dynamics. If nullptr then the simulator
      * 
      * @returns A pointer to the dynamics on success or nullptr on failure.
      */
     static std::unique_ptr<RaisimDynamics> create(
-        const Configuration &configuration,
-        std::unique_ptr<Forecast::Handle> &&force_forecast
+        Configuration configuration,
+        std::unique_ptr<Forecast::Handle> &&force_forecast,
+        std::shared_ptr<raisim::World> world = nullptr
     );
 
     /**
@@ -80,12 +85,30 @@ public:
     /**
      * @brief Step the dynamics.
      * 
+     * Called when used for mppi trajectory generation.
+     * 
      * @param control The controls applied at the current state (before dt).
      * @param dt The change in time.
      * 
      * @returns The subsequent state.
      */
     Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) override;
+
+    /**
+     * @brief Set the control actions for the dynamics.
+     * 
+     * Called when used for simulating in an external world.
+     * 
+     * @param control The controls applied at the current state (before dt).
+     */
+    void act(const Control &control);
+
+    /**
+     * @brief Update the state of the dynamics.
+     * 
+     * Called when used for simulating in an external world.
+     */
+    void update();
 
     /**
      * @brief Set the state of the dynamics.
@@ -284,15 +307,15 @@ private:
      * @brief Initialise the raisim franka-ridgeback dynamics.
      * 
      * @param configuration 
-     * @param simulator The simulator used to rollout with.
+     * @param world The world in which the franka-ridgeback exists.
      * @param forecast_handle Handle to the external wrench forecast.
-     * @param robot Pointer to the robot in the simulator.
+     * @param robot Pointer to the robot in the world.
      * @param end_effector_frame_index Index of the end effector frame.
      * @param end_effector_frame_name The name of the end effector frame.
      */
     RaisimDynamics(
         const Configuration &configuration,
-        std::unique_ptr<raisim::World> &&simulator,
+        std::shared_ptr<raisim::World> &&world,
         std::unique_ptr<Forecast::Handle> &&forecast_handle,
         raisim::ArticulatedSystem *robot,
         std::int64_t end_effector_frame_index,
@@ -310,7 +333,7 @@ private:
      * - Calculating end effector velocity.
      * - Calculating end effector acceleration.
      */
-    void update_derived();
+    void calculate();
 
     /**
      * @brief Calculates the virtual end effector wrench.
@@ -324,7 +347,7 @@ private:
     Configuration m_configuration;
 
     /// The simulated world.
-    std::unique_ptr<raisim::World> m_world;
+    std::shared_ptr<raisim::World> m_world;
 
     /// The simulated articulated object, generated from the urdf file.
     raisim::ArticulatedSystem *m_robot;
@@ -388,7 +411,7 @@ private:
     EnergyTank m_energy_tank;
 
     /// The current state of the dynamics.
-    FrankaRidgeback::State m_state;
+    State m_state;
 };
 
 } // FrankaRidgeback

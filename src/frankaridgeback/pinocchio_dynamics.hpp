@@ -37,6 +37,9 @@ public:
         /// The name of the end effector frame.
         std::string end_effector_frame;
 
+        /// The initial state of the dynamics.
+        State initial_state;
+
         /// The initial energy in the energy tank.
         double energy;
 
@@ -50,14 +53,16 @@ public:
     /**
      * @brief Create a new franka ridgeback dynamics object.
      * 
+     * Copies the configuration.
+     * 
      * @param configuration The configuration of the dynamics.
-     * @param force_predictor An optional force estimation strategy.
+     * @param wrench_forecast_handle An optional wrench estimation strategy.
      * 
      * @returns A pointer to the dynamics on success or nullptr on failure.
      */
-    static std::unique_ptr<Dynamics> create(
-        const Configuration &configuration,
-        Forecast *force_predictor = nullptr
+    static std::unique_ptr<PinocchioDynamics> create(
+        Configuration configuration,
+        std::unique_ptr<Forecast::Handle> &&wrench_forecast_handle = nullptr
     );
 
     /**
@@ -119,7 +124,7 @@ public:
      */
     virtual Quaterniond get_end_effector_orientation()
     {
-        return m_data->oMf[m_end_effector_frame_index].rotation();
+        return (Quaterniond)m_data->oMf[m_end_effector_frame_index].rotation();
     }
 
     /**
@@ -146,7 +151,7 @@ public:
      */
     virtual Vector3d get_end_effector_linear_acceleration()
     {
-        return ;
+        return m_end_effector_spatial_acceleration.head<3>();
     }
 
     /**
@@ -155,7 +160,7 @@ public:
      */
     virtual Vector3d get_end_effector_angular_acceleration()
     {
-        return ;
+        return m_end_effector_spatial_acceleration.tail<3>();
     }
 
     /**
@@ -177,7 +182,7 @@ public:
      */
     virtual double get_power()
     {
-        return ;
+        return m_power;
     }
 
     /**
@@ -190,7 +195,7 @@ public:
      */
     virtual Vector6d get_end_effector_forecast_wrench()
     {
-        return ;
+        return m_end_effector_forecast_wrench;
     }
 
     /**
@@ -208,7 +213,7 @@ public:
      */
     virtual Vector6d get_end_effector_virtual_wrench()
     {
-        return ;
+        return m_end_effector_virtual_wrench;
     }
 
 
@@ -310,25 +315,38 @@ private:
      * @brief Calculates kinematic information after position and velocity
      * updates.
      */
-    void update_kinematics();
+    void calculate();
+
+    /**
+     * @brief Calculate the effective end effector wrench based on the current.
+     * 
+     * @return Vector6d 
+     */
+    Vector6d calculate_virtual_end_effector_wrench();
 
     /**
      * @brief Initialise the dynamics parameters.
      * 
-     * @param model Pointer to the pinnochio model.
-     * @param data Pointer to the pinnochio data.
+     * @param configuration The configuration of the dynamics.
+     * @param model Pointer to the pinocchio model.
+     * @param data Pointer to the pinocchio data.
+     * @param geometry Pointer to the pinocchio geometry model.
      * @param end_effector_index Index into the vector of model joint frames for
      * the end effector.
-     * @param force_predictor An optional force estimation strategy.
-     * @param energy The initial energy in the energy tank.
+     * @param wrench_forecast_handle An optional wrench estimation strategy.
      */
     PinocchioDynamics(
+        const Configuration &configuration,
         std::unique_ptr<pinocchio::Model> &&model,
         std::unique_ptr<pinocchio::Data> &&data,
-        std::unique_ptr<Forecast::Handle> &&force_predictor_handle,
-        std::size_t end_effector_index,
-        double energy
+        std::unique_ptr<pinocchio::GeometryModel> &&geometry_model,
+        std::unique_ptr<pinocchio::GeometryData> &&geometry_data,
+        std::unique_ptr<Forecast::Handle> &&wrench_forecast_handle,
+        std::size_t end_effector_index
     );
+
+    /// The configuration of the pinocchio.
+    Configuration m_configuration;
 
     /// The robot model.
     std::unique_ptr<pinocchio::Model> m_model;
@@ -336,11 +354,26 @@ private:
     /// Data used for model calculations.
     std::unique_ptr<pinocchio::Data> m_data;
 
+    /// Model used for collision detection.
+    std::unique_ptr<pinocchio::GeometryModel> m_geometry_model;
+
+    /// Data used for collision detection.
+    std::unique_ptr<pinocchio::GeometryData> m_geometry_data;
+
     /// Index of the end effector frame in the frame vector.
     std::size_t m_end_effector_frame_index;
 
-    /// Optional pointer to the force predictor.
-    std::unique_ptr<Forecast::Handle> m_forecast;
+    /// The current joint positions.
+    Eigen::Vector<double, DoF::JOINTS> m_joint_position;
+
+    /// The current joint velocities.
+    Eigen::Vector<double, DoF::JOINTS> m_joint_velocity;
+
+    /// The current torques applied by the controller to the joints.
+    Eigen::Vector<double, DoF::JOINTS> m_joint_torque;
+
+    /// The acceleration of the joints from forward dynamics.
+    Eigen::Vector<double, DoF::JOINTS> m_joint_acceleration;
 
     /// End effector jacobian in the world frame if enabled.
     Jacobian m_end_effector_jacobian;
@@ -351,6 +384,19 @@ private:
 
     /// Get the acceleration of the end effector 
     Vector6d m_end_effector_spatial_acceleration;
+
+    /// Optional pointer to the force predictor.
+    std::unique_ptr<Forecast::Handle> m_forecast;
+
+    /// A prediction of the wrench applied to the end effector during rollout.
+    Vector6d m_end_effector_forecast_wrench;
+
+    /// The virtual wrench is the wrench that would be applied to the end
+    /// effector to produce its current linear and angular acceleration.
+    Vector6d m_end_effector_virtual_wrench;
+
+    /// The current power consumption.
+    double m_power;
 
     /// The energy tank.
     EnergyTank m_energy_tank;

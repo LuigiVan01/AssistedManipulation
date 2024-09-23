@@ -19,7 +19,7 @@ Circle::Configuration Circle::DEFAULT_CONFIGURATION {
         .upper_joint_limit = AssistedManipulation::s_default_upper_joint_limits
     },
     .frankaridgeback_actor = {
-        .dynamics = {
+        .simulated_dynamics = {
             .simulator = {
                 .time_step = 0.005,
                 .gravity = {0.0, 0.0, 9.81}
@@ -37,6 +37,14 @@ Circle::Configuration Circle::DEFAULT_CONFIGURATION {
                 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
                 50.0, 50.0
             },
+            .energy = 10.0
+        },
+        .mppi_dynamics_type = FrankaRidgeback::Actor::Type::PINOCCHIO,
+        .mppi_dynamics_raisim = std::nullopt,
+        .mppi_dynamics_pinocchio = FrankaRidgeback::PinocchioDynamics::Configuration{
+            .filename = "",
+            .end_effector_frame = "panda_grasp_joint",
+            .initial_state = FrankaRidgeback::State::Zero(),
             .energy = 10.0
         },
         .mppi = {

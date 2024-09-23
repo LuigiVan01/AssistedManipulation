@@ -1,5 +1,7 @@
 #!/bin/bash
 
+WORKSPACE=$(pwd)
+
 # Add library directories to cmake path.
 CMAKE_PREFIX_PATH+=";$WORKSPACE/lib/raisimlib/raisim/linux"
 export CMAKE_PREFIX_PATH
