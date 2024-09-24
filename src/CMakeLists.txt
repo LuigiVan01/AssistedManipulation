@@ -38,6 +38,7 @@ add_executable(
     controller/mppi.cpp
     controller/kalman.cpp
     controller/forecast.cpp
+    controller/trajectory.cpp
     # controller/qp.cpp
 
     # frankaridgeback/dynamics.cpp

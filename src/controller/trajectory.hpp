@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cmath>
 #include <tuple>
+#include <iostream>
 
 #include "controller/eigen.hpp"
 #include "controller/json.hpp"
@@ -8,21 +10,36 @@
 /**
  * @brief Base class for implementing a positional trajectory.
  */
-class PointTrajectory
+class PositionTrajectory
 {
 public:
+
+    struct Configuration;
+
+    /// Virtual destructor for derived classes.
+    virtual ~PositionTrajectory() {};
+
+    /**
+     * @brief Create a configuration trajectory.
+     * 
+     * @param configuration The configuration of the positional trajectory.
+     * @returns The position trajectory on success or nullptr on failure.
+     */
+    static std::unique_ptr<PositionTrajectory> create(
+        const Configuration &configuration
+    );
 
     /**
      * @brief Get the position of the trajectory at a given time.
      * 
-     * @param time 
-     * @return Vector3d 
+     * @param time The time of the position.
+     * @returns The position. 
      */
     virtual Vector3d get_position(double time) = 0;
 
 protected:
 
-    PointTrajectory() = default;
+    PositionTrajectory() = default;
 };
 
 /**
@@ -31,6 +48,9 @@ protected:
 class OrientationTrajectory
 {
 public:
+
+    /// Virtual destructor for derived classes.
+    virtual ~OrientationTrajectory();
 
     /**
      * @brief Get the orientation at a given time.
@@ -48,7 +68,7 @@ protected:
 /**
  * @brief A trajectory that stays in the same position forever.
  */
-class PointTrajectory : public PointTrajectory
+class PointTrajectory : public PositionTrajectory
 {
 public:
 
@@ -62,23 +82,30 @@ public:
     };
 
     /**
+     * @brief Create a new point trajectory.
+     * 
+     * @param configuration The configuration of the point trajectory.
+     * @returns A pointer to the trajectory on success or nullptr on failure.
+     */
+    static std::unique_ptr<PointTrajectory> create(
+        const Configuration &configuration
+    );
+
+    /**
+     * @brief Get the position of the trajectory at a given time.
+     * 
+     * @param time Unused.
+     * @returns The position. 
+     */
+    Vector3d get_position(double time) override;
+
+private:
+
+    /**
      * @brief Initialise a point trajectory.
      * @param configuration The configuration of the point trajectory.
      */
-    inline PointTrajectory(const Configuration &configuration)
-        : m_point(configuration.point)
-    {}
-
-    /**
-     * @brief Get the point of the trajectory.
-     * @param time Unused.
-     */
-    inline Vector3d get_position(double time) override
-    {
-        return m_point;
-    }
-
-private:
+    PointTrajectory(const Configuration &configuration);
 
     /// The point of the trajectory.
     Vector3d m_point;
@@ -87,7 +114,7 @@ private:
 /**
  * @brief A point trajectory that rotates in a circle.
  */
-class CircleTrajectory : public PointTrajectory
+class CircularTrajectory : public PositionTrajectory
 {
 public:
 
@@ -112,52 +139,27 @@ public:
         )
     };
 
-    inline CircleTrajectory(const Configuration &configuration)
-        : m_origin(configuration.origin)
-        , m_axis(configuration.axis)
-        , m_angular_velocity(configuration.angular_velocity)
-    {
-        // To initialise the point to rotate about the axis, need to get a
-        // vector normal the the axis of rotation on the plane of rotation.
-        // This offsets the axis of rotation slightly and projects the vector
-        // onto the plane of rotation. To solve for the radius, normalise the
-        // projected point and resize to the radius.
-
-        const auto &axis = configuration.axis;
-
-        Vector3d offset = Vector3d(1.0, 0.0, 0.0);
-
-        // If the offset vector is in the direction of the axis, use a different
-        // offset.
-        if (axis.normalized().cwiseAbs().isApprox(offset.normalized().cwiseAbs()))
-            offset = Vector3d(0.0, 1.0, 0.0);
-
-        auto to_project = axis + offset;
-
-        // Project the point to the plane of rotation.
-        Vector3d projected = (
-            to_project - axis.dot(to_project) / axis.dot(axis) * axis
-        );
-
-        // Normalise and extend to the required radius.
-        m_point = projected.normalized() * configuration.radius;
-    }
+    /**
+     * @brief Create a new circular trajectory.
+     * 
+     * @param configuration The configuration of the circular trajectory.
+     * @returns A pointer to the trajectory on success or nullptr on failure.
+     */
+    static std::unique_ptr<CircularTrajectory> create(
+        const Configuration &configuration
+    );
 
     /**
-     * @brief Get the position around the circle at the given time.
+     * @brief Get the position of the trajectory at a given time.
      * 
-     * @param time The time to get the circle position.
-     * @returns The position around the circle.
+     * @param time The time of the position.
+     * @returns The position around the circle. 
      */
-    inline Vector3d get_position(double time) override
-    {
-        return m_origin + Eigen::AngleAxisd(
-            time * m_angular_velocity,
-            m_axis
-        ) * m_point;
-    }
+    inline Vector3d get_position(double time) override;
 
 private:
+
+    CircularTrajectory(const Configuration &configuration);
 
     /// The point to rotate about the axis.
     Vector3d m_point;
@@ -170,6 +172,74 @@ private:
 
     /// The angular velocity of the point to track.
     double m_angular_velocity;
+};
+
+/**
+ * @brief A trajectory that moves in a rectangle on a plane in space.
+ */
+class RectangularTrajectory : public PositionTrajectory
+{
+public:
+
+    struct Configuration {
+
+        /// The origin of the rectangle to track.
+        Vector3d origin;
+
+        /// The axis defining the orientation of the plane 
+        Vector3d axis;
+
+        // The angle to rotate the rectangle on the plane.
+        double angle;
+
+        /// Width of the rectangle along the x axis of the plane.
+        double width;
+
+        /// Height of the rectangle along the y axis of the plane.
+        double height;
+
+        /// The velocity of the trajectory.
+        double velocity;
+
+        /// JSON conversion for rectangular trajectory configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            origin, axis, angle, width, height, velocity
+        );
+    };
+
+    /**
+     * @brief Create a new circular trajectory.
+     * 
+     * @param configuration The configuration of the circular trajectory.
+     * @returns A pointer to the trajectory on success or nullptr on failure.
+     */
+    static std::unique_ptr<RectangularTrajectory> create(
+        const Configuration &configuration
+    );
+
+    /**
+     * @brief Get the position around the rectangle.
+     * 
+     * @todo Make this nicer.
+     * 
+     * @param time The time of the position.
+     * @return The position. 
+     */
+    inline Vector3d get_position(double time) override;
+
+private:
+
+    RectangularTrajectory(const Configuration &configuration);
+
+    /// The configuration of the rectangular trajectory.
+    Configuration m_configuration;
+
+    /// The total circumference of the rectangle on the 2D plane.
+    double m_circumference;
+
+    /// Transformation from the 2D plane to the 3D plane.
+    Eigen::Transform<double, 3, Eigen::Affine>  m_transform;
 };
 
 /**
@@ -187,7 +257,7 @@ private:
  *      y = y_amplitude * sin(y_frequency * t + y_phase)
  *      z = z_amplitude * sin(z_frequencz * t + z_phase)
  */
-class LissajousTrajectory
+class LissajousTrajectory : public PositionTrajectory
 {
 public:
 
@@ -225,51 +295,56 @@ public:
     };
 
     /**
+     * @brief Create a new circular trajectory.
+     * 
+     * @param configuration The configuration of the circular trajectory.
+     * @returns A pointer to the trajectory on success or nullptr on failure.
+     */
+    static std::unique_ptr<LissajousTrajectory> create(
+        const Configuration &configuration
+    );
+
+    /**
+     * @brief Get the position of the lissajous curve at a given time.
+     * 
+     * @param time The time of the position.
+     * @returns The position. 
+     */
+    inline Vector3d get_position(double time) override;
+
+private:
+
+    /**
      * @brief Initialise a new lissajous trajectory.
      * @param configuration The lissajous trajectory configuration.
      */
-    inline LissajousTrajectory(const Configuration &configuration)
-        : m_configuration(configuration)
-    {}
-
-    /**
-     * @brief Get the position object
-     * 
-     * @param time 
-     * @return Vector3d 
-     */
-    inline Vector3d get_position(double time) override
-    {
-        return m_configuration.origin + Vector3d{
-            m_configuration.x_amplitude * std::sin(time),
-            m_configuration.y_amplitude * std::sin(
-                m_configuration.y_frequency * time + m_configuration.y_phase
-            ),
-            m_configuration.z_amplitude * std::sin(
-                m_configuration.z_frequencz * time + m_configuration.z_phase
-            )
-        };
-    }
-
-private:
+    inline LissajousTrajectory(const Configuration &configuration);
 
     /// The configuration of the lissajous trajectory.
     Configuration m_configuration;
 };
 
-class RectangleTrajectory : public PointTrajectory
-{
-public:
+struct PositionTrajectory::Configuration {
 
-    struct Configuration {
-
+    enum Type {
+        POINT,
+        CIRCLE,
+        RECTANGLE,
+        LISSAJOUS
     };
 
-private:
+    /// The configured position trajectory.
+    Type type;
 
+    /// Configuration for the point
+    std::optional<PointTrajectory::Configuration> point;
+
+    /// Configuration for the circle trajectory.
+    std::optional<CircularTrajectory::Configuration> circle;
+
+    /// Configuration for the rectangle trajectory.
+    std::optional<RectangularTrajectory::Configuration> rectangle;
+
+    /// Configuration for the lissajous trajectory.
+    std::optional<LissajousTrajectory::Configuration> lissajous;
 };
-
-struct PointTrajectory::Configuration {
-
-};
-
