@@ -60,7 +60,7 @@ PointTrajectory::PointTrajectory(const Configuration &configuration)
     : m_point(configuration.point)
 {}
 
-Vector3d PointTrajectory::get_position(double time)
+Vector3d PointTrajectory::get_position(double /* time */)
 {
     return m_point;
 }
@@ -131,13 +131,13 @@ RectangularTrajectory::RectangularTrajectory(const Configuration &configuration)
 {
     m_transform.setIdentity();
 
-    // Rotation from xy plane to the axis.
+    // Rotation from xy plane to the axis plane. No cartesian space warping.
     m_transform.linear() = Eigen::Quaterniond::FromTwoVectors(
         Vector3d(0, 0, 1),
         m_configuration.axis.normalized()
     ).normalized().toRotationMatrix();
 
-    // Translate by origin.
+    // Offset by the origin.
     m_transform.translation() = m_configuration.origin;
 }
 
@@ -198,4 +198,34 @@ Vector3d LissajousTrajectory::get_position(double time)
     );
 
     return m_configuration.origin + Vector3d(x, y, z);
+}
+
+/**
+ * @brief Create a new static axis angle trajectory.
+ * 
+ * @param configuration The configuration of the axis angle trajectory.
+ * @returns A pointer to the axis angle trajectory.
+ */
+std::unique_ptr<AxisAngleTrajectory> AxisAngleTrajectory::create(
+    const Configuration &configuration
+) {
+    return std::unique_ptr<AxisAngleTrajectory>(
+        new AxisAngleTrajectory(configuration)
+    );
+}
+
+AxisAngleTrajectory::AxisAngleTrajectory(const Configuration &configuration)
+    : m_orientation(Quaterniond::Identity())
+{
+    // Rotate by the angle around the z axis, the rotate the body from the z
+    // axis to the provided axis.
+    m_orientation = (
+        Eigen::AngleAxisd(configuration.angle, Vector3d(0, 0, 1)) *
+        Quaterniond::FromTwoVectors(Vector3d(0, 0, 1), configuration.axis)
+    );
+}
+
+Quaterniond AxisAngleTrajectory::get_orientation(double /* time */)
+{
+    return m_orientation;
 }

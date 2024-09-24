@@ -347,4 +347,123 @@ struct PositionTrajectory::Configuration {
 
     /// Configuration for the lissajous trajectory.
     std::optional<LissajousTrajectory::Configuration> lissajous;
+
+    /// JSON conversion for positional trajectory.
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        PositionTrajectory::Configuration,
+        type, point, circle, rectangle, lissajous
+    );
+};
+
+/**
+ * @brief A static single orientation returned regardless of time.
+ */
+class AxisAngleTrajectory : public OrientationTrajectory
+{
+public:
+
+    struct Configuration {
+
+        /// The axis the z axis is orientated to.
+        Vector3d axis;
+
+        /// The rotation about the z axis with respect to the x direction.
+        double angle;
+
+        /// JSON conversion for axis angle trajectory.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            axis, angle
+        );
+    };
+
+    /**
+     * @brief Create a new static axis angle trajectory.
+     * 
+     * @param configuration The configuration of the axis angle trajectory.
+     * @returns A pointer to the axis angle trajectory on success or nullptr on
+     * failure.
+     */
+    static std::unique_ptr<AxisAngleTrajectory> create(
+        const Configuration &configuration
+    );
+
+    /**
+     * @brief Get the orientation.
+     * 
+     * @param time The time of the orientation, unused.
+     * @returns The orientation.
+     */
+    Quaterniond get_orientation(double time) override;
+
+private:
+
+    /**
+     * @brief Initialise the axis angle trajectory.
+     */
+    AxisAngleTrajectory(const Configuration &configuration);
+
+    /// The calculated orientation.
+    Quaterniond m_orientation;
+};
+
+/**
+ * @brief Oscillation between two different orientations as a function of time.
+ */
+class OrientationSlerpTrajectory : public OrientationTrajectory
+{
+public:
+
+    struct Configuration {
+
+        /// The axis the z axis is orientated to of the first orientation.
+        Vector3d first_axis;
+
+        /// The rotation about the z axis with respect to the x direction of the
+        /// first orientation.
+        double first_angle;
+
+        /// The axis the z axis is orientated to of the second orientation
+        Vector3d second_axis;
+
+        /// The rotation about the z axis with respect to the x direction of the
+        /// second orientation.
+        double second_angle;
+
+        /// JSON conversion for OrientationSlerpTrajectory.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            first_axis, first_angle, second_axis, second_angle
+        )
+    };
+
+    /**
+     * @brief Create a new interpolated orientation trajectory.
+     * 
+     * @param configuration The configuration of the interpolated orientation
+     * trajectory.
+     * @returns A pointer to the trajectory on success or nullptr on failure.
+     */
+    static std::unique_ptr<OrientationSlerpTrajectory> create(
+        const Configuration &configuration
+    );
+
+    /**
+     * @brief Get the orientation.
+     * 
+     * @param time The time of the orientation, unused.
+     * @returns The orientation.
+     */
+    Quaterniond get_orientation(double time) override;
+
+private:
+
+    OrientationSlerpTrajectory();
+
+    Quaterniond m_first;
+
+    Quaterniond m_second;
+
+    /// Frequency of oscillation between the orientations in radians.
+    double frequency;
 };
