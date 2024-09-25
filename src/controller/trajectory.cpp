@@ -1,52 +1,94 @@
 #include "controller/trajectory.hpp"
 
+#include <cmath>
+
+#define M_PI 3.141592653589793
+
+template<typename T, typename Configuration>
+std::unique_ptr<T> try_configuration(
+    const std::optional<Configuration> &configuration,
+    std::string name
+) {
+    if (!configuration) {
+        std::cerr << name << "trajectory selected without "
+                    << name << "configuration" << std::endl;
+        return std::unique_ptr<T>();
+    }
+
+    auto trajectory = T::create(*configuration);
+    if (!trajectory)
+        std::cerr << "failed to create " << name << " trajectory" << std::endl;
+
+    return trajectory;
+}
+
 std::unique_ptr<PositionTrajectory> PositionTrajectory::create(
     const Configuration &configuration
 ) {
-    std::unique_ptr<PositionTrajectory> trajectory = nullptr;
-
-    // Todo: Something better than this.
-
-    if (configuration.type == Configuration::Type::POINT) {
-        if (!configuration.point) {
-            std::cerr << "point trajectory selected without point configuration" << std::endl;
+    switch (configuration.type)
+    {
+        case Configuration::Type::POINT: {
+            return try_configuration<PointTrajectory, PointTrajectory::Configuration>(
+                configuration.point,
+                "point"
+            );
+        }
+        case Configuration::Type::CIRCLE: {
+            return try_configuration<CircularTrajectory, CircularTrajectory::Configuration>(
+                configuration.circle,
+                "circular"
+            );
+        }
+        case Configuration::Type::RECTANGLE: {
+            return try_configuration<RectangularTrajectory, RectangularTrajectory::Configuration>(
+                configuration.rectangle,
+                "rectangular"
+            );
+        }
+        case Configuration::Type::LISSAJOUS: {
+            return try_configuration<LissajousTrajectory, LissajousTrajectory::Configuration>(
+                configuration.lissajous,
+                "lissajous"
+            );
+        }
+        case Configuration::Type::FIGURE_EIGHT: {
+            return try_configuration<FigureEightTrajectory, FigureEightTrajectory::Configuration>(
+                configuration.figure_eight,
+                "figure eight"
+            );
+        }
+        default: {
+            std::cerr << "unknown position trajectory type"
+                      << configuration.type << std::endl;
             return nullptr;
         }
-        trajectory = PointTrajectory::create(*configuration.point); 
     }
-    else if (configuration.type == Configuration::Type::CIRCLE) {
-        if (!configuration.circle) {
-            std::cerr << "circle trajectory selected without circle configuration" << std::endl;
-            return nullptr;
-        }
-        trajectory = CircularTrajectory::create(*configuration.circle); 
-    }
-    else if (configuration.type == Configuration::Type::RECTANGLE) {
-        if (!configuration.rectangle) {
-            std::cerr << "rectangle trajectory selected without rectangle configuration" << std::endl;
-            return nullptr;
-        }
-        trajectory = RectangularTrajectory::create(*configuration.rectangle); 
-    }
-    else if (configuration.type == Configuration::Type::LISSAJOUS) {
-        if (!configuration.lissajous) {
-            std::cerr << "lissajous trajectory selected without lissajous configuration" << std::endl;
-            return nullptr;
-        }
-        trajectory = LissajousTrajectory::create(*configuration.lissajous); 
-    }
-    else {
-        std::cerr << "unknown position trajectory type" << std::endl;
-        return nullptr;
-    }
-
-    if (!trajectory) {
-        std::cerr << "failed to create position trajectory" << std::endl;
-        return nullptr;
-    }
-
-    return trajectory;
 };
+
+std::unique_ptr<OrientationTrajectory> OrientationTrajectory::create(
+    const Configuration &configuration
+) {
+    switch (configuration.type)
+    {
+        case Configuration::Type::AXIS_ANGLE: {
+            return try_configuration<AxisAngleTrajectory, AxisAngleTrajectory::Configuration>(
+                configuration.axis_angle,
+                "axis angle"
+            );
+        }
+        case Configuration::Type::SLERP: {
+            return try_configuration<SlerpTrajectory, SlerpTrajectory::Configuration>(
+                configuration.slerp,
+                "slerp"
+            );
+        }
+        default: {
+            std::cerr << "unknown orientation trajectory type"
+                      << configuration.type << std::endl;
+            return nullptr;
+        }
+    }
+}
 
 std::unique_ptr<PointTrajectory> PointTrajectory::create(
     const Configuration &configuration
@@ -187,25 +229,40 @@ LissajousTrajectory::LissajousTrajectory(const Configuration &configuration)
 
 Vector3d LissajousTrajectory::get_position(double time)
 {
-    double x = m_configuration.x_amplitude * std::sin(time);
-
-    double y = m_configuration.y_amplitude * std::sin(
-        m_configuration.y_frequency * time + m_configuration.y_phase
+    return m_configuration.origin + Vector3d(
+        m_configuration.x_amplitude * std::sin(
+            m_configuration.x_frequency * time
+        ),
+        m_configuration.y_amplitude * std::sin(
+            m_configuration.y_frequency * time + m_configuration.y_phase
+        ),
+        m_configuration.z_amplitude * std::sin(
+            m_configuration.z_frequency * time + m_configuration.z_phase
+        )
     );
-
-    double z = m_configuration.z_amplitude * std::sin(
-        m_configuration.z_frequency * time + m_configuration.z_phase
-    );
-
-    return m_configuration.origin + Vector3d(x, y, z);
 }
 
-/**
- * @brief Create a new static axis angle trajectory.
- * 
- * @param configuration The configuration of the axis angle trajectory.
- * @returns A pointer to the axis angle trajectory.
- */
+std::unique_ptr<FigureEightTrajectory> FigureEightTrajectory::create(
+    const Configuration &configuration
+) {
+    // Figure 8 trajectory along the x axis.
+    LissajousTrajectory::Configuration lissajous {
+        .origin = configuration.origin,
+        .x_amplitude = configuration.x_amplitude,
+        .y_amplitude = configuration.y_amplitude,
+        .z_amplitude = 0.0,
+        .x_frequency = configuration.frequency,
+        .y_frequency = 2 * configuration.frequency,
+        .z_frequency = 0.0,
+        .y_phase = M_PI,
+        .z_phase = 0.0
+    };
+
+    return std::unique_ptr<FigureEightTrajectory>(
+        new FigureEightTrajectory(lissajous)
+    );
+}
+
 std::unique_ptr<AxisAngleTrajectory> AxisAngleTrajectory::create(
     const Configuration &configuration
 ) {
@@ -228,4 +285,38 @@ AxisAngleTrajectory::AxisAngleTrajectory(const Configuration &configuration)
 Quaterniond AxisAngleTrajectory::get_orientation(double /* time */)
 {
     return m_orientation;
+}
+
+std::unique_ptr<SlerpTrajectory> SlerpTrajectory::create(
+    const Configuration &configuration
+) {
+    return std::unique_ptr<SlerpTrajectory>(
+        new SlerpTrajectory(configuration)
+    );
+}
+
+SlerpTrajectory::SlerpTrajectory(
+    const Configuration &configuration
+) : m_first(Quaterniond::Identity())
+  , m_second(Quaterniond::Identity())
+  , m_frequency(configuration.frequency)
+{
+    m_first = (
+        Eigen::AngleAxisd(configuration.first_angle, Vector3d(0, 0, 1)) *
+        Quaterniond::FromTwoVectors(Vector3d(0, 0, 1), configuration.first_axis)
+    );
+
+    m_second = (
+        Eigen::AngleAxisd(configuration.first_angle, Vector3d(0, 0, 1)) *
+        Quaterniond::FromTwoVectors(Vector3d(0, 0, 1), configuration.first_axis)
+    );
+}
+
+Quaterniond SlerpTrajectory::get_orientation(double time)
+{
+    // Normalise the sine wave between zero and one.
+    double t = (std::sin(time) + 1.0) / 2.0; 
+
+    // Spherically interpolate between the two orientations.
+    return m_first.slerp(t, m_second);
 }

@@ -14,13 +14,14 @@ class PositionTrajectory
 {
 public:
 
+    // Defined after all position trajectories are defined.
     struct Configuration;
 
     /// Virtual destructor for derived classes.
     virtual ~PositionTrajectory() {};
 
     /**
-     * @brief Create a configuration trajectory.
+     * @brief Create a positional trajectory.
      * 
      * @param configuration The configuration of the positional trajectory.
      * @returns The position trajectory on success or nullptr on failure.
@@ -49,8 +50,21 @@ class OrientationTrajectory
 {
 public:
 
+    // Defined after all orientation trajectories are defined.
+    struct Configuration;
+
     /// Virtual destructor for derived classes.
-    virtual ~OrientationTrajectory();
+    virtual ~OrientationTrajectory() {};
+
+    /**
+     * @brief Create an orientation trajectory.
+     * 
+     * @param configuration The configuration of the trajectory.
+     * @returns A pointer to the trajectory on success or nullptr on failure.
+     */
+    static std::unique_ptr<OrientationTrajectory> create(
+        const Configuration &configuration
+    );
 
     /**
      * @brief Get the orientation at a given time.
@@ -253,7 +267,7 @@ private:
  * 
  * For the configuration:
  * 
- *      x = x_amplitude * sin(t)
+ *      x = x_amplitude * sin(x_frequency * t)
  *      y = y_amplitude * sin(y_frequency * t + y_phase)
  *      z = z_amplitude * sin(z_frequencz * t + z_phase)
  */
@@ -275,6 +289,9 @@ public:
         /// Amplitude of the sine curve in the z world axis.
         double z_amplitude;
 
+        /// Frequency of the sine curve in the x world axis.
+        double x_frequency;
+
         /// Frequency of the sine curve in the y world axis.
         double y_frequency;
 
@@ -295,9 +312,9 @@ public:
     };
 
     /**
-     * @brief Create a new circular trajectory.
+     * @brief Create a new lissajous trajectory.
      * 
-     * @param configuration The configuration of the circular trajectory.
+     * @param configuration The configuration of the lissajous trajectory.
      * @returns A pointer to the trajectory on success or nullptr on failure.
      */
     static std::unique_ptr<LissajousTrajectory> create(
@@ -324,35 +341,48 @@ private:
     Configuration m_configuration;
 };
 
-struct PositionTrajectory::Configuration {
+/**
+ * @brief A figure 8 position trajectory along the x axis.
+ */
+class FigureEightTrajectory : public LissajousTrajectory
+{
+public:
 
-    enum Type {
-        POINT,
-        CIRCLE,
-        RECTANGLE,
-        LISSAJOUS
+    struct Configuration {
+
+        /// Origin of the figure eight in space.
+        Vector3d origin;
+
+        /// Amplitude of the curve in the x world axis.
+        double x_amplitude;
+
+        /// Amplitude of the curve in the y world axis.
+        double y_amplitude;
+
+        /// Frequency of the figure eight curve.
+        double frequency;
+
+        /// JSON conversion for figure eight configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            origin, x_amplitude, y_amplitude, frequency
+        )
     };
 
-    /// The configured position trajectory.
-    Type type;
-
-    /// Configuration for the point
-    std::optional<PointTrajectory::Configuration> point;
-
-    /// Configuration for the circle trajectory.
-    std::optional<CircularTrajectory::Configuration> circle;
-
-    /// Configuration for the rectangle trajectory.
-    std::optional<RectangularTrajectory::Configuration> rectangle;
-
-    /// Configuration for the lissajous trajectory.
-    std::optional<LissajousTrajectory::Configuration> lissajous;
-
-    /// JSON conversion for positional trajectory.
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
-        PositionTrajectory::Configuration,
-        type, point, circle, rectangle, lissajous
+    /**
+     * @brief Create a new circular trajectory.
+     * 
+     * @param configuration The configuration of the circular trajectory.
+     * @returns A pointer to the trajectory on success or nullptr on failure.
+     */
+    static std::unique_ptr<FigureEightTrajectory> create(
+        const Configuration &configuration
     );
+
+private:
+
+    // Inherit lissajous constructor.
+    using LissajousTrajectory::LissajousTrajectory;
 };
 
 /**
@@ -408,9 +438,12 @@ private:
 };
 
 /**
- * @brief Oscillation between two different orientations as a function of time.
+ * @brief Oscillation between two orientations as a function of time.
+ * 
+ * Returns slerp(orientation1, orientation2, t) where the parameterisation t is
+ * given by the normalised sine wave t = (sin(time) + 1) / 2.
  */
-class OrientationSlerpTrajectory : public OrientationTrajectory
+class SlerpTrajectory : public OrientationTrajectory
 {
 public:
 
@@ -430,7 +463,10 @@ public:
         /// second orientation.
         double second_angle;
 
-        /// JSON conversion for OrientationSlerpTrajectory.
+        /// The frequency of the orientation interpolation.
+        double frequency;
+
+        /// JSON conversion for SlerpTrajectory.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             first_axis, first_angle, second_axis, second_angle
@@ -444,26 +480,92 @@ public:
      * trajectory.
      * @returns A pointer to the trajectory on success or nullptr on failure.
      */
-    static std::unique_ptr<OrientationSlerpTrajectory> create(
+    static std::unique_ptr<SlerpTrajectory> create(
         const Configuration &configuration
     );
 
     /**
-     * @brief Get the orientation.
+     * @brief Get the orientation interpolated between the two provided.
      * 
-     * @param time The time of the orientation, unused.
-     * @returns The orientation.
+     * @param time The time of the orientation.
+     * @returns The interpolated orientation.
      */
     Quaterniond get_orientation(double time) override;
 
 private:
 
-    OrientationSlerpTrajectory();
+    /**
+     * @brief Initialise an orientation spherically interpolated trajectory.
+     * 
+     * @param configuration The configuration of the trajectory.
+     */
+    SlerpTrajectory(const Configuration &configuration);
 
+    /// The first orientation.
     Quaterniond m_first;
 
+    /// The second orientation.
     Quaterniond m_second;
 
     /// Frequency of oscillation between the orientations in radians.
-    double frequency;
+    double m_frequency;
+};
+
+struct PositionTrajectory::Configuration {
+
+    enum Type {
+        POINT,
+        CIRCLE,
+        RECTANGLE,
+        LISSAJOUS,
+        FIGURE_EIGHT
+    };
+
+    /// The configured position trajectory.
+    Type type;
+
+    /// Configuration for the point
+    std::optional<PointTrajectory::Configuration> point;
+
+    /// Configuration for the circle trajectory.
+    std::optional<CircularTrajectory::Configuration> circle;
+
+    /// Configuration for the rectangle trajectory.
+    std::optional<RectangularTrajectory::Configuration> rectangle;
+
+    /// Configuration for the lissajous trajectory.
+    std::optional<LissajousTrajectory::Configuration> lissajous;
+
+    /// Configuration for the figure eight trajectory.
+    std::optional<FigureEightTrajectory::Configuration> figure_eight;
+
+    /// JSON conversion for positional trajectory configuration.
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        PositionTrajectory::Configuration,
+        type, point, circle, rectangle, lissajous, figure_eight
+    );
+};
+
+struct OrientationTrajectory::Configuration {
+
+    enum Type {
+        AXIS_ANGLE,
+        SLERP
+    };
+
+    /// The type of the orientation trajectory.
+    Type type;
+
+    /// Configuration for the axis angle trajectory.
+    std::optional<AxisAngleTrajectory::Configuration> axis_angle;
+
+    /// Configuration for the orientation spherically interpolated quaternion
+    /// trajectory.
+    std::optional<SlerpTrajectory::Configuration> slerp;
+
+    /// JSON conversion for orientation trajectory configuration.
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        OrientationTrajectory::Configuration,
+        axis_angle, slerp
+    )
 };
