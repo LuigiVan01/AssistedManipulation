@@ -69,7 +69,7 @@ public:
         )
     };
 
-    static const Configuration DEFAULT_CONFIGIURATION;
+    static const Configuration DEFAULT_CONFIGURATION;
 
     /**
      * @brief Create a test reaching for a point.
@@ -79,7 +79,7 @@ public:
      * 
      * @return A pointer to the test on success or nullptr on failure.
      */
-    static std::unique_ptr<Test> create(Options &options);
+    static std::unique_ptr<BaseSimulation> create(Options &options);
 
     /**
      * @brief Create a the base simulation.
@@ -87,7 +87,7 @@ public:
      * @param configuration The configuration of the base simulation.
      * @returns A pointer to the bast simulation on success or nullptr on failure.
      */
-    static std::unique_ptr<Test> create(const Configuration &configuration);
+    static std::unique_ptr<BaseSimulation> create(const Configuration &configuration);
 
     /**
      * @brief Get the simulator.
@@ -107,6 +107,8 @@ public:
 
     /**
      * @brief Get the wrench forecast.
+     * 
+     * @note May be nullptr.
      */
     inline Forecast *get_wrench_forecast()
     {

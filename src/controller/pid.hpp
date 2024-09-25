@@ -3,8 +3,7 @@
 #include <mutex>
 #include <stdexcept>
 
-#include <Eigen/Eigen>
-
+#include "controller/eigen.hpp"
 #include "controller/json.hpp"
 
 namespace controller {
@@ -19,10 +18,7 @@ public:
     struct Configuration {
 
         /// The number of degrees of freedom for state.
-        unsigned int state_dof;
-
-        /// The number of degrees of freedom for control.
-        unsigned int control_dof;
+        unsigned int n;
 
         /// Proportional gain matrix.
         Eigen::VectorXd kp;
@@ -43,93 +39,32 @@ public:
         Eigen::VectorXd reference;
 
         /// The initial time.
-        double time;
+        double initial_time;
 
         // JSON conversion for pid configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            state_dof, control_dof, kp, kd, ki, minimum, maximum, reference,
-            time
+            n, kp, kd, ki, minimum, maximum, reference, initial_time
         )
     };
 
     /**
-     * @brief Create a new PID controller.
+     * @brief Create a new pid controller.
      * 
-     * @param reference The desired target of the controller.
+     * All the dimensions of the pid controller must be equal.
      * 
-     * @throws std::logic_error if the pid parameters are not square or have
-     * different dimensions.
+     * @param configuration The configuration of the pid controller.
+     * @return A pointer to the pid controller on success or nullptr on failure.
      */
-    inline PID(const Configuration &configuration)
-        : m_kp(configuration.kp)
-        , m_kd(configuration.kd)
-        , m_ki(configuration.ki)
-        , m_minimum(configuration.minimum)
-        , m_maximum(configuration.maximum)
-        , m_reference(configuration.reference)
-        , m_error(Eigen::VectorXd::Zero(configuration.state_dof))
-        , m_last_error(Eigen::VectorXd::Zero(configuration.state_dof))
-        , m_cumulative_error(Eigen::VectorXd::Zero(configuration.state_dof))
-        , m_saturation(Eigen::VectorXd::Zero(configuration.control_dof))
-        , m_control(Eigen::VectorXd::Zero(configuration.control_dof))
-        , m_last_time(configuration.time)
-    {
-        bool equal_dimensions = (
-            m_kp.size() == m_kd.size() &&
-            m_kd.size() == m_ki.size() &&
-            m_ki.size() == m_minimum.size() &&
-            m_minimum.size() == m_maximum.size() &&
-            m_reference.size() == m_minimum.size()
-        );
-
-        if (!equal_dimensions) {
-            throw std::logic_error(
-                "pid parameters must be square and have the same dimensions"
-            );
-        }
-    }
+    static std::unique_ptr<PID> create(const Configuration &configuration);
 
     /**
      * @brief Update the control to apply to the current observed state.
      * 
-     * Both the state and control must have the same dimensions as the pid
-     * parameters.
-     * 
      * @param state The observed state of the system.
      * @param time The current time in seconds.
      */
-    inline void update(Eigen::Ref<Eigen::VectorXd> state, double time)
-    {
-        // Time must be monotonically increasing. Also waits until dt
-        // calculations are valid.
-        if (time <= m_last_time)
-            return;
-
-        double dt = time - m_last_time;
-        auto error = m_reference - state;
-
-        // Runge kutta? Inaccuracy of small number division?
-
-        // Calculate control and saturate.
-        m_control = (
-            m_kp.cwiseProduct(error) +
-            m_kd.cwiseProduct(error - m_last_error) / dt +
-            m_ki.cwiseProduct(m_cumulative_error)
-        ).cwiseMin(m_maximum).cwiseMax(m_minimum);
-
-        // Calculate saturation per degree of freedom.
-        m_saturation = (
-            m_control.array() < m_maximum.array() &&
-            m_control.array() > m_minimum.array()
-        ).cast<double>();
-
-        // Accumulate error only if not saturated (anti windup).
-        m_cumulative_error += error.cwiseProduct(m_saturation) * dt;
-
-        m_last_error = error;
-        m_last_time = time;
-    }
+    virtual void update(Eigen::Ref<Eigen::VectorXd> state, double time);
 
     inline const Eigen::VectorXd get_control() const {
         return m_control;
@@ -199,7 +134,13 @@ public:
         m_ki = ki;
     }
 
-private:
+protected:
+
+    /**
+     * @brief Create a new PID controller.
+     * @param configuration Configuration of the pid controller.
+     */
+    PID(const Configuration &configuration);
 
     /// Proportional gain.
     Eigen::VectorXd m_kp;
@@ -236,6 +177,77 @@ private:
 
     /// The time of the last update.
     double m_last_time;
+};
+
+/**
+ * @brief A pid controller for a quaternion and xzx' convention euler angles.
+ */
+class QuaternionPID : public PID
+{
+public:
+
+    struct Configuration {
+
+        /// Proportional gain matrix.
+        Eigen::VectorXd kp;
+
+        /// Derivative gain matrix.
+        Eigen::VectorXd kd;
+
+        /// Integral gain matrix.
+        Eigen::VectorXd ki;
+
+        /// The minimum control output.
+        Eigen::VectorXd minimum;
+
+        /// The maximum control output.
+        Eigen::VectorXd maximum;
+
+        /// The initial reference of the pid controller.
+        Eigen::VectorXd reference;
+
+        /// The initial time.
+        double initial_time;
+
+        /// JSON conversion for quaternion pid controller.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            kp, kd, ki, minimum, maximum, reference
+        )
+    };
+
+    /**
+     * @brief Create a quaternion pid controller.
+     * 
+     * @param configuration The configuration of the pid controller.
+     * @return A pointer to the pid controller on success or nullptr on failure.
+     */
+    static std::unique_ptr<QuaternionPID> create(const Configuration &configuration);
+
+    /**
+     * @brief Update the control to apply to the current observed orientation.
+     * 
+     * @warning The quaternion must be normalised.
+     * 
+     * @param quaternion The observed orientation of the system.
+     * @param time The current time in seconds.
+     */
+    void update(Eigen::Ref<Eigen::VectorXd> quaternion, double time) override;
+
+    /**
+     * @brief Update the controller with an observed quaternion.
+     * 
+     * @warning The quaternion must be normalised.
+     * 
+     * @param quaternion The observed quaternion.
+     * @param time The current time in seconds.
+     */
+    void update(Quaterniond quaternion, double time);
+
+private:
+
+    QuaternionPID(const PID::Configuration &pid);
+
 };
 
 } // namespace controller

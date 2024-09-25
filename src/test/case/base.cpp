@@ -2,7 +2,7 @@
 
 #include "logging/file.hpp"
 
-const BaseSimulation::Configuration BaseSimulation::DEFAULT_CONFIGIURATION {
+const BaseSimulation::Configuration BaseSimulation::DEFAULT_CONFIGURATION {
     .folder = "default",
     .duration = 30.0,
     .simulator = {
@@ -91,9 +91,9 @@ const BaseSimulation::Configuration BaseSimulation::DEFAULT_CONFIGIURATION {
     }
 };
 
-std::unique_ptr<Test> BaseSimulation::create(Options &options)
+std::unique_ptr<BaseSimulation> BaseSimulation::create(Options &options)
 {
-    Configuration configuration = DEFAULT_CONFIGIURATION;
+    Configuration configuration = DEFAULT_CONFIGURATION;
     configuration.duration = options.duration;
     configuration.folder = options.folder;
 
@@ -108,7 +108,7 @@ std::unique_ptr<Test> BaseSimulation::create(Options &options)
     }
     catch (const json::exception &err) {
         std::cerr << "error when patching json configuration: " << err.what() << std::endl;
-        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGIURATION).dump(4) << std::endl;
+        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGURATION).dump(4) << std::endl;
         std::cerr << "patch was " << options.patch.dump(4) << std::endl;
         return nullptr;
     }
@@ -116,7 +116,7 @@ std::unique_ptr<Test> BaseSimulation::create(Options &options)
     return create(configuration);
 }
 
-std::unique_ptr<Test> BaseSimulation::create(const Configuration &configuration)
+std::unique_ptr<BaseSimulation> BaseSimulation::create(const Configuration &configuration)
 {
     std::unique_ptr<Simulator> simulator = Simulator::create(configuration.simulator);
     if (!simulator) {
@@ -220,6 +220,12 @@ void BaseSimulation::step()
 bool BaseSimulation::run()
 {
     while (m_simulator->get_time() < m_duration) {
+
+        // Stores the current time and a duration. If the duration has not
+        // elapsed by the time the destructor is called, waits for the remaining
+        // duration. Caps the maximum loop speed to realtime.
+        auto delay = raisim::TimedLoop(m_simulator->get_time_step() * 1e6);
+
         step();
     }
 
