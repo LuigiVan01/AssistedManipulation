@@ -273,7 +273,7 @@ inline void to_json(json& j, const State &state)
 inline void from_json(const json& j, State &state)
 {
     for (json::size_type i = 0; i < j.size(); i++)
-        j.get_to(state(i));
+        state(i) = j[i].get<double>();
 }
 
 } // namespace FrankaRidgeback

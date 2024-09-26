@@ -78,6 +78,17 @@ public:
     }
 
     /**
+     * @brief Get all the registered test names.
+     */
+    static std::vector<std::string> get_test_names()
+    {
+        std::vector<std::string> names;
+        for (auto &[name, _] : s_tests)
+            names.push_back(name);
+        return names;
+    }
+
+    /**
      * @brief Run all tests.
      * @returns If all the tests were successful.
      */
@@ -116,7 +127,7 @@ public:
         std::string name,
         json patch = nullptr,
         std::string output_folder = "",
-        double test_duration = 10.0
+        double test_duration = 30.0
     ) {
         using namespace std::string_literals;
         using namespace std::chrono_literals;
@@ -137,7 +148,7 @@ public:
         auto test = it->second(meta);
         if (!test) {
             std::cerr << "failed to create test \"" << name << "\""
-                      << " with configuration " << ((json)meta).dump(4)
+                      << " with options " << ((json)meta).dump(4)
                       << std::endl;
             return false;
         }

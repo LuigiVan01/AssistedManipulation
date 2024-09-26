@@ -31,7 +31,7 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
     // Ensure computing the inverse dynamics is enabled to get the end effector
     // frame acceleration.
     auto frankaridgeback = world->addArticulatedSystem(configuration.filename);
-    frankaridgeback->setComputeInverseDynamics(true);
+    // frankaridgeback->setComputeInverseDynamics(true);
     frankaridgeback->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
 
     std::size_t end_effector_frame_index = frankaridgeback->getFrameIdxByName(
@@ -55,9 +55,8 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
     );
 
     // Start with zero force on the joints.
-    frankaridgeback->setGeneralizedForce(
-        Eigen::VectorXd::Zero((Eigen::Index)frankaridgeback->getDOF())
-    );
+    auto zero = Eigen::VectorXd::Zero((Eigen::Index)frankaridgeback->getDOF());
+    frankaridgeback->setGeneralizedForce(zero);
 
     return std::unique_ptr<RaisimDynamics>(
         new RaisimDynamics(
@@ -187,37 +186,38 @@ void RaisimDynamics::calculate()
     // }
 
     // Update the end effector velocity.
-    raisim::Vec<3> end_effector_linear_velocity, end_effector_angular_velocity;
-    auto frame = m_robot->getFrameByIdx(m_end_effector_frame_index);
-    m_robot->getFrameVelocity(frame, end_effector_linear_velocity);
-    m_robot->getAngularVelocity(frame.parentId, end_effector_angular_velocity);
-    m_end_effector_linear_velocity = end_effector_linear_velocity.e();
-    m_end_effector_angular_velocity = end_effector_angular_velocity.e();
+    // raisim::Vec<3> end_effector_linear_velocity, end_effector_angular_velocity;
+    // auto frame = m_robot->getFrameByIdx(m_end_effector_frame_index);
+    // m_robot->getFrameVelocity(frame, end_effector_linear_velocity);
+    // m_robot->getAngularVelocity(frame.parentId, end_effector_angular_velocity);
+    // m_end_effector_linear_velocity = end_effector_linear_velocity.e();
+    // m_end_effector_angular_velocity = end_effector_angular_velocity.e();
 
-    // Update the end effector acceleration.
-    raisim::Vec<3> end_effector_linear_acceleration;
-    m_robot->getFrameAcceleration(m_end_effector_frame_name, end_effector_linear_acceleration);
-    m_end_effector_linear_acceleration = end_effector_linear_acceleration.e();
-    m_end_effector_angular_acceleration.setZero();
+    // // Update the end effector acceleration.
+    // raisim::Vec<3> end_effector_linear_acceleration;
+    // m_robot->getFrameAcceleration(m_end_effector_frame_name, end_effector_linear_acceleration);
+    // m_end_effector_linear_acceleration = end_effector_linear_acceleration.e();
+    // m_end_effector_angular_acceleration.setZero();
 }
 
 void RaisimDynamics::act(const Control &control)
 {
     // Gripper positional controls.
+    m_position_command.setZero();
     m_position_command.tail<DoF::GRIPPER>() = control.gripper_position();
 
     // Rotate the desired base velocity command into the base frame of reference.
-    m_velocity_command.head<DoF::BASE_POSITION>() = (
-        Eigen::Rotation2Dd(m_state.base_yaw().value()) * control.base_velocity()
-    );
-
-    // Set the desired base rotational and arm velocities.
+    m_velocity_command.setZero();
+    m_velocity_command.head<DoF::BASE_POSITION>() = /* Eigen::Rotation2Dd(m_state.base_yaw().value()) * */ control.base_velocity();
     m_velocity_command.segment<DoF::BASE_YAW>(DoF::BASE_POSITION) = control.base_angular_velocity();
-    m_velocity_command.segment<DoF::ARM>(DoF::BASE) = control.arm_velocity();
+    // m_velocity_command.segment<DoF::ARM>(DoF::BASE) = control.arm_velocity();
 
     // Set the PD controller targets and apply the torques.
+    auto forces = m_robot->getNonlinearities(m_world->getGravity()).e().eval();
+    forces.segment<DoF::ARM>(DoF::BASE) += control.arm_velocity();
+
     m_robot->setPdTarget(m_position_command, m_velocity_command);
-    m_robot->setGeneralizedForce(m_robot->getNonlinearities(m_world->getGravity()));
+    m_robot->setGeneralizedForce(forces);
  
     // We could simulate the forecasted end effector wrench, but this would make
     // the calculation of the user observed end effector force incorrect.

@@ -6,6 +6,12 @@
 #include <vector>
 
 #include "test/test.hpp"
+#include "test/case/reach.hpp"
+#include "test/case/figure_eight.hpp"
+#include "test/case/pose.hpp"
+#include "test/case/circle.hpp"
+#include "test/case/rectangle.hpp"
+#include "test/case/slerp.hpp"
 
 /**
  * @brief Parse command line arguments.
@@ -115,6 +121,15 @@ int main(int argc, char **argv)
     if (!success)
         usage("failed to parse args");
 
+    // List all the registered tests if requested.
+    if (flags.contains('l')) {
+        std::cout << "available:" << std::endl;
+        for (std::string &name : TestSuite::get_test_names()) {
+            std::cout << "    " << name << std::endl;
+        }
+        return 0;
+    }
+
     // Must supply test.
     if (!args.contains("test") || args["test"].size() != 1) 
         usage("--test must be specified");
@@ -123,7 +138,7 @@ int main(int argc, char **argv)
     if (!args.contains("out") || args["out"].size() != 1)
         usage("--out must be specified");
 
-    json configuration = nullptr;
+    json configuration = json::object();
 
     if (args.contains("config")) {
         const std::string &string = args["config"][0];

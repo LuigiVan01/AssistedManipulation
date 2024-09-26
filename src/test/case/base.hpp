@@ -4,13 +4,14 @@
 #include <filesystem>
 
 #include "simulation/simulator.hpp"
-#include "simulation/actors/frankaridgeback.hpp"
+#include "simulation/frankaridgeback.hpp"
 #include "simulation/raisim_dynamics.hpp"
 #include "frankaridgeback/objective/assisted_manipulation.hpp"
+#include "frankaridgeback/objective/track_point.hpp"
 #include "logging/mppi.hpp"
 #include "test/test.hpp"
 
-class BaseSimulation : public RegisteredTest<BaseSimulation>
+class BaseTest : public RegisteredTest<BaseTest>
 {
 public:
 
@@ -22,7 +23,8 @@ public:
     struct Objective {
 
         enum Type {
-            ASSISTED_MANIPULATION
+            ASSISTED_MANIPULATION,
+            TRACK_POINT
         };
 
         /// The selected objective.
@@ -31,10 +33,13 @@ public:
         /// Configuration for the assisted manipulation objective.
         std::optional<AssistedManipulation::Configuration> assisted_manipulation;
 
+        /// Configuration for the reach objective.
+        std::optional<TrackPoint::Configuration> track_point;
+
         // JSON conversion for base simulation objective.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Objective,
-            type, assisted_manipulation
+            type, assisted_manipulation, track_point
         )
     };
 
@@ -79,7 +84,7 @@ public:
      * 
      * @return A pointer to the test on success or nullptr on failure.
      */
-    static std::unique_ptr<BaseSimulation> create(Options &options);
+    static std::unique_ptr<BaseTest> create(Options &options);
 
     /**
      * @brief Create a the base simulation.
@@ -87,7 +92,7 @@ public:
      * @param configuration The configuration of the base simulation.
      * @returns A pointer to the bast simulation on success or nullptr on failure.
      */
-    static std::unique_ptr<BaseSimulation> create(const Configuration &configuration);
+    static std::unique_ptr<BaseTest> create(const Configuration &configuration);
 
     /**
      * @brief Get the simulator.
@@ -139,7 +144,7 @@ private:
      * @param frankaridgeback The frankaridgeback instance being simulated.
      * @param mppi_logger Logger for the mppi.
      */
-    BaseSimulation(
+    BaseTest(
         double duration,
         std::unique_ptr<Simulator> &&simulator,
         std::shared_ptr<FrankaRidgeback::Actor> &&frankaridgeback,

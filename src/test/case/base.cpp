@@ -2,7 +2,7 @@
 
 #include "logging/file.hpp"
 
-const BaseSimulation::Configuration BaseSimulation::DEFAULT_CONFIGURATION {
+const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
     .folder = "default",
     .duration = 30.0,
     .simulator = {
@@ -30,8 +30,27 @@ const BaseSimulation::Configuration BaseSimulation::DEFAULT_CONFIGURATION {
             },
             .energy = 10.0
         },
-        .mppi_dynamics_type = FrankaRidgeback::Actor::Type::PINOCCHIO,
-        .mppi_dynamics_raisim = std::nullopt,
+        .mppi_dynamics_type = FrankaRidgeback::Actor::Type::RAISIM,
+        .mppi_dynamics_raisim = FrankaRidgeback::RaisimDynamics::Configuration {
+            .simulator = Simulator::Configuration {
+                .time_step = 0.005,
+                .gravity = {0.0, 0.0, 9.81}
+            },
+            .filename = "",
+            .end_effector_frame = "panda_grasp_joint",
+            .initial_state = FrankaRidgeback::State::Zero(),
+            .proportional_gain = FrankaRidgeback::Control{
+                0.0, 0.0, 0.0, // base
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
+                100.0, 100.0
+            },
+            .differential_gain = FrankaRidgeback::Control{
+                1000.0, 1000.0, 1.0, // base
+                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                50.0, 50.0
+            },
+            .energy = 10.0
+        },
         .mppi_dynamics_pinocchio = FrankaRidgeback::PinocchioDynamics::Configuration{
             .filename = "",
             .end_effector_frame = "panda_grasp_joint",
@@ -49,7 +68,7 @@ const BaseSimulation::Configuration BaseSimulation::DEFAULT_CONFIGURATION {
             .cost_discount_factor = 1.0,
             .covariance = FrankaRidgeback::Control{
                 0.1, 0.1, 0.2, // base
-                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, // arm
                 0.0, 0.0 // gripper
             }.asDiagonal(),
             .control_bound = false,
@@ -65,13 +84,17 @@ const BaseSimulation::Configuration BaseSimulation::DEFAULT_CONFIGURATION {
             },
             .control_default = FrankaRidgeback::Control::Zero(),
             .smoothing = std::nullopt,
+            // .smoothing = mppi::Configuration::Smoothing {
+            //     .window = 10,
+            //     .order = 1
+            // },
             .threads = 12
         },
-        .controller_rate = 0.3,
-        .controller_substeps = 10
+        .controller_rate = 0.15,
+        .controller_substeps = 5
     },
     .objective = {
-        .type = BaseSimulation::Objective::Type::ASSISTED_MANIPULATION,
+        .type = BaseTest::Objective::Type::ASSISTED_MANIPULATION,
         .assisted_manipulation = AssistedManipulation::Configuration {
             .enable_joint_limit = true,
             .enable_reach_limit = false,
@@ -91,7 +114,7 @@ const BaseSimulation::Configuration BaseSimulation::DEFAULT_CONFIGURATION {
     }
 };
 
-std::unique_ptr<BaseSimulation> BaseSimulation::create(Options &options)
+std::unique_ptr<BaseTest> BaseTest::create(Options &options)
 {
     Configuration configuration = DEFAULT_CONFIGURATION;
     configuration.duration = options.duration;
@@ -116,7 +139,7 @@ std::unique_ptr<BaseSimulation> BaseSimulation::create(Options &options)
     return create(configuration);
 }
 
-std::unique_ptr<BaseSimulation> BaseSimulation::create(const Configuration &configuration)
+std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
 {
     std::unique_ptr<Simulator> simulator = Simulator::create(configuration.simulator);
     if (!simulator) {
@@ -126,19 +149,32 @@ std::unique_ptr<BaseSimulation> BaseSimulation::create(const Configuration &conf
 
     std::unique_ptr<mppi::Cost> objective;
 
-    if (configuration.objective.type == Objective::Type::ASSISTED_MANIPULATION) {
-        if (!configuration.objective.assisted_manipulation) {
-            std::cerr << "assisted manipulation objective selected with no configuration" << std::endl;
+    switch (configuration.objective.type)
+    {
+        case Objective::Type::ASSISTED_MANIPULATION: {
+            if (!configuration.objective.assisted_manipulation) {
+                std::cerr << "assisted manipulation objective selected with no configuration" << std::endl;
+                return nullptr;
+            }
+
+            objective = AssistedManipulation::create(
+                *configuration.objective.assisted_manipulation
+            );
+            break;
+        }
+        case Objective::Type::TRACK_POINT: {
+            if (!configuration.objective.track_point) {
+                std::cerr << "assisted manipulation objective selected with no configuration" << std::endl;
+                return nullptr;
+            }
+
+            objective = TrackPoint::create(*configuration.objective.track_point);
+            break;
+        }
+        default: {
+            std::cerr << "unknown objective type " << configuration.objective.type << " provided" << std::endl;
             return nullptr;
         }
-
-        objective = AssistedManipulation::create(
-            *configuration.objective.assisted_manipulation
-        );
-    }
-    else {
-        std::cerr << "unknown objective type " << configuration.objective.type << " provided" << std::endl;
-        return nullptr;
     }
 
     if (!objective) {
@@ -190,8 +226,8 @@ std::unique_ptr<BaseSimulation> BaseSimulation::create(const Configuration &conf
         file->get_stream() << ((json)configuration).dump(4);
     }
 
-    return std::unique_ptr<BaseSimulation>(
-        new BaseSimulation(
+    return std::unique_ptr<BaseTest>(
+        new BaseTest(
             configuration.duration,
             std::move(simulator),
             std::move(frankaridgeback),
@@ -200,7 +236,7 @@ std::unique_ptr<BaseSimulation> BaseSimulation::create(const Configuration &conf
     );
 }
 
-BaseSimulation::BaseSimulation(
+BaseTest::BaseTest(
     double duration,
     std::unique_ptr<Simulator> &&simulator,
     std::shared_ptr<FrankaRidgeback::Actor> &&frankaridgeback,
@@ -211,13 +247,13 @@ BaseSimulation::BaseSimulation(
    , m_mppi_logger(std::move(mppi_logger))
 {}
 
-void BaseSimulation::step()
+void BaseTest::step()
 {
     m_simulator->step();
     m_mppi_logger->log(m_frankaridgeback->get_controller());
 }
 
-bool BaseSimulation::run()
+bool BaseTest::run()
 {
     while (m_simulator->get_time() < m_duration) {
 

@@ -2,6 +2,7 @@
 
 // Controller configuration json conversion utilities.
 
+#include <iostream>
 #include <optional>
 #include <cstdint>
 
@@ -66,13 +67,16 @@ void from_json(const json &source, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options
 {
     using T = typename Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>::Scalar;
 
+    // Note that json::operator[] is used exclusively for indexing arrays,will throw an exception, and not produce
+    // undefined behaviour.
+
     std::size_t n = source.size();
-    std::size_t m = source.at(0).size();
+    std::size_t m = source[0].size();
     matrix.resize(n, m);
 
     for (std::size_t i = 0; i < n; i++) {
         for (std::size_t j = 0; j < m; j++) {
-            matrix(i, j) = source.at(i).at(j).get<T>();
+            matrix(i, j) = source[i][j].get<T>();
         }
     }
 }

@@ -8,7 +8,7 @@
 #include "controller/pid.hpp"
 #include "logging/pid.hpp"
 
-class ExternalWrenchSimulation : public RegisteredTest<ExternalWrenchSimulation>
+class ExternalWrenchTest : public RegisteredTest<ExternalWrenchTest>
 {
 public:
 
@@ -23,7 +23,7 @@ public:
         double duration;
 
         /// Configuration of the base mppi frankaridgeback simulation.
-        BaseSimulation::Configuration base;
+        BaseTest::Configuration base;
 
         struct Trajectory {
 
@@ -66,7 +66,7 @@ public:
      * @param configuration The configuration of the external wrench simulation.
      * @return A pointer to the simulation on success or nullptr on failure.
      */
-    static std::unique_ptr<Test> create(Configuration configuration);
+    static std::unique_ptr<ExternalWrenchTest> create(Configuration configuration);
 
     /**
      * @brief Create a circle test instance.
@@ -76,7 +76,7 @@ public:
      * 
      * @returns A pointer to the test on success or nullptr on failure.
      */
-    static std::unique_ptr<Test> create(Options &options);
+    static std::unique_ptr<ExternalWrenchTest> create(Options &options);
 
     /**
      * @brief Run the test.
@@ -89,9 +89,9 @@ private:
     /**
      * @brief Initialise the external wrench simulation.
      */
-    ExternalWrenchSimulation(
+    ExternalWrenchTest(
         Configuration &&configuration,
-        std::unique_ptr<BaseSimulation> &&base,
+        std::unique_ptr<BaseTest> &&base,
         std::unique_ptr<PositionTrajectory> &&position,
         std::unique_ptr<OrientationTrajectory> &&orientation,
         std::unique_ptr<controller::PID> &&force_pid,
@@ -105,7 +105,7 @@ private:
 
     /// Pointer to the base simulation, interacted with to implement the
     /// simulation.
-    std::unique_ptr<BaseSimulation> m_base;
+    std::unique_ptr<BaseTest> m_base;
 
     /// A positional trajectory for the force pid controller to follow.
     std::unique_ptr<PositionTrajectory> m_position;

@@ -57,9 +57,21 @@
         {
             "id": "test",
             "description": "The test to run.",
-            "options": ["manipulability", "power", "pinocchio", "reach", "circle"],
+            "options": [
+                "base",
+                "external_wrench",
+                "reach",
+                "point",
+                "circle",
+                "rectangle",
+                "figure_eight",
+                "lissajous",
+                "manipulability",
+                "power",
+                "pinocchio"
+            ],
             "type": "pickString",
-            "default": "circle"
+            "default": "figure_eight"
         }
     ]
 }

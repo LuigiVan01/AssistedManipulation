@@ -1,4 +1,4 @@
-#include "simulation/actors/frankaridgeback.hpp"
+#include "simulation/frankaridgeback.hpp"
 
 namespace FrankaRidgeback {
 
@@ -6,10 +6,14 @@ std::shared_ptr<Actor> Actor::create(
     Configuration configuration,
     Simulator *simulator,
     std::unique_ptr<mppi::Cost> &&cost,
-    std::unique_ptr<Forecast::Handle> &&force_forecast, 
+    std::unique_ptr<Forecast::Handle> &&wrench_forecast, 
     std::unique_ptr<mppi::Filter> &&filter
 ) {
     using namespace controller;
+
+    std::unique_ptr<Forecast::Handle> mppi_forecast = nullptr;
+    if (wrench_forecast)
+        mppi_forecast = wrench_forecast->copy();
 
     std::unique_ptr<mppi::Dynamics> mppi_dynamics = nullptr;
 
@@ -21,7 +25,7 @@ std::shared_ptr<Actor> Actor::create(
         }
         mppi_dynamics = RaisimDynamics::create(
             *configuration.mppi_dynamics_raisim,
-            std::move(force_forecast->copy())
+            std::move(mppi_forecast)
         );
     }
     else if (configuration.mppi_dynamics_type == Type::PINOCCHIO) {
@@ -31,7 +35,7 @@ std::shared_ptr<Actor> Actor::create(
         }
         mppi_dynamics = PinocchioDynamics::create(
             *configuration.mppi_dynamics_pinocchio,
-            std::move(force_forecast->copy())
+            std::move(mppi_forecast)
         );
     }
     else {
@@ -62,7 +66,7 @@ std::shared_ptr<Actor> Actor::create(
     // Create the raisim dynamics to simulate the robot with.
     auto simulated_dynamics = FrankaRidgeback::RaisimDynamics::create(
         configuration.simulated_dynamics,
-        std::move(force_forecast->copy()),
+        std::move(wrench_forecast),
         simulator->get_world()
     );
     if (!simulated_dynamics) {

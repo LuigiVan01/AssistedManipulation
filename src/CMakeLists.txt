@@ -30,6 +30,7 @@ add_executable(
     controller/mppi.cpp
     controller/pid.cpp
     controller/trajectory.cpp
+    # controller/qp.cpp
 
     # test/case/base/reach.cpp
     test/case/base.cpp
@@ -38,14 +39,11 @@ add_executable(
     # test/case/manipulability.cpp
     # test/case/pinocchio.cpp
 
-    simulation/simulator.cpp
-    simulation/actors/frankaridgeback.cpp
+    simulation/frankaridgeback.cpp
     simulation/raisim_dynamics.cpp
+    simulation/simulator.cpp
 
-    # controller/qp.cpp
-
-    # frankaridgeback/dynamics.cpp
-    # frankaridgeback/objective/track_point.cpp
+    frankaridgeback/objective/track_point.cpp
     frankaridgeback/objective/assisted_manipulation.cpp
     frankaridgeback/pinocchio_dynamics.cpp
 

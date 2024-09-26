@@ -79,7 +79,8 @@ public:
      * @param simulator Pointer to the owning simulator.
      * @param dynamics Pointer to the dynamics to use for trajectory generation.
      * @param cost Pointer to the cost to use for trajectory generation.
-     * @param force_forecast Pointer to the optional force prediction algorithm.
+     * @param wrench_forecast Optional pointer to the external wrench prediction
+     * algorithm.
      * @param filter Pointer to the optional safety filter.
      * @returns A pointer to the actor on success, or nullptr on failure.
      */
@@ -87,7 +88,7 @@ public:
         Configuration configuration,
         Simulator *simulator,
         std::unique_ptr<mppi::Cost> &&cost,
-        std::unique_ptr<Forecast::Handle> &&force_forecast = nullptr,
+        std::unique_ptr<Forecast::Handle> &&wrench_forecast = nullptr,
         std::unique_ptr<mppi::Filter> &&filter = nullptr
     );
 

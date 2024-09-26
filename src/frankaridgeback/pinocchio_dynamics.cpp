@@ -94,6 +94,7 @@ PinocchioDynamics::PinocchioDynamics(
     , m_model(std::move(model))
     , m_data(std::move(data))
     , m_geometry_model(std::move(geometry_model))
+    , m_geometry_data(std::move(geometry_data))
     , m_end_effector_frame_index(end_effector_frame_index)
     , m_joint_position()
     , m_joint_velocity()

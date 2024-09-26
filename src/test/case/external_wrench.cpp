@@ -2,10 +2,10 @@
 
 #include "frankaridgeback/dynamics.hpp"
 
-ExternalWrenchSimulation::Configuration ExternalWrenchSimulation::DEFAULT_CONFIGURATION {
+ExternalWrenchTest::Configuration ExternalWrenchTest::DEFAULT_CONFIGURATION {
     .folder = "external_wrench",
     .duration = 30,
-    .base = BaseSimulation::DEFAULT_CONFIGURATION,
+    .base = BaseTest::DEFAULT_CONFIGURATION,
     .trajectory = {
         // .position = std::nullopt,
         .position = PositionTrajectory::Configuration {
@@ -21,12 +21,12 @@ ExternalWrenchSimulation::Configuration ExternalWrenchSimulation::DEFAULT_CONFIG
             .lissajous = std::nullopt,
             .figure_eight = std::nullopt
         },
-        // .orientation = std::nullopt
-        .orientation = OrientationTrajectory::Configuration {
-            .type = OrientationTrajectory::Configuration::AXIS_ANGLE,
-            .axis_angle = std::nullopt,
-            .slerp = std::nullopt
-        }
+        .orientation = std::nullopt
+        // .orientation = OrientationTrajectory::Configuration {
+        //     .type = OrientationTrajectory::Configuration::AXIS_ANGLE,
+        //     .axis_angle = std::nullopt,
+        //     .slerp = std::nullopt
+        // }
     },
     .force_pid = {
         .n = 3,
@@ -47,7 +47,7 @@ ExternalWrenchSimulation::Configuration ExternalWrenchSimulation::DEFAULT_CONFIG
     }
 };
 
-std::unique_ptr<Test> ExternalWrenchSimulation::create(Options &options)
+std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Options &options)
 {
     Configuration configuration = DEFAULT_CONFIGURATION;
     configuration.duration = options.duration;
@@ -72,7 +72,7 @@ std::unique_ptr<Test> ExternalWrenchSimulation::create(Options &options)
     return create(configuration);
 }
 
-std::unique_ptr<Test> ExternalWrenchSimulation::create(Configuration configuration)
+std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Configuration configuration)
 {
     if (configuration.duration <= 0.0) {
         std::cerr << "test duration <= 0" << std::endl;
@@ -87,7 +87,7 @@ std::unique_ptr<Test> ExternalWrenchSimulation::create(Configuration configurati
     configuration.base.duration = configuration.duration;
     configuration.base.folder = configuration.folder;
 
-    auto base = BaseSimulation::create(configuration.base);
+    auto base = BaseTest::create(configuration.base);
     if (!base) {
         std::cerr << "failed to create base simulation" << std::endl;
         return nullptr;
@@ -169,8 +169,8 @@ std::unique_ptr<Test> ExternalWrenchSimulation::create(Configuration configurati
         file->get_stream() << ((json)configuration).dump(4);
     }
 
-    return std::unique_ptr<ExternalWrenchSimulation>(
-        new ExternalWrenchSimulation(
+    return std::unique_ptr<ExternalWrenchTest>(
+        new ExternalWrenchTest(
             std::move(configuration),
             std::move(base),
             std::move(position),
@@ -183,9 +183,9 @@ std::unique_ptr<Test> ExternalWrenchSimulation::create(Configuration configurati
     );
 }
 
-ExternalWrenchSimulation::ExternalWrenchSimulation(
+ExternalWrenchTest::ExternalWrenchTest(
     Configuration &&configuration,
-    std::unique_ptr<BaseSimulation> &&base,
+    std::unique_ptr<BaseTest> &&base,
     std::unique_ptr<PositionTrajectory> &&position,
     std::unique_ptr<OrientationTrajectory> &&orientation,
     std::unique_ptr<controller::PID> &&force_pid,
@@ -210,7 +210,7 @@ ExternalWrenchSimulation::ExternalWrenchSimulation(
     }
 }
 
-bool ExternalWrenchSimulation::run()
+bool ExternalWrenchTest::run()
 {
     // Optional forecast
     auto forecast = m_base->get_wrench_forecast();

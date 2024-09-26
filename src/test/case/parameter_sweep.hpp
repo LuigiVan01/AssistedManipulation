@@ -8,7 +8,7 @@ public:
 
     struct Parameter {
 
-        std::string parameter;
+        std::string pointer;
 
         double minimum;
 

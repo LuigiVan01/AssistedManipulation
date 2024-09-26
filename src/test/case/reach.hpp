@@ -3,12 +3,8 @@
 #include <cstdlib>
 #include <filesystem>
 
-#include "simulation/simulator.hpp"
-#include "simulation/actors/frankaridgeback.hpp"
-#include "frankaridgeback/dynamics.hpp"
 #include "frankaridgeback/objective/track_point.hpp"
-#include "logging/mppi.hpp"
-#include "test/test.hpp"
+#include "test/case/base.hpp"
 
 class ReachForPoint : public RegisteredTest<ReachForPoint>
 {
@@ -18,34 +14,25 @@ public:
 
     struct Configuration {
 
-        /// The output folder for the test.
-        std::filesystem::path folder;
-
-        double duration;
-
-        /// Simulation configuration.
-        Simulator::Configuration simulator;
-
-        /// Frankaridgeback dynamics configuration.
-        FrankaRidgeback::RaisimDynamics::Configuration dynamics;
+        /// The configuration of the base simulation.
+        BaseTest::Configuration base;
 
         /// The reach for point objective configuration.
         TrackPoint::Configuration objective;
 
-        /// The actors configuration including controller update rate.
-        FrankaRidgeback::Actor::Configuration actor;
-
-        /// MPPI logging configuration.
-        logger::MPPI::Configuration logger;
-
         // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, simulator, dynamics, objective, actor, logger
+            base, objective
         )
     };
 
-    static Configuration DEFAULT_CONFIGIURATION;
+    inline const static Configuration DEFAULT_CONFIGIURATION {
+        .base = BaseTest::DEFAULT_CONFIGURATION,
+        .objective = {
+            .point = Eigen::Vector3d(1.0, 1.0, 1.0),
+        }
+    };
 
     /**
      * @brief Create a test reaching for a point.
@@ -55,23 +42,46 @@ public:
      * 
      * @return A pointer to the test on success or nullptr on failure.
      */
-    static std::unique_ptr<Test> create(Options &options);
+    inline static std::unique_ptr<Test> create(Options &options)
+    {
+        if (options.folder.empty())
+            options.folder = "reach";
 
-    static std::unique_ptr<Test> create(const Configuration &configuration);
+        // Patch to set the reach object with the default configuration.
+        json default_patch = {{
+            "objective", {
+                {"type", BaseTest::Objective::Type::TRACK_POINT},
+                {"track_point", DEFAULT_CONFIGIURATION.objective}
+            }
+        }};
 
-    /**
-     * @brief Run the test.
-     * @returns If the test was successful.
-     */
-    bool run() override;
+        // Unless the options overrides the default itself.
+        default_patch.merge_patch(options.patch);
+        options.patch = default_patch;
+
+        auto base = BaseTest::create(options);
+
+        // Add a sphere to track the point being reached.
+        if (base) {
+            auto visual = base->get_simulator()->get_server().addVisualSphere(
+                "tracking_sphere", 0.05
+            );
+            visual->setPosition(DEFAULT_CONFIGIURATION.objective.point);
+        }
+
+        return base;
+    }
 
 private:
 
-    double m_duration;
+    /**
+     * @brief Disabled.
+     */
+    inline bool run() override
+    {
+        return false;
+    }
 
-    std::unique_ptr<Simulator> m_simulator;
-
-    std::shared_ptr<FrankaRidgeback::Actor> m_robot;
-
-    std::unique_ptr<logger::MPPI> m_mppi_logger;
+    /// Disable construction.
+    ReachForPoint() = default;
 };
