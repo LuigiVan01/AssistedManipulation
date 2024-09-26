@@ -34,36 +34,36 @@ public:
     /**
      * @brief Get the position of the end effector in world space.
      */
-    virtual Vector3d get_end_effector_position() = 0;
+    virtual Vector3d get_end_effector_position() const = 0;
 
     /**
      * @brief Get the orientation of the end effector in world space.
      */
-    virtual Quaterniond get_end_effector_orientation() = 0;
+    virtual Quaterniond get_end_effector_orientation() const = 0;
 
     /**
      * @brief Get the linear velocity (vx, vy, vz) of the end effector in world
      * space.
      */
-    virtual Vector3d get_end_effector_linear_velocity() = 0;
+    virtual Vector3d get_end_effector_linear_velocity() const = 0;
 
     /**
      * @brief Get the angular velocity (wx, wy, wz) of the end effector in world
      * space.
      */
-    virtual Vector3d get_end_effector_angular_velocity() = 0;
+    virtual Vector3d get_end_effector_angular_velocity() const = 0;
 
     /**
      * @brief Get the linear acceleration (ax, ay, az) of the end effector in
      * world space.
      */
-    virtual Vector3d get_end_effector_linear_acceleration() = 0;
+    virtual Vector3d get_end_effector_linear_acceleration() const = 0;
 
     /**
      * @brief Get the angular acceleration (alpha_x, alpha_y, alpha_z) of the
      * end effector in world space.
      */
-    virtual Vector3d get_end_effector_angular_acceleration() = 0;
+    virtual Vector3d get_end_effector_angular_acceleration() const = 0;
 
     /**
      * @brief Get the jacobian of the end effector.
@@ -79,7 +79,12 @@ public:
      * 
      * @return The current power usage in joules/s.
      */
-    virtual double get_power() = 0;
+    virtual double get_power() const = 0;
+
+    /**
+     * @brief Get the current energy left in the energy tank.
+     */
+    virtual double get_tank_energy() const = 0;
 
     /**
      * @brief Get the end effector forecast wrench.
@@ -89,7 +94,7 @@ public:
      * @returns The wrench (fx, fy, fz, tau_x, tau_y, tau_z) expected at the end
      * effector.
      */
-    virtual Vector6d get_end_effector_forecast_wrench() = 0;
+    virtual Vector6d get_end_effector_forecast_wrench() const = 0;
 
     /**
      * @brief Get the end effector virtual wrench.
@@ -104,7 +109,7 @@ public:
      * in the world frame, that results in the current end effector
      * acceleration.
      */
-    virtual Vector6d get_end_effector_virtual_wrench() = 0;
+    virtual Vector6d get_end_effector_virtual_wrench() const = 0;
 };
 
 } // namespace FrankaRidgeback

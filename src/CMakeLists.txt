@@ -47,6 +47,8 @@ add_executable(
     frankaridgeback/objective/assisted_manipulation.cpp
     frankaridgeback/pinocchio_dynamics.cpp
 
+    # logging/assisted_manipulation.cpp
+    logging/frankaridgeback.cpp
     logging/mppi.cpp
     logging/pid.cpp
 )

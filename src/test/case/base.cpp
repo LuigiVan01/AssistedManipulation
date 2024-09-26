@@ -131,8 +131,8 @@ std::unique_ptr<BaseTest> BaseTest::create(Options &options)
     }
     catch (const json::exception &err) {
         std::cerr << "error when patching json configuration: " << err.what() << std::endl;
-        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGURATION).dump(4) << std::endl;
-        std::cerr << "patch was " << options.patch.dump(4) << std::endl;
+        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGURATION).dump(0) << std::endl;
+        std::cerr << "patch was " << options.patch.dump(0) << std::endl;
         return nullptr;
     }
 
@@ -223,7 +223,7 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
             std::cout << "failed create configuration file" << std::endl;
             return nullptr;
         }
-        file->get_stream() << ((json)configuration).dump(4);
+        file->get_stream() << ((json)configuration).dump(0);
     }
 
     return std::unique_ptr<BaseTest>(

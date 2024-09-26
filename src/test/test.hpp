@@ -148,7 +148,7 @@ public:
         auto test = it->second(meta);
         if (!test) {
             std::cerr << "failed to create test \"" << name << "\""
-                      << " with options " << ((json)meta).dump(4)
+                      << " with options " << ((json)meta).dump(0)
                       << std::endl;
             return false;
         }

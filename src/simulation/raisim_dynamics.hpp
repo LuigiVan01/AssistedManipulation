@@ -149,7 +149,7 @@ public:
     /**
      * @brief Get the position of the end effector in world space.
      */
-    inline Vector3d get_end_effector_position() override
+    inline Vector3d get_end_effector_position() const override
     {
         raisim::Vec<3> position;
         m_robot->getFramePosition(m_end_effector_frame_index, position);
@@ -159,7 +159,7 @@ public:
     /**
      * @brief Get the orientation of the end effector in world space.
      */
-    inline Quaterniond get_end_effector_orientation() override
+    inline Quaterniond get_end_effector_orientation() const override
     {
         raisim::Mat<3, 3> orientation;
         m_robot->getFrameOrientation(m_end_effector_frame_index, orientation);
@@ -170,7 +170,7 @@ public:
      * @brief Get the linear velocity (vx, vy, vz) of the end effector in world
      * space.
      */
-    inline Vector3d get_end_effector_linear_velocity() override
+    inline Vector3d get_end_effector_linear_velocity() const override
     {
         return m_end_effector_linear_velocity;
     }
@@ -179,7 +179,7 @@ public:
      * @brief Get the angular velocity (wx, wy, wz) of the end effector in world
      * space.
      */
-    inline Vector3d get_end_effector_angular_velocity() override
+    inline Vector3d get_end_effector_angular_velocity() const override
     {
         return m_end_effector_angular_velocity;
     }
@@ -188,7 +188,7 @@ public:
      * @brief Get the linear acceleration (ax, ay, az) of the end effector in
      * world space.
      */
-    inline Vector3d get_end_effector_linear_acceleration() override
+    inline Vector3d get_end_effector_linear_acceleration() const override
     {
         return m_end_effector_linear_acceleration;
     }
@@ -197,7 +197,7 @@ public:
      * @brief Get the angular acceleration (alpha_x, alpha_y, alpha_z) of the
      * end effector in world space.
      */
-    inline Vector3d get_end_effector_angular_acceleration() override
+    inline Vector3d get_end_effector_angular_acceleration() const override
     {
         return m_end_effector_angular_acceleration;
     }
@@ -219,9 +219,17 @@ public:
      * 
      * @return The current power usage in joules/s.
      */
-    inline double get_power() override
+    inline double get_power() const override
     {
         return m_power;
+    }
+
+    /**
+     * @brief Get the current energy left in the energy tank.
+     */
+    inline double get_tank_energy() const override
+    {
+        return m_energy_tank.get_energy();
     }
 
     /**
@@ -232,7 +240,7 @@ public:
      * @returns The wrench (fx, fy, fz, tau_x, tau_y, tau_z) expected at the end
      * effector.
      */
-    inline Vector6d get_end_effector_forecast_wrench() override
+    inline Vector6d get_end_effector_forecast_wrench() const override
     {
         return m_end_effector_forecast_wrench;
     }
@@ -250,7 +258,7 @@ public:
      * in the world frame, that results in the current end effector
      * acceleration.
      */
-    inline Vector6d get_end_effector_virtual_wrench() override
+    inline Vector6d get_end_effector_virtual_wrench() const override
     {
         return m_end_effector_virtual_wrench;
     }

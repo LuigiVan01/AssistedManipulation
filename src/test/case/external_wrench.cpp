@@ -64,8 +64,8 @@ std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Options &options)
     }
     catch (const json::exception &err) {
         std::cerr << "error when patching json configuration: " << err.what() << std::endl;
-        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGURATION).dump(4) << std::endl;
-        std::cerr << "patch was " << options.patch.dump(4) << std::endl;
+        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGURATION).dump(0) << std::endl;
+        std::cerr << "patch was " << options.patch.dump(0) << std::endl;
         return nullptr;
     }
 
@@ -166,7 +166,7 @@ std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Configuration con
         auto file = logger::File::create(configuration.folder / "configuration.json");
         if (!file)
             return nullptr;
-        file->get_stream() << ((json)configuration).dump(4);
+        file->get_stream() << ((json)configuration).dump(0);
     }
 
     return std::unique_ptr<ExternalWrenchTest>(
