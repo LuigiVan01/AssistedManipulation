@@ -1,7 +1,8 @@
 #pragma once
 
-#include <Eigen/Eigen>
 #include <random>
+
+#include "controller/eigen.hpp"
 
 /**
  * @brief A multivariate gaussian sampler.
@@ -21,7 +22,7 @@ public:
      * @param mean The mean of each gaussian.
      * @param covariance The covariance matrix of the distribution.
      */
-    inline Gaussian(const Eigen::VectorXd &mean, const Eigen::MatrixXd &covariance)
+    inline Gaussian(const VectorXd &mean, const MatrixXd &covariance)
         : m_mean(mean)
         , m_generator()
         , m_distribution(0, 1)
@@ -36,17 +37,17 @@ public:
      * 
      * @param covariance The covariance matrix of the distribution.
      */
-    inline Gaussian(const Eigen::MatrixXd &covariance)
-        : Gaussian(Eigen::VectorXd::Zero(covariance.rows()), covariance)
+    inline Gaussian(const MatrixXd &covariance)
+        : Gaussian(VectorXd::Zero(covariance.rows()), covariance)
     {}
 
     /**
      * @brief Set the covariance of the distribution.
      * @param covariance The covariance matrix of the distribution.
      */
-    inline void set_covariance(const Eigen::MatrixXd &covariance)
+    inline void set_covariance(const MatrixXd &covariance)
     {
-        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(covariance);
+        Eigen::SelfAdjointEigenSolver<MatrixXd> solver(covariance);
         m_transform = (
             solver.eigenvectors() *
             solver.eigenvalues().cwiseSqrt().asDiagonal()
@@ -57,7 +58,7 @@ public:
      * @brief Set the mean of the distribution.
      * @param mean The mean of the distribution.
      */
-    inline void set_mean(const Eigen::VectorXd &mean)
+    inline void set_mean(const VectorXd &mean)
     {
         m_mean = mean;
     }
@@ -66,19 +67,20 @@ public:
      * @brief Sample the distribution.
      * @returns A vector of values sampled from each gaussian.
      */
-    inline Eigen::VectorXd operator()() {
-        return m_mean + m_transform * Eigen::VectorXd(m_mean.size()).unaryExpr(
-            [&](double) { return m_distribution(m_generator); }
+    inline VectorXd operator()()
+    {
+        return m_mean + m_transform * VectorXd(m_mean.size()).unaryExpr(
+            [&](double){ return m_distribution(m_generator); }
         );
     }
 
 private:
 
     /// The mean of each gaussian.
-    Eigen::VectorXd m_mean;
+    VectorXd m_mean;
 
     /// Transformation matrix from N(0, 1) noise to the multivariate noise.
-    Eigen::MatrixXd m_transform;
+    MatrixXd m_transform;
 
     /// The pseudo-random number generator.
     std::mt19937 m_generator;

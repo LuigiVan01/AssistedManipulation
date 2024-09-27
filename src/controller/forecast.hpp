@@ -14,11 +14,6 @@ class Forecast
 {
 public:
 
-    enum Type {
-        AVERAGE,
-        KALMAN
-    };
-
     struct Configuration;
 
     /**
@@ -39,7 +34,7 @@ public:
          * @param time The time of the forecast.
          * @returns The predicted state.
          */
-        virtual Eigen::VectorXd forecast(double time) = 0;
+        virtual VectorXd forecast(double time) = 0;
 
         /**
          * @brief Make a copy of the handle.
@@ -69,7 +64,7 @@ public:
      * @param measurement The observed measurement.
      * @param time The time of the observation.
      */
-    virtual void update(Eigen::VectorXd measurement, double time) = 0;
+    virtual void update(VectorXd measurement, double time) = 0;
 
     /**
      * @brief Update the forecast without an observed measurement.
@@ -86,7 +81,7 @@ public:
      * @param time The time of the prediction.
      * @returns The predicted state.
      */
-    virtual Eigen::VectorXd forecast(double time) = 0;
+    virtual VectorXd forecast(double time) = 0;
 };
 
 /**
@@ -100,7 +95,7 @@ public:
     struct Configuration {
 
         /// The most recent observation.
-        Eigen::VectorXd observation;
+        VectorXd observation;
 
         /// JSON conversion for average forecast configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, observation);
@@ -120,7 +115,7 @@ public:
          * @param time The time of the observation, unused.
          * @returns The last observation.
          */
-        inline Eigen::VectorXd forecast(double time) override {
+        inline VectorXd forecast(double time) override {
             std::shared_lock lock(m_parent->m_mutex);
             return m_parent->m_observation;
         };
@@ -174,7 +169,7 @@ public:
      * @param measurement The measurement or observation.
      * @param time The time of the measurement, unused.
      */
-    inline void update(Eigen::VectorXd measurement, double time) override {
+    inline void update(VectorXd measurement, double time) override {
         std::unique_lock lock(m_mutex);
         m_observation = measurement;
     }
@@ -191,14 +186,14 @@ public:
      * @param time The time of the observation, unused.
      * @returns The last observation.
      */
-    inline Eigen::VectorXd forecast(double /* time */) override {
+    inline VectorXd forecast(double /* time */) override {
         std::shared_lock lock(m_mutex);
         return m_observation;
     }
 
 private:
 
-    LOCFForecast(Eigen::VectorXd observation)
+    LOCFForecast(VectorXd observation)
         : m_observation(observation)
     {}
 
@@ -206,7 +201,7 @@ private:
     std::shared_mutex m_mutex;
 
     /// The last observation.
-    Eigen::VectorXd m_observation;
+    VectorXd m_observation;
 };
 
 /**
@@ -220,14 +215,14 @@ public:
 
     struct Configuration {
 
-        /// The number of dimensions in each state.
-        unsigned int dimensions;
+        /// The number of states.
+        unsigned int states;
 
         /// The period of time over which to calculate the average..
         double window;
 
         /// JSON conversion for average forecast configuration.
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, dimensions, window);
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, states, window);
     };
 
     /**
@@ -243,7 +238,7 @@ public:
          * @param time The time of the observation, unused.
          * @returns The average observation.
          */
-        inline Eigen::VectorXd forecast(double time) override {
+        inline VectorXd forecast(double time) override {
             std::shared_lock lock(m_parent->m_mutex);
             return m_parent->m_average;
         };
@@ -291,17 +286,17 @@ public:
     }
 
     /**
+     * @brief Does nothing.
+     */
+    void update(double time) override;
+
+    /**
      * @brief Update the predictor with an observed measurement.
      * 
      * @param measurement The observed measurement.
      * @param time The time of the observation.
      */
-    inline void update(Eigen::VectorXd measurement, double time) override;
-
-    /**
-     * @brief Does nothing.
-     */
-    inline void update(double time) override {}
+    inline void update(VectorXd measurement, double time) override;
 
     /**
      * @brief Predict the state as the last observed measurement, regardless of
@@ -310,23 +305,42 @@ public:
      * @param time The time of the forecasted state, unused.
      * @returns The average observation.
      */
-    inline Eigen::VectorXd forecast(double /* time */) override;
+    inline VectorXd forecast(double /* time */) override;
 
 private:
 
     friend class Handle;
 
-    AverageForecast(unsigned int dimensions);
+    /**
+     * @brief Initialise the average forecast.
+     * 
+     * @param window The period of time in seconds to average measurements over.
+     * @param states The number of states of each measurement.
+     */
+    AverageForecast(double window, unsigned int states);
+
+    /**
+     * @brief Remove all samples older than the current time window.
+     */
+    void clear_old_measurements(double time);
+
+    /**
+     * @brief Update the calculated average in the buffer.
+     */
+    void update_average();
 
     /// Mutex protecting concurrent read / write.
     std::shared_mutex m_mutex;
 
+    /// Window over which to average.
+    double m_window;
+
     /// The window of forces to average over. The most recent observation is
     /// always  kept regardless of its age.
-    std::vector<std::pair<double, Eigen::VectorXd>> m_buffer;
+    std::vector<std::pair<double, VectorXd>> m_buffer;
 
     /// The average observation of the window.
-    Eigen::VectorXd m_average;
+    VectorXd m_average;
 };
 
 /**
@@ -341,8 +355,8 @@ public:
 
     struct Configuration {
 
-        /// The number of dimensions to forecast.
-        unsigned int dimension;
+        /// The number of states to forecast.
+        unsigned int observed_states;
 
         /// The time step of the state transition matrix.
         double time_step;
@@ -353,17 +367,13 @@ public:
         /// The order of the euclidean model.
         unsigned int order;
 
-        /// E.g. {var(x), var(y), var(z), var(dx), var(dy), var(dz), ...}
-        Eigen::VectorXd transition_variance;
-
-        /// E.g. {var(x), var(y), var(z), var(dx), var(dy), var(dz), ...}
-        Eigen::VectorXd observation_variance;
+        /// The initial state of the system. E.g. {x, y, z}
+        VectorXd initial_state;
 
         /// JSON conversion for kalman forecast configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            dimension, time_step, horison, order, transition_variance,
-            observation_variance
+            observed_states, time_step, horison, order, initial_state
         );
     };
 
@@ -381,7 +391,7 @@ public:
          * @param time The time of the forecast.
          * @returns The predicted state.
          */
-        inline Eigen::VectorXd forecast(double time) {
+        inline VectorXd forecast(double time) {
             return m_parent->forecast(time);
         }
 
@@ -426,9 +436,14 @@ public:
     }
 
     /**
-     * @brief Create a state transition matrix of a given order.
+     * @brief Create a state transition matrix where each state accumulates its
+     * standard derivatives.
      * 
-     * The order is the highest derivative in each observation.
+     * For example, a 2 state transition matrix of order 3 has the state
+     * transition matrix for `x += dx * dt + 1/2 * ddx^2 * dt` and
+     * `y += dy * dt + 1/2 * ddy^2 * dt`. 
+     * 
+     * The order is the highest derivative in every observation.
      * 
      * @param time_step The time step of the transition matrix.
      * @param states The number of dimensions of the observed state.
@@ -436,9 +451,15 @@ public:
      * 
      * @returns The state transition matrix.
      */
-    static Eigen::MatrixXd create_euler_state_transition_matrix(
+    static MatrixXd create_euler_state_transition_matrix(
         double time_step,
-        unsigned int states,
+        unsigned int observed_states,
+        unsigned int order
+    );
+
+    static MatrixXd create_euler_state_transition_covariance_matrix(
+        double time_step,
+        unsigned int observed_states,
         unsigned int order
     );
 
@@ -448,7 +469,7 @@ public:
      * @param measurement The observed measurement.
      * @param time The time of the observation.
      */
-    inline void update(Eigen::VectorXd measurement, double time) override;
+    inline void update(VectorXd measurement, double time) override;
 
     /**
      * @brief Update without an observation.
@@ -462,13 +483,35 @@ public:
      * @param time The time of the force prdiction
      * @returns The last observed force.
      */
-    Eigen::VectorXd forecast(double /* time */) override;
+    VectorXd forecast(double /* time */) override;
 
 private:
 
     friend class Handle;
 
-    KalmanForecast() = default;
+    /**
+     * @brief Initialise the kalman forecaster.
+     */
+    KalmanForecast(
+        double horison,
+        double time_step,
+        unsigned int steps,
+        double last_update,
+        std::unique_ptr<KalmanFilter> &&filter,
+        std::unique_ptr<KalmanFilter> &&predictor,
+        VectorXd initial_state
+    );
+
+    /**
+     * @brief Simple recursive factorial function.
+     */
+    static unsigned int factorial(unsigned int n);
+
+    /// The number of observed states in the forecaster.
+    unsigned int m_observed_states;
+
+    /// The number of states including derivatives.
+    unsigned int m_estaimted_states;
 
     /// The period of time over which the prediction is made.
     double m_horison;
@@ -484,17 +527,17 @@ private:
 
     std::shared_mutex m_mutex;
 
-    /// The kalman filter used to estimate the current force.
-    std::unique_ptr<KalmanFilter> m_kalman;
+    /// Location to the observed state, filled with zeros for derivatives.
+    VectorXd m_measurement;
 
-    /// The kalman filter used to estimate future forces.
+    /// The kalman filter used to estimate the current wrench.
     std::unique_ptr<KalmanFilter> m_filter;
 
-    /// The calculated state, storing force derivatives.
-    Eigen::VectorXd m_state;
+    /// The kalman filter used to predict future wrench.
+    std::unique_ptr<KalmanFilter> m_predictor;
 
     /// The latest updated horison.
-    Eigen::MatrixXd m_prediction;
+    MatrixXd m_prediction;
 };
 
 /**

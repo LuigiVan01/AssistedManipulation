@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/install/bin/test.exe",
-            "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results"],
+            "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results/${input:test}"],
             "environment": [
                 {
                     "name": "RAISIM_ACTIVATION",
@@ -68,10 +68,11 @@
                 "lissajous",
                 "manipulability",
                 "power",
-                "pinocchio"
+                "pinocchio",
+                "forecast"
             ],
             "type": "pickString",
-            "default": "figure_eight"
+            "default": "forecast"
         }
     ]
 }

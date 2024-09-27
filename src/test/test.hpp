@@ -16,6 +16,9 @@ using json = nlohmann::json;
 /**
  * @brief Used as a generic pointer to test classes, and defines the test
  * interface.
+ * 
+ * @note A derived class should have a method
+ * `static std::unique_ptr<Derived> create(Options &options)`
  */
 class Test 
 {
@@ -35,6 +38,11 @@ public:
         // JSON serialisation for test metadata.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(Options, patch, folder, duration);
     };
+
+    // Derived methods may include:
+    // - struct Configuration;
+    // - virtual static std::unique_ptr<Derived> create(Options&);
+    // - virtual static std::unique_ptr<Derived> create(const Configuration&);
 
     /**
      * @brief Run the test.
@@ -179,7 +187,7 @@ public:
         if (success)
             std::cout << " okay"; 
         else
-            std::cout << " fail";
+            std::cout << " failed";
 
         auto duration = duration_cast<microseconds>(stop - start);
         auto min = duration_cast<minutes>(duration);

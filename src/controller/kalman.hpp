@@ -3,7 +3,7 @@
 #include <memory>
 #include <cstdint>
 
-#include <Eigen/Eigen>
+#include "controller/eigen.hpp"
 
 /**
  * @brief A Kalman filter.
@@ -25,19 +25,22 @@ public:
         unsigned int states;
 
         /// Maps a state observation to the next state.
-        Eigen::MatrixXd state_transition_matrix;
+        MatrixXd state_transition_matrix;
 
         /// The noise of the state transition mapping.
-        Eigen::MatrixXd transition_covariance;
+        MatrixXd transition_covariance;
 
         /// Maps a state to an observation.
-        Eigen::MatrixXd observation_matrix;
+        MatrixXd observation_matrix;
 
         /// The noise of the observation mapping.
-        Eigen::MatrixXd observation_covariance;
+        MatrixXd observation_covariance;
 
         /// The initial state stored in the filter.
-        Eigen::VectorXd initial_state;
+        VectorXd initial_state;
+
+        // The initial state covariance.
+        MatrixXd initial_covariance;
     };
 
     /**
@@ -67,14 +70,14 @@ public:
     /**
      * @brief Get the latest state estimation.
      */
-    const Eigen::VectorXd &get_estimation() {
+    const VectorXd &get_estimation() {
         return m_state;
     }
 
     /**
      * @brief Get the latest estimation covariance noise.
      */
-    const Eigen::MatrixXd &get_covariance() {
+    const MatrixXd &get_covariance() {
         return m_covariance;
     }
 
@@ -82,7 +85,7 @@ public:
      * @brief Set the estimated state in the kalman filter.
      * @param state The estimated state to set to.
      */
-    inline void set_estimation(const Eigen::VectorXd &state) {
+    inline void set_estimation(const VectorXd &state) {
         m_state = state;
         m_next_state = m_state_transition_matrix * state;
     }
@@ -90,19 +93,23 @@ public:
     /**
      * @brief Set the covariance of the kalman filter.
      */
-    inline void set_covariance(const Eigen::MatrixXd &covariance) {
+    inline void set_covariance(const MatrixXd &covariance) {
         m_covariance = covariance;
     }
 
     /**
      * @brief Update the filter with an observation.
      * 
+     * The observation is not a state of the system! The observation matrix maps
+     * the state to an observation. The observation passed should already be an
+     * observation, not a state.
+     * 
      * Updates the state and error based on the previous state, previous state
      * confidence and an observation.
      * 
      * @param observation The observed state.
      */
-    void update(Eigen::Ref<Eigen::VectorXd> observation);
+    void update(Eigen::Ref<VectorXd> observation);
 
     /**
      * @brief Predict the subsequent state.
@@ -128,26 +135,26 @@ private:
     const unsigned int m_estimated_state_size;
 
     /// Maps a state observation to the next state.
-    const Eigen::MatrixXd m_state_transition_matrix;
+    const MatrixXd m_state_transition_matrix;
 
     /// The noise of the state transition mapping.
-    const Eigen::MatrixXd m_transition_covariance;
+    const MatrixXd m_transition_covariance;
 
     /// Maps a state to an observation.
-    const Eigen::MatrixXd m_observation_matrix;
+    const MatrixXd m_observation_matrix;
 
     /// The noise of the observation mapping.
-    const Eigen::MatrixXd m_observation_covariance;
+    const MatrixXd m_observation_covariance;
 
     /// Identity matrix used in transition noise covariance matrix.
-    const Eigen::MatrixXd m_identity;
+    const MatrixXd m_identity;
 
     /// Noise of state estimation.
-    Eigen::MatrixXd m_covariance;
+    MatrixXd m_covariance;
 
     /// The most recently estimated state.
-    Eigen::VectorXd m_state;
+    VectorXd m_state;
 
     /// The most recently estimated next state.
-    Eigen::VectorXd m_next_state;
+    VectorXd m_next_state;
 };

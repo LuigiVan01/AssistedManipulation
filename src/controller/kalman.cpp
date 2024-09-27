@@ -7,7 +7,7 @@ std::unique_ptr<KalmanFilter> KalmanFilter::create(
 ) {
     static auto check_dimensions = [](
         const char *name,
-        const Eigen::MatrixXd &matrix,
+        const MatrixXd &matrix,
         std::int64_t rows,
         std::int64_t cols
     ){
@@ -56,6 +56,20 @@ std::unique_ptr<KalmanFilter> KalmanFilter::create(
         "observation covariance matrix",
         configuration.observation_covariance,
         configuration.observed_states,
+        configuration.observed_states
+    );
+
+    valid &= check_dimensions(
+        "initial state",
+        configuration.initial_state,
+        configuration.states,
+        1
+    );
+
+    valid &= check_dimensions(
+        "initial state covariance",
+        configuration.initial_covariance,
+        configuration.states,
         configuration.states
     );
 
@@ -80,31 +94,29 @@ KalmanFilter::KalmanFilter(const Configuration &config)
     , m_transition_covariance(config.transition_covariance)
     , m_observation_matrix(config.observation_matrix)
     , m_observation_covariance(config.observation_covariance)
-    , m_identity(Eigen::MatrixXd::Identity(config.states, config.states))
-    , m_covariance(config.observation_covariance)
+    , m_identity(MatrixXd::Identity(config.states, config.states))
+    , m_covariance(config.initial_covariance)
     , m_state(config.initial_state)
     , m_next_state(m_state_transition_matrix * config.initial_state)
 {}
 
 void KalmanFilter::update(
-    Eigen::Ref<Eigen::VectorXd> observation
-    // Eigen::Ref<Eigen::VectorXd> control
+    Eigen::Ref<VectorXd> observation
 ) {
-    assert(observation.size() == m_observed_state_size);
-    // assert(control.size() == m_control_size);
-
     // Calculate the optimal kalman gain.
-    auto optimal_kalman_gain = (
+    MatrixXd optimal_kalman_gain = (
         m_covariance * m_observation_matrix.transpose() * (
             m_observation_matrix * m_covariance * m_observation_matrix.transpose() +
             m_observation_covariance
         ).inverse()
     );
 
+    assert(!optimal_kalman_gain.hasNaN());
+
     // Correct the previously predicted state estimation, by interpolating
     // between the estimated state and the observed state.
     m_state = m_next_state + optimal_kalman_gain * (
-        m_observation_matrix * observation - m_observation_matrix * m_next_state
+        observation - m_observation_matrix * m_next_state
     );
 
     // Update the noise covariance of the estimated state. Simplified update
@@ -117,7 +129,6 @@ void KalmanFilter::update(
     // Predict the next state from the current state and control.
     m_next_state = (
         m_state_transition_matrix * m_state
-        // + m_control_transition_matrix * control
     );
 
     // Extrapolate the noise to the next state.

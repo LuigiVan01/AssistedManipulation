@@ -35,6 +35,7 @@ add_executable(
     # test/case/base/reach.cpp
     test/case/base.cpp
     test/case/external_wrench.cpp
+    test/case/forecast.cpp
     # test/case/power_minimisation.cpp
     # test/case/manipulability.cpp
     # test/case/pinocchio.cpp

@@ -47,44 +47,53 @@ std::unique_ptr<AverageForecast> AverageForecast::create(
     }
 
     return std::unique_ptr<AverageForecast>(
-        new AverageForecast(configuration.dimensions)
+        new AverageForecast(
+            configuration.window,
+            configuration.states
+        )
     );
 }
 
-AverageForecast::AverageForecast(unsigned int dimensions)
-    : m_buffer()
-    , m_average(1, dimensions)
+AverageForecast::AverageForecast(double window, unsigned int states)
+    : m_mutex()
+    , m_window(window)
+    , m_buffer()
+    , m_average(VectorXd::Zero(states))
 {
-    Eigen::VectorXd initial {1, dimensions};
-    initial.setZero();
-
     // The initial default force is zero. Will be erased on first update.
-    m_buffer.emplace_back(std::numeric_limits<double>::min(), initial);
+    m_buffer.emplace_back(
+        std::numeric_limits<double>::min(),
+        VectorXd::Zero(states)
+    );
 }
 
-void AverageForecast::update(Eigen::VectorXd measurement, double time)
+void AverageForecast::clear_old_measurements(double time)
 {
-    std::unique_lock lock(m_mutex);
-
-    // Find the element that is older than the time window. 
+    // Find the element that is older than the time window.
     auto it = std::upper_bound(
         m_buffer.begin(),
         m_buffer.end(),
-        time,
-        [](double time, const std::pair<double, Eigen::VectorXd> &element){
+        time - m_window,
+        [](double time, const std::pair<double, VectorXd> &element){
             return time < element.first;
         }
     );
 
-    // Remove old elements from the buffer. If all elements except the most
-    // recent would be erased, then skip. I.e always keep the most recent
-    // measurement.
-    if (it != m_buffer.end() && it != m_buffer.end() - 1) {
-        m_buffer.erase(m_buffer.begin(), it);
-    }
+    // Remove old elements from the buffer.
+    // Always keep the most recent measurement.
+    if (it == m_buffer.end())
+        --it;
 
-    // Calculate the average.
-    Eigen::VectorXd total = m_buffer[0].second;
+    // Erase all elements on range [begin, it) where it points to the first
+    // element with time greater than (time - window), excluding the most recent
+    // measurement.
+    m_buffer.erase(m_buffer.begin(), it);
+}
+
+void AverageForecast::update_average()
+{
+    // Update the average.
+    VectorXd total = m_buffer[0].second;
     for (int i = 1; i < m_buffer.size(); i++) {
         total += m_buffer[i].second;
     }
@@ -92,7 +101,27 @@ void AverageForecast::update(Eigen::VectorXd measurement, double time)
     m_average = total / m_buffer.size();
 }
 
-Eigen::VectorXd AverageForecast::forecast(double /* time */)
+void AverageForecast::update(double time)
+{
+    std::unique_lock lock(m_mutex);
+    clear_old_measurements(time);
+    update_average();
+}
+
+void AverageForecast::update(VectorXd measurement, double time)
+{
+    std::unique_lock lock(m_mutex);
+
+    // Ignore measurements in the past.
+    if (time < m_buffer.back().first)
+        return;
+
+    m_buffer.emplace_back(time, measurement);
+    clear_old_measurements(time);
+    update_average();
+}
+
+VectorXd AverageForecast::forecast(double /* time */)
 {
     std::shared_lock lock(m_mutex);
     return m_average;
@@ -101,99 +130,157 @@ Eigen::VectorXd AverageForecast::forecast(double /* time */)
 std::unique_ptr<KalmanForecast> KalmanForecast::create(
     const Configuration &configuration
 ) {
-    unsigned int dimension = configuration.dimension * (configuration.order + 1);
+    // The number of states includes the derivatives of each observed state. For
+    // example, observing (x, y) position with a second order model (constant
+    // acceleration) has 6 states being x, y, dx, dy, ddx, ddy
+    unsigned int states = configuration.observed_states * (configuration.order + 1);
 
-    auto kalman = KalmanFilter::create(KalmanFilter::Configuration{
-        .observed_states = configuration.dimension,
-        .states = configuration.dimension,
+    // Observation matrix maps the system state to an observed state. Since
+    // only measurements of zero order (e.g. x, y, z and not higher derivatives)
+    // are taken, the observation matrix extracts these from the actual state.
+    // In the above example, [x, y, 0, 0, 0, 0]
+    MatrixXd observation_matrix = MatrixXd::Zero(configuration.observed_states, states);
+    observation_matrix.topLeftCorner(
+        configuration.observed_states, configuration.observed_states
+    ).setIdentity();
+
+    auto observation_covariance_matrix = MatrixXd::Identity(
+        configuration.observed_states,
+        configuration.observed_states
+    ) * 1e-8;
+
+    VectorXd initial_state = VectorXd::Zero(configuration.observed_states * (configuration.order + 1));
+    initial_state.head(configuration.observed_states) = configuration.initial_state;
+
+    KalmanFilter::Configuration kalman_configuration {
+        .observed_states = configuration.observed_states,
+        .states = states,
         .state_transition_matrix = create_euler_state_transition_matrix(
             configuration.time_step,
-            configuration.dimension,
+            configuration.observed_states,
             configuration.order
         ),
-        .transition_covariance = configuration.transition_variance.asDiagonal(), 
-        .observation_matrix = Eigen::MatrixXd::Identity(configuration.dimension, configuration.dimension),
-        .observation_covariance = configuration.observation_variance.asDiagonal(),
-        .initial_state = Eigen::VectorXd::Zero(1, configuration.dimension)
-    });
+        .transition_covariance = create_euler_state_transition_covariance_matrix(
+            configuration.time_step,
+            configuration.observed_states,
+            configuration.order
+        ),
+        .observation_matrix = observation_matrix,
+        .observation_covariance = observation_covariance_matrix,
+        .initial_state = initial_state,
+        .initial_covariance = MatrixXd::Identity(states, states) * 1e-8
+    };
 
-    if (!kalman) {
-        std::cerr << "failed to create force prediction kalman filter" << std::endl;
+    auto filter = KalmanFilter::create(kalman_configuration);
+    auto predictor = KalmanFilter::create(kalman_configuration);
+
+    if (!filter || !predictor ) {
+        std::cerr << "failed to create wrench prediction kalman filter" << std::endl;
         return nullptr;
     }
 
-    unsigned int steps = std::ceil(configuration.horison / configuration.time_step);
+    unsigned int steps = std::ceil(configuration.horison / configuration.time_step) ;
 
-    auto predictor = std::unique_ptr<KalmanForecast>(new KalmanForecast());
-    predictor->m_horison = configuration.horison;
-    predictor->m_time_step = configuration.time_step;
-    predictor->m_steps = steps;
-    predictor->m_last_update = 0.0;
-    predictor->m_kalman = std::move(kalman);
-    predictor->m_state = Eigen::VectorXd::Zero(dimension);
-    predictor->m_prediction = Eigen::MatrixXd(3, steps); // rows, cols
-    return predictor;
+    return std::unique_ptr<KalmanForecast>(
+        new KalmanForecast(
+            configuration.horison,
+            configuration.time_step,
+            steps,
+            0.0,
+            std::move(filter),
+            std::move(predictor),
+            configuration.initial_state
+        )
+    );
 }
 
-Eigen::MatrixXd KalmanForecast::create_euler_state_transition_matrix(
+KalmanForecast::KalmanForecast(
+    double horison,
     double time_step,
-    unsigned int states,
+    unsigned int steps,
+    double last_update,
+    std::unique_ptr<KalmanFilter> &&filter,
+    std::unique_ptr<KalmanFilter> &&predictor,
+    VectorXd initial_state
+  ) : m_observed_states(filter->get_observed_state_size())
+    , m_estaimted_states(filter->get_estimated_state_size())
+    , m_horison(horison)
+    , m_time_step(time_step)
+    , m_steps(steps)
+    , m_last_update(last_update)
+    , m_mutex()
+    , m_measurement(filter->get_estimated_state_size(), 1) // rows, cols
+    , m_filter(std::move(filter))
+    , m_predictor(std::move(predictor))
+    , m_prediction(m_observed_states, steps + 1)
+{
+    m_measurement.setZero();
+}
+
+unsigned int KalmanForecast::factorial(unsigned int n)
+{
+    if (n <= 1)
+        return 1;
+    return n * factorial(n - 1);
+}
+
+MatrixXd KalmanForecast::create_euler_state_transition_matrix(
+    double time_step,
+    unsigned int observed_states,
     unsigned int order
 ) {
-    std::function<unsigned int(unsigned int)> factorial;
-    factorial = [&factorial](unsigned int n) -> unsigned int {
-        if (n <= 1)
-            return 1;
-        return n * factorial(n - 1);
-    };
+    // For example, observed_states = 3:
 
-    // For example, states = 3:
-
-    // Order 0:
+    // 3 Observed states, order 0:
     // [1, 0, 0] [ x ]
     // [0, 1, 0] [ y ]
     // [0, 0, 1] [ z ]
 
-    // Order 1:
-    // [1, dt, 0,  0, 0,  0] [ x  ]
-    // [0,  1, 0,  0, 0,  0] [ dx ]
-    // [0,  0, 1, dt, 0,  0] [ y  ]
-    // [0,  0, 0,  1, 0,  0] [ dy ]
-    // [0,  0, 0,  0, 1, dt] [ z  ]
-    // [0,  0, 0,  0, 0,  1] [ dz ]
+    // 3 observed states, order 1:
+    // [1,  0, 0, dt,  0,  0] [ x ]
+    // [0,  1, 0,  0, dt,  0] [ y ]
+    // [0,  0, 1,  0,  0, dt] [ z ]
+    // [0,  0, 0,  1,  0,  0] [ dx ]
+    // [0,  0, 0,  0,  1,  0] [ dy ]
+    // [0,  0, 0,  0,  0,  1] [ dz ]
 
-    // Order 2:
-    // [1, dt, 0.5dt^2,  0,  0,       0, 0,  0,       0] [ x   ]
-    // [0,  1,      dt,  0,  0,       0, 0,  0,       0] [ dx  ]
-    // [0,  0,       1,  0,  0,       0, 0,  0,       0] [ ddx ]
-    // [0,  0,       0,  1, dt, 0.5dt^2, 0,  0,       0] [ y   ]
-    // [0,  0,       0,  0,  1,      dt, 0,  0,       0] [ dy  ]
-    // [0,  0,       0,  0,  0,       1, 0,  0,       0] [ ddy ]
-    // [0,  0,       0,  0,  0,       0, 1, dt, 0.5dt^2] [ z   ]
-    // [0,  0,       0,  0,  0,       0, 0,  1,      dt] [ dx  ]
-    // [0,  0,       0,  0,  0,       0, 0,  0,       1] [ ddz ]
+    // 3 observed states, order 2:
+    // [1, 0, 0,    dt,  0,  0,   0.5dt^2,       0,       0] [ x ]
+    // [0, 1, 0,    0,  dt,  0,         0, 0.5dt^2,       0] [ y ]
+    // [0, 0, 1,    0,  0,   dt,        0,       0, 0.5dt^2] [ z ]
+    // [0, 0, 0,    1,  0,   0,        dt,       0,       0] [ dx ]
+    // [0, 0, 0,    0,  1,   0,         0,      dt,       0] [ dy ]
+    // [0, 0, 0,    0,  0,   1,         0,       0,      dt] [ dz ]
+    // [0, 0, 0,    0,  0,   0,         1,       0,        0] [ ddx ]
+    // [0, 0, 0,    0,  0,   0,         0,       1,        0] [ ddy ]
+    // [0, 0, 0,    0,  0,   0,         0,       0,        1] [ ddz ]
 
-    unsigned int dimension = states * (order + 1);
+    // 2 observed states, order 2:
+    // [1, 0, dt,  0, 0.5dt^2,       0] [ x ]
+    // [0, 1, 0,  dt,       0, 0.5dt^2] [ y ]
+    // [0, 0, 1,   0,       dt,      0] [ dx ]
+    // [0, 0, 0,   1,       0,      dt] [ dy ]
+    // [0, 0, 0,   0,       1,       0] [ ddx ]
+    // [0, 0, 0,   0,       0,       1] [ ddy ]
 
-    // Each state (one of x, y or z) has an associated (order x order)
-    // triangular sub-matrix of size (order + 1, order + 1).
-    Eigen::MatrixXd matrix {dimension, dimension};
+    // The number of states includes the derivatives of each observed state.
+    unsigned int states = observed_states * (order + 1);
 
-    // Initialise the triangular sub-matrix for x, y and z.
-    for (unsigned int state = 0; state < states; state++) {
+    // The state transition matrix.
+    MatrixXd matrix {states, states};
+    matrix.setZero();
 
-        // The offset of both rows and columns to the state sub-matrix.
-        unsigned int offset = state * order;
+    // For each derivative in sets of observed_state (e.g. 3) from top to bottom.
+    for (unsigned int derivative = 0; derivative <= order; derivative++) {
 
-        // Populate each column of the triangular sub-matrix, being each order.
-        for (unsigned int ord = 0; ord < ord; ord++) {
-            unsigned int col = offset + ord;
+        // For each state in the set of rows.
+        for (unsigned int state = 0; state < observed_states; state++) {
+            unsigned int row = derivative * order + state;
 
-            // Loop through the column of the triangular matrix from bottom to
-            // top. Each additional column has an additional element
-            // (triangular).
-            for (unsigned int i = 0; i <= ord; i++) {
-                unsigned int row = offset + ord - i;
+            // For each column in that row
+            for (unsigned int i = 0; i <= order - derivative; i++) {
+                unsigned int col = derivative * observed_states + i * observed_states + state;
+
                 matrix(row, col) = 1 / factorial(i) * std::pow(time_step, i);
             }
         }
@@ -202,20 +289,35 @@ Eigen::MatrixXd KalmanForecast::create_euler_state_transition_matrix(
     return matrix;
 }
 
-void KalmanForecast::update(Eigen::VectorXd force, double time)
+MatrixXd KalmanForecast::create_euler_state_transition_covariance_matrix(
+    double time_step,
+    unsigned int observed_states,
+    unsigned int order
+) {
+    /// TODO: Calculate the transition covariance matrix properly.
+    unsigned int states = observed_states * (order + 1);
+    MatrixXd matrix = MatrixXd::Identity(states, states) * 1e-8;
+    return matrix;
+}
+
+void KalmanForecast::update(VectorXd measurement, double time)
 {
     std::unique_lock lock(m_mutex);
 
     m_last_update = time;
-    m_kalman->update(force);
+    m_filter->update(measurement);
 
-    m_filter->set_estimation(m_kalman->get_estimation());
-    m_filter->set_covariance(m_kalman->get_covariance());
+    m_predictor->set_estimation(m_filter->get_estimation());
+    m_predictor->set_covariance(m_filter->get_covariance());
 
-    // Generate the predicted force over the time horison.
+    // The current estimation.
+    m_prediction.col(0) = m_predictor->get_estimation().head(m_observed_states);
+
+    // Generate the predicted measurement at each future time step over the
+    // horison.
     for (unsigned int i = 0; i < m_steps; i++) {
-        m_prediction.col(i) = m_filter->get_estimation();
-        m_filter->predict();
+        m_predictor->predict();
+        m_prediction.col(i + 1) = m_predictor->get_estimation().head(m_observed_states);
     }
 }
 
@@ -223,10 +325,10 @@ void KalmanForecast::update(double time)
 {
     // Update the kalman filter using prediction only, and propagate process
     // covariance.
-    m_kalman->predict();
+    m_filter->predict();
 }
 
-Eigen::VectorXd KalmanForecast::forecast(double time)
+VectorXd KalmanForecast::forecast(double time)
 {
     std::shared_lock lock(m_mutex);
 
