@@ -80,7 +80,7 @@ std::unique_ptr<FrankaRidgebackDynamics> FrankaRidgebackDynamics::create(
 
 void FrankaRidgebackDynamics::log(
     double time,
-    FrankaRidgeback::Dynamics &dynamics)
+    const FrankaRidgeback::Dynamics &dynamics)
 {
     if (m_position_logger) {
         m_position_logger->write(

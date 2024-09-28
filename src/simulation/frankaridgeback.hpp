@@ -104,9 +104,9 @@ public:
     /**
      * @brief Get a pointer to the simulated articulated system.
      */
-    inline RaisimDynamics *get_dynamics()
+    inline const RaisimDynamics &get_dynamics() const
     {
-        return m_dynamics.get();
+        return *m_dynamics;
     }
 
     /**

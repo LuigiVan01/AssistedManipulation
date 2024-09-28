@@ -134,7 +134,7 @@ public:
     static bool run(
         std::string name,
         json patch = nullptr,
-        std::string output_folder = "",
+        std::filesystem::path output_folder = "",
         double test_duration = 30.0
     ) {
         using namespace std::string_literals;
@@ -146,6 +146,14 @@ public:
             std::cerr << "test \"" << name << "\" does not exist" << std::endl;
             return false;
         }
+
+        // Add the current datetime to t
+        auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        char buffer[30] = {'\0'};
+        std::strftime(buffer, sizeof(buffer),  "%F_%H-%M-%S", std::localtime(&time));
+        std::string datetime {buffer};
+
+        output_folder += name + "_" + datetime;
 
         Test::Options meta {
             .patch = patch,

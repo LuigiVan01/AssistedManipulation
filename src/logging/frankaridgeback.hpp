@@ -65,7 +65,7 @@ public:
      * @param time The time of the dynamics.
      * @param dynamics The dynamics to log.
      */
-    void log(double time, FrankaRidgeback::Dynamics &dynamics);
+    void log(double time, const FrankaRidgeback::Dynamics &dynamics);
 
 private:
 

@@ -111,6 +111,14 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
         .state_dof = FrankaRidgeback::DoF::STATE,
         .control_dof = FrankaRidgeback::DoF::CONTROL,
         .rollouts = 0
+    },
+    .dynamics_logger = {
+        .folder = "",
+        .log_end_effector_position = true,
+        .log_end_effector_velocity = true,
+        .log_end_effector_acceleration = true,
+        .log_power = true,
+        .log_tank_energy = true,
     }
 };
 
@@ -205,14 +213,22 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
     simulator->add_actor(frankaridgeback);
 
     // Override rollout count of logger.
-    auto log_configuration = configuration.mppi_logger;
-    log_configuration.rollouts = frankaridgeback->get_controller().get_rollout_count();
-    if (log_configuration.folder.empty())
-        log_configuration.folder = configuration.folder / "mppi";
+    auto mppi_log_configuration = configuration.mppi_logger;
+    mppi_log_configuration.rollouts = frankaridgeback->get_controller().get_rollout_count();
+    mppi_log_configuration.folder = configuration.folder / "mppi";
 
-    auto logger = logger::MPPI::create(log_configuration);
-    if (!logger) {
-        std::cout << "failed to create mppi logger" << std::endl;
+    auto mppi_logger = logger::MPPI::create(mppi_log_configuration);
+    if (!mppi_logger) {
+        std::cerr << "failed to create mppi logger" << std::endl;
+        return nullptr;
+    }
+
+    auto dynamics_log_configuration = configuration.dynamics_logger;
+    dynamics_log_configuration.folder = configuration.folder / "dynamics";
+
+    auto dynamics_logger = logger::FrankaRidgebackDynamics::create(dynamics_log_configuration);
+    if (!dynamics_logger) {
+        std::cerr << "failed to create dynamics logger" << std::endl;
         return nullptr;
     }
 
@@ -220,7 +236,7 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
     {
         auto file = logger::File::create(configuration.folder / "configuration.json");
         if (!file) {
-            std::cout << "failed create configuration file" << std::endl;
+            std::cerr << "failed create configuration file" << std::endl;
             return nullptr;
         }
         file->get_stream() << ((json)configuration).dump(0);
@@ -231,7 +247,8 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
             configuration.duration,
             std::move(simulator),
             std::move(frankaridgeback),
-            std::move(logger)
+            std::move(mppi_logger),
+            std::move(dynamics_logger)
         )
     );
 }
@@ -240,17 +257,20 @@ BaseTest::BaseTest(
     double duration,
     std::unique_ptr<Simulator> &&simulator,
     std::shared_ptr<FrankaRidgeback::Actor> &&frankaridgeback,
-    std::unique_ptr<logger::MPPI> &&mppi_logger
+    std::unique_ptr<logger::MPPI> &&mppi_logger,
+    std::unique_ptr<logger::FrankaRidgebackDynamics> &&dynamics_logger
  ) : m_duration(duration)
    , m_simulator(std::move(simulator))
    , m_frankaridgeback(std::move(frankaridgeback))
    , m_mppi_logger(std::move(mppi_logger))
+   , m_dynamics_logger(std::move(dynamics_logger))
 {}
 
 void BaseTest::step()
 {
     m_simulator->step();
     m_mppi_logger->log(m_frankaridgeback->get_controller());
+    m_dynamics_logger->log(m_simulator->get_time(), m_frankaridgeback->get_dynamics());
 }
 
 bool BaseTest::run()

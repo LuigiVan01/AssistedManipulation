@@ -9,6 +9,7 @@
 #include "frankaridgeback/objective/assisted_manipulation.hpp"
 #include "frankaridgeback/objective/track_point.hpp"
 #include "logging/mppi.hpp"
+#include "logging/frankaridgeback.hpp"
 #include "test/test.hpp"
 
 class BaseTest : public RegisteredTest<BaseTest>
@@ -66,11 +67,14 @@ public:
         /// MPPI logging configuration.
         logger::MPPI::Configuration mppi_logger;
 
+        /// Franka-ridgeback logging configuration.
+        logger::FrankaRidgebackDynamics::Configuration dynamics_logger;
+
         // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             folder, duration, simulator, actor, objective, wrench_forecast,
-            mppi_logger
+            mppi_logger, dynamics_logger
         )
     };
 
@@ -143,12 +147,14 @@ private:
      * @param simulator The simulator.
      * @param frankaridgeback The frankaridgeback instance being simulated.
      * @param mppi_logger Logger for the mppi.
+     * @param dynamics_logger Logger for the simulated actor dynamics.
      */
     BaseTest(
         double duration,
         std::unique_ptr<Simulator> &&simulator,
         std::shared_ptr<FrankaRidgeback::Actor> &&frankaridgeback,
-        std::unique_ptr<logger::MPPI> &&mppi_logger
+        std::unique_ptr<logger::MPPI> &&mppi_logger,
+        std::unique_ptr<logger::FrankaRidgebackDynamics> &&dynamics_logger
     );
 
     /// Duration of the test when run.
@@ -163,6 +169,9 @@ private:
     /// Forecast to update wrench with.
     std::unique_ptr<Forecast> m_wrench_forecast;
 
-    /// Logger for the frankaridgeback mppi.
+    /// Logger for the frankaridgeback mppi trajectory generator.
     std::unique_ptr<logger::MPPI> m_mppi_logger;
+
+    /// Logger for the frankaridgeback.
+    std::unique_ptr<logger::FrankaRidgebackDynamics> m_dynamics_logger;
 };
