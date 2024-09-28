@@ -29,12 +29,7 @@ public:
 
     inline const static Configuration DEFAULT_CONFIGURATION {
         .base = ExternalWrenchTest::DEFAULT_CONFIGURATION,
-        .figure_eight = {
-            .origin = Vector3d(1.0, 1.0, 1.0),
-            .x_amplitude = 1.0,
-            .y_amplitude = 0.5,
-            .frequency = 0.5
-        }
+        .figure_eight = FigureEightTrajectory::DEFAULT_CONFIGURATION
     };
 
     inline static std::unique_ptr<ExternalWrenchTest> create(

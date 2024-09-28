@@ -30,14 +30,7 @@ public:
 
     inline const static Configuration DEFAULT_CONFIGURATION {
         .base = ExternalWrenchTest::DEFAULT_CONFIGURATION,
-        .rectangle = {
-            .origin = Vector3d(1.0, 1.0, 0.5),
-            .axis = Vector3d(0.0, 0.0, 1.0),
-            .angle = 0.0,
-            .width = 0.5,
-            .height = 0.5,
-            .velocity = 0.5
-        }
+        .rectangle = RectangularTrajectory::DEFAULT_CONFIGURATION
     };
 
     inline static std::unique_ptr<ExternalWrenchTest> create(

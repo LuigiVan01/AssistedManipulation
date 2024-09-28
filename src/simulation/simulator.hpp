@@ -3,8 +3,7 @@
 #include <memory>
 #include <string>
 
-#include <Eigen/Eigen>
-
+#include "controller/eigen.hpp"
 #include "controller/json.hpp"
 #include "raisim/RaisimServer.hpp"
 #include "raisim/World.hpp"
@@ -45,10 +44,13 @@ public:
         double time_step;
 
         // The gravitational acceleration.
-        Eigen::Vector3d gravity;
+        Vector3d gravity;
 
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, time_step, gravity)
     };
+
+    /// The default configuration of the simulator.
+    static const Configuration DEFAULT_CONFIGURATION;
 
     /**
      * @brief Activate the raisim licence.

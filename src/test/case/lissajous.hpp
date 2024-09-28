@@ -28,17 +28,7 @@ public:
 
     inline const static Configuration DEFAULT_CONFIGURATION {
         .base = ExternalWrenchTest::DEFAULT_CONFIGURATION,
-        .lissajous = {
-            .origin = Vector3d(1.0, 1.0, 1.0),
-            .x_amplitude = 1.0,
-            .y_amplitude = 0.5,
-            .z_amplitude = 0.0,
-            .x_frequency = 0.5,
-            .y_frequency = 1.5,
-            .z_frequency = 0.0,
-            .y_phase = M_PI / 2,
-            .z_phase = 0.0
-        }
+        .lissajous = LissajousTrajectory::DEFAULT_CONFIGURATION
     };
 
     inline static std::unique_ptr<ExternalWrenchTest> create(

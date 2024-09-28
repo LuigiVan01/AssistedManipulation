@@ -69,10 +69,11 @@
                 "manipulability",
                 "power",
                 "pinocchio",
-                "forecast"
+                "forecast",
+                "trajectory"
             ],
             "type": "pickString",
-            "default": "reach"
+            "default": "trajectory"
         }
     ]
 }

@@ -30,12 +30,7 @@ public:
 
     inline const static Configuration DEFAULT_CONFIGURATION {
         .base = ExternalWrenchTest::DEFAULT_CONFIGURATION,
-        .circle = {
-            .origin = Vector3d(1.0, 1.0, 0.5),
-            .axis = Vector3d(0.0, 0.0, 1.0),
-            .radius = 0.25,
-            .angular_velocity = 1
-        }
+        .circle = CircularTrajectory::DEFAULT_CONFIGURATION
     };
 
     inline static std::unique_ptr<ExternalWrenchTest> create(

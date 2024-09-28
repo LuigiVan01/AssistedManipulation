@@ -95,6 +95,8 @@ public:
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, point)
     };
 
+    static const Configuration DEFAULT_CONFIGURATION;
+
     /**
      * @brief Create a new point trajectory.
      * 
@@ -152,6 +154,9 @@ public:
             origin, axis, radius, angular_velocity
         )
     };
+
+    /// Default configuration of the circular trajectory.
+    static const Configuration DEFAULT_CONFIGURATION;
 
     /**
      * @brief Create a new circular trajectory.
@@ -221,6 +226,8 @@ public:
             origin, axis, angle, width, height, velocity
         );
     };
+
+    static const Configuration DEFAULT_CONFIGURATION;
 
     /**
      * @brief Create a new circular trajectory.
@@ -311,6 +318,8 @@ public:
         )
     };
 
+    static const Configuration DEFAULT_CONFIGURATION;
+
     /**
      * @brief Create a new lissajous trajectory.
      * 
@@ -369,6 +378,8 @@ public:
         )
     };
 
+    static const Configuration DEFAULT_CONFIGURATION;
+
     /**
      * @brief Create a new circular trajectory.
      * 
@@ -406,6 +417,8 @@ public:
             axis, angle
         );
     };
+
+    static const Configuration DEFAULT_CONFIGURATION;
 
     /**
      * @brief Create a new static axis angle trajectory.
@@ -472,6 +485,8 @@ public:
             first_axis, first_angle, second_axis, second_angle
         )
     };
+
+    static const Configuration DEFAULT_CONFIGURATION;
 
     /**
      * @brief Create a new interpolated orientation trajectory.

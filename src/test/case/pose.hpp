@@ -31,13 +31,8 @@ public:
 
     inline const static Configuration DEFAULT_CONFIGURATION {
         .base = ExternalWrenchTest::DEFAULT_CONFIGURATION,
-        .position = PointTrajectory::Configuration {
-            .point = Vector3d(1.0, 1.0, 1.0)
-        },
-        .orientation = AxisAngleTrajectory::Configuration {
-            .axis = Vector3d(0, 0, 1),
-            .angle = 0.0
-        }
+        .position = PointTrajectory::DEFAULT_CONFIGURATION,
+        .orientation = AxisAngleTrajectory::DEFAULT_CONFIGURATION
     };
 
     inline static std::unique_ptr<ExternalWrenchTest> create(

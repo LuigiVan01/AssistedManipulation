@@ -32,15 +32,8 @@ public:
 
     inline const static Configuration DEFAULT_CONFIGURATION {
         .base = ExternalWrenchTest::DEFAULT_CONFIGURATION,
-        .point = {
-            .point = Vector3d(1.0, 1.0, 1.0)
-        },
-        .slerp = SlerpTrajectory::Configuration {
-            .first_axis = Vector3d(0.0, 0.0, 1.0),
-            .first_angle = 0.0,
-            .second_axis = Vector3d(0.0, 0.0, -1.0),
-            .second_angle = 0.0
-        },
+        .point = PointTrajectory::DEFAULT_CONFIGURATION,
+        .slerp = SlerpTrajectory::DEFAULT_CONFIGURATION
     };
 
     inline static std::unique_ptr<ExternalWrenchTest> create(
