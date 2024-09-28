@@ -75,20 +75,22 @@ public:
      * 
      * @param control The controls applied at the current state (before dt).
      * @param dt The change in time.
+     * 
+     * @returns The FrankaRidgeback::State after stepping.
      */
-    Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) override;
+    Eigen::Ref<VectorXd> step(const VectorXd &control, double dt) override;
 
     /**
      * @brief Set the dynamics simulation to a given state.
      * @param state The system state.
      * @param time The time of the dynamincs state.
      */
-    void set_state(const Eigen::VectorXd &state, double time) override;
+    void set_state(const VectorXd &state, double time) override;
 
     /**
      * @brief Get the dynamics state.
      */
-    inline Eigen::Ref<Eigen::VectorXd> get_state() override
+    inline Eigen::Ref<VectorXd> get_state() override
     {
         return m_state;
     }
@@ -224,6 +226,36 @@ public:
         return m_end_effector_virtual_wrench;
     }
 
+    /**
+     * @brief Get the actual wrench applied of the end effector by calls to
+     * add_end_effector_true_wrench().
+     * 
+     * @todo Implement simulating external end effector wrench for pinocchio
+     * dynamics.
+     * 
+     * @note This is only used for simulating the robot actor.
+     * 
+     * @returns The actually applied wrench (fx, fy, fz, tau_x, tau_y, tau_z) at
+     * the end effector in the world frame.
+     */
+    inline Vector6d get_end_effector_simulated_wrench() const override
+    {
+        return Vector6d::Zero();
+    }
+
+    /**
+     * @brief Add cumulative wrench to the end effector, to be simulated on the
+     * next step, after which it is set to zero.
+     * 
+     * @todo Implement simulating external end effector wrench for pinocchio
+     * dynamics.
+     * 
+     * @note This is only used for simulating the robot actor.
+     * 
+     * @param wrench The wrench to cumulative add to the end effector to be
+     * simulated.
+     */
+    inline void add_end_effector_simulated_wrench(Vector6d wrench) override {}
 
 
 
@@ -273,7 +305,7 @@ public:
      * 
      * @returns The offset between the frames.
      */
-    inline Eigen::Vector3d get_frame_offset(
+    inline Vector3d get_frame_offset(
         const std::string &from_frame,
         const std::string &to_frame
     ){
@@ -289,7 +321,7 @@ public:
      * 
      * @returns The offset and orientation difference between the frames.
      */
-    inline Eigen::Matrix<double, 6, 1> get_frame_error(
+    inline Vector6d get_frame_error(
         const std::string &from_frame,
         const std::string &to_frame
     ) {
@@ -306,18 +338,18 @@ public:
      * @brief Get the pose of a frame.
      * 
      * @param frame 
-     * @return std::tuple<Eigen::Vector3d, Eigen::Quaterniond> 
+     * @return std::tuple<Vector3d, Quaterniond> 
      */
-    inline std::tuple<Eigen::Vector3d, Eigen::Quaterniond> get_frame_pose(
+    inline std::tuple<Vector3d, Quaterniond> get_frame_pose(
         const std::string &frame
     ){
         return std::make_tuple(
             m_data->oMf[m_model->getFrameId(frame)].translation(),
-            (Eigen::Quaterniond)m_data->oMf[m_model->getFrameId(frame)].rotation()
+            (Quaterniond)m_data->oMf[m_model->getFrameId(frame)].rotation()
         );
     }
 
-private:
+protected:
 
     /**
      * @brief Calculates kinematic information after position and velocity

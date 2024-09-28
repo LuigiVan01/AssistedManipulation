@@ -21,22 +21,22 @@ public:
         unsigned int n;
 
         /// Proportional gain matrix.
-        Eigen::VectorXd kp;
+        VectorXd kp;
 
         /// Derivative gain matrix.
-        Eigen::VectorXd kd;
+        VectorXd kd;
 
         /// Integral gain matrix.
-        Eigen::VectorXd ki;
+        VectorXd ki;
 
         /// The minimum control output.
-        Eigen::VectorXd minimum;
+        VectorXd minimum;
 
         /// The maximum control output.
-        Eigen::VectorXd maximum;
+        VectorXd maximum;
 
         /// The initial reference of the pid controller.
-        Eigen::VectorXd reference;
+        VectorXd reference;
 
         /// The initial time.
         double initial_time;
@@ -64,9 +64,9 @@ public:
      * @param state The observed state of the system.
      * @param time The current time in seconds.
      */
-    virtual void update(Eigen::Ref<Eigen::VectorXd> state, double time);
+    virtual void update(Eigen::Ref<VectorXd> state, double time);
 
-    inline const Eigen::VectorXd get_control() const {
+    inline const VectorXd get_control() const {
         return m_control;
     }
 
@@ -74,31 +74,31 @@ public:
         return m_last_time;
     }
 
-    inline const Eigen::VectorXd &get_reference() const {
+    inline const VectorXd &get_reference() const {
         return m_reference;
     }
 
-    inline const Eigen::VectorXd &get_error() const {
+    inline const VectorXd &get_error() const {
         return m_last_error;
     }
 
-    inline const Eigen::VectorXd &get_cumulative_error() const {
+    inline const VectorXd &get_cumulative_error() const {
         return m_cumulative_error;
     }
 
-    inline const Eigen::VectorXd &get_saturation() const {
+    inline const VectorXd &get_saturation() const {
         return m_saturation;
     }
 
-    inline const Eigen::VectorXd &get_proportional_gain() const {
+    inline const VectorXd &get_proportional_gain() const {
         return m_kp;
     }
 
-    inline const Eigen::VectorXd &get_derivative_gain() const {
+    inline const VectorXd &get_derivative_gain() const {
         return m_kd;
     }
 
-    inline const Eigen::VectorXd &get_integral_gain() const {
+    inline const VectorXd &get_integral_gain() const {
         return m_ki;
     }
 
@@ -106,7 +106,7 @@ public:
      * @brief Updated the desired reference state of the pid controller.
      * @param state The desired reference state.
      */
-    inline void set_reference(Eigen::Ref<Eigen::VectorXd> state) {
+    inline void set_reference(Eigen::Ref<VectorXd> state) {
         m_reference = state;
     }
 
@@ -114,7 +114,7 @@ public:
      * @brief Set the controllers proportional gain.
      * @param kp The proportional gain.
      */
-    inline void set_proportional_gain(Eigen::Ref<Eigen::VectorXd> kp) {
+    inline void set_proportional_gain(Eigen::Ref<VectorXd> kp) {
         m_kp = kp;
     }
 
@@ -122,7 +122,7 @@ public:
      * @brief Set the controllers derivative gain.
      * @param kd The derivative gain.
      */
-    inline void set_derivative_gain(Eigen::Ref<Eigen::VectorXd> kd) {
+    inline void set_derivative_gain(Eigen::Ref<VectorXd> kd) {
         m_kd = kd;
     }
 
@@ -130,7 +130,7 @@ public:
      * @brief Set the controllers integral gain.
      * @param ki The integral gain.
      */
-    inline void set_integral_gain(Eigen::Ref<Eigen::VectorXd> ki) {
+    inline void set_integral_gain(Eigen::Ref<VectorXd> ki) {
         m_ki = ki;
     }
 
@@ -143,37 +143,37 @@ protected:
     PID(const Configuration &configuration);
 
     /// Proportional gain.
-    Eigen::VectorXd m_kp;
+    VectorXd m_kp;
 
     /// Derivative gain.
-    Eigen::VectorXd m_kd;
+    VectorXd m_kd;
 
     /// Integral gain.
-    Eigen::VectorXd m_ki;
+    VectorXd m_ki;
 
     /// Minimum control output.
-    Eigen::VectorXd m_minimum;
+    VectorXd m_minimum;
 
     /// Maximum control output.
-    Eigen::VectorXd m_maximum;
+    VectorXd m_maximum;
 
     /// The reference state.
-    Eigen::VectorXd m_reference;
+    VectorXd m_reference;
 
     /// Cached storage for the error signal.
-    Eigen::VectorXd m_error;
+    VectorXd m_error;
 
     /// The previously calculated error, for derivative calculation.
-    Eigen::VectorXd m_last_error;
+    VectorXd m_last_error;
 
     /// The cumulative error, for integral calculation.
-    Eigen::VectorXd m_cumulative_error;
+    VectorXd m_cumulative_error;
 
     /// The control action of the last update.
-    Eigen::VectorXd m_saturation;
+    VectorXd m_saturation;
 
     /// The control action of the last update.
-    Eigen::VectorXd m_control;
+    VectorXd m_control;
 
     /// The time of the last update.
     double m_last_time;
@@ -189,22 +189,22 @@ public:
     struct Configuration {
 
         /// Proportional gain matrix.
-        Eigen::VectorXd kp;
+        VectorXd kp;
 
         /// Derivative gain matrix.
-        Eigen::VectorXd kd;
+        VectorXd kd;
 
         /// Integral gain matrix.
-        Eigen::VectorXd ki;
+        VectorXd ki;
 
         /// The minimum control output.
-        Eigen::VectorXd minimum;
+        VectorXd minimum;
 
         /// The maximum control output.
-        Eigen::VectorXd maximum;
+        VectorXd maximum;
 
         /// The initial reference of the pid controller.
-        Eigen::VectorXd reference;
+        VectorXd reference;
 
         /// The initial time.
         double initial_time;
@@ -232,7 +232,7 @@ public:
      * @param quaternion The observed orientation of the system.
      * @param time The current time in seconds.
      */
-    void update(Eigen::Ref<Eigen::VectorXd> quaternion, double time) override;
+    void update(Eigen::Ref<VectorXd> quaternion, double time) override;
 
     /**
      * @brief Update the controller with an observed quaternion.

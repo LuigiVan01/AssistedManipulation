@@ -18,7 +18,6 @@ public:
      * @brief Create a new file logger.
      * 
      * @param path The path to the file.
-     * 
      * @return A pointer to the file logger or nullptr on failure. 
      */
     static inline std::unique_ptr<File> create(std::filesystem::path path)

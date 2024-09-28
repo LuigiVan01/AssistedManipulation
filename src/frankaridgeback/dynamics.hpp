@@ -110,6 +110,28 @@ public:
      * acceleration.
      */
     virtual Vector6d get_end_effector_virtual_wrench() const = 0;
+
+    /**
+     * @brief Get the actual wrench applied of the end effector by calls to
+     * add_end_effector_true_wrench().
+     * 
+     * @note This is only used for simulating the robot actor.
+     * 
+     * @returns The actually applied wrench (fx, fy, fz, tau_x, tau_y, tau_z) at
+     * the end effector in the world frame.
+     */
+    virtual Vector6d get_end_effector_simulated_wrench() const = 0;
+
+    /**
+     * @brief Add cumulative wrench to the end effector, to be simulated on the
+     * next step, after which it is set to zero.
+     * 
+     * @note This is only used for simulating the robot actor.
+     * 
+     * @param wrench The wrench to cumulative add to the end effector to be
+     * simulated.
+     */
+    virtual void add_end_effector_simulated_wrench(Vector6d wrench) = 0;
 };
 
 } // namespace FrankaRidgeback

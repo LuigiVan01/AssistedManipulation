@@ -8,8 +8,7 @@
 #include <optional>
 #include <chrono>
 
-#include <Eigen/Eigen>
-
+#include "controller/eigen.hpp"
 #include "controller/json.hpp"
 #include "controller/gaussian.hpp"
 #include "controller/concurrency.hpp"
@@ -56,10 +55,7 @@ public:
      * 
      * @returns The parameterised state of the system.
      */
-    virtual Eigen::Ref<Eigen::VectorXd> step(
-        const Eigen::VectorXd &control,
-        double dt
-    ) = 0;
+    virtual Eigen::Ref<VectorXd> step(const VectorXd &control, double dt) = 0;
 
     /**
      * @brief Set the dynamics to a given parameterised state.
@@ -67,13 +63,13 @@ public:
      * @param state The system state.
      * @param time The time of the state.
      */
-    virtual void set_state(const Eigen::VectorXd &state, double time) = 0;
+    virtual void set_state(const VectorXd &state, double time) = 0;
 
     /**
      * @brief Get the dynamics state.
      * @returns The state of the dynamics.
      */
-    virtual Eigen::Ref<Eigen::VectorXd> get_state() = 0;
+    virtual Eigen::Ref<VectorXd> get_state() = 0;
 
     /**
      * @brief Get the degrees of freedom for the dynamics control input.
@@ -129,8 +125,8 @@ public:
      * @returns The cost of the step.
      */
     virtual double get_cost(
-        const Eigen::VectorXd &state,
-        const Eigen::VectorXd &control,
+        const VectorXd &state,
+        const VectorXd &control,
         Dynamics *dynamics,
         double time
     ) = 0;
@@ -164,9 +160,9 @@ public:
      * 
      * @returns The filtered control. 
      */
-    virtual Eigen::VectorXd filter(
-        Eigen::Ref<Eigen::VectorXd> state,
-        Eigen::Ref<Eigen::VectorXd> control,
+    virtual VectorXd filter(
+        Eigen::Ref<VectorXd> state,
+        Eigen::Ref<VectorXd> control,
         double time
     ) = 0;
 
@@ -176,7 +172,7 @@ public:
      * @param state The state of the system.
      * @param time The time.
      */
-    virtual void reset(Eigen::Ref<Eigen::VectorXd> state, double time) = 0;
+    virtual void reset(Eigen::Ref<VectorXd> state, double time) = 0;
 };
 
 /**
@@ -185,7 +181,7 @@ public:
 struct Configuration
 {
     /// The initial state of the system.
-    Eigen::VectorXd initial_state;
+    VectorXd initial_state;
 
     /// The number of rollouts to perform on each trajectory update.
     std::int64_t rollouts;
@@ -209,19 +205,19 @@ struct Configuration
     double cost_discount_factor;
 
     /// The covariance matrix to generate rollout noise from.
-    Eigen::MatrixXd covariance;
+    MatrixXd covariance;
 
     /// If the control output is bounded between control_min and control_max.
     bool control_bound;
 
     /// The minimum control output for each control degree of freedom.
-    Eigen::VectorXd control_min;
+    VectorXd control_min;
 
     /// The maximum control output for each control degree of freedom.
-    Eigen::VectorXd control_max;
+    VectorXd control_max;
 
     /// The control to return when getting the trajectory past the horison.
-    std::optional<Eigen::VectorXd> control_default;
+    std::optional<VectorXd> control_default;
 
     /// Filter configuration.
     struct Smoothing {
@@ -282,7 +278,7 @@ public:
 
         /// The noise applied to the previous optimal rollout. Has `control_dof`
         /// number of rows and `steps` number of columns.
-        Eigen::MatrixXd noise;
+        MatrixXd noise;
 
         /// The cost of the rollout.
         double cost;
@@ -338,7 +334,7 @@ public:
      * @param state The current state of the dynamics system.
      * @param time The current time in seconds. Must be monotonic.
      */
-    void update(const Eigen::Ref<Eigen::VectorXd> state, double time);
+    void update(const Eigen::Ref<VectorXd> state, double time);
 
     /**
      * @brief Get the state degrees of freedom.
@@ -407,14 +403,14 @@ public:
     /**
      * @brief Get the last update rollout weights.
      */
-    inline const Eigen::VectorXd &get_weights() const {
+    inline const VectorXd &get_weights() const {
         return m_weights;
     }
 
     /**
      * @brief Get the last update gradient.
      */
-    inline const Eigen::MatrixXd &get_gradient() const {
+    inline const MatrixXd &get_gradient() const {
         return m_gradient;
     }
 
@@ -428,7 +424,7 @@ public:
     /**
      * @brief Get the optimal rollout 
      */
-    inline const Eigen::MatrixXd &get_optimal_rollout() const {
+    inline const MatrixXd &get_optimal_rollout() const {
         return m_optimal_control;
     }
 
@@ -436,7 +432,7 @@ public:
      * @brief Get the optimal trajectory starting at the last update time.
      * @returns The optimal control trajectory.
      */
-    inline const Eigen::MatrixXd &trajectory() const {
+    inline const MatrixXd &trajectory() const {
         return m_optimal_control;
     }
 
@@ -461,7 +457,7 @@ public:
      * @param control Reference to the control vector to fill.
      * @param t The time to evaluate the control trajectory.
      */
-    void get(Eigen::Ref<Eigen::VectorXd> control, double time);
+    void get(Eigen::Ref<VectorXd> control, double time);
 
     /**
      * @brief Evaluate the current optimal control trajectory at a given time.
@@ -469,8 +465,8 @@ public:
      * @param time The time to evaluate the control trajectory.
      * @returns The control parameters for the current time.
      */
-    inline Eigen::VectorXd operator()(double time) {
-        Eigen::VectorXd control;
+    inline VectorXd operator()(double time) {
+        VectorXd control;
         get(control, time);
         return control;
     }
@@ -587,7 +583,7 @@ private:
     Gaussian m_gaussian;
 
     /// The current state from which the controller is generating trajectories.
-    Eigen::VectorXd m_rollout_state;
+    VectorXd m_rollout_state;
 
     /// The current time of trajectory generation.
     double m_rollout_time;
@@ -611,10 +607,10 @@ private:
     std::vector<Rollout> m_rollouts;
 
     /// The weight of each rollout. The higher the better.
-    Eigen::VectorXd m_weights;
+    VectorXd m_weights;
 
     /// The gradient applied to the optimal control trajectory.
-    Eigen::MatrixXd m_gradient;
+    MatrixXd m_gradient;
 
     /// The scalar amount by which to add the gradient to the optimal control.
     const double m_gradient_step;
@@ -623,13 +619,13 @@ private:
     std::unique_ptr<Filter> m_filter;
 
     /// The previous optimal control, shifted to align with the current time.
-    Eigen::MatrixXd m_optimal_control_shifted;
+    MatrixXd m_optimal_control_shifted;
 
     /// The rollout of the optimal trajectory. The filter is applied here.
     Rollout m_optimal_rollout;
 
     /// The optimal control.
-    Eigen::MatrixXd m_optimal_control;
+    MatrixXd m_optimal_control;
 
     /// Mutex protecting concurrent access to the optimal control.
     std::mutex m_optimal_control_mutex;
@@ -647,13 +643,13 @@ private:
     const bool m_bound_control;
 
     /// The minimum control if bounded.
-    Eigen::VectorXd m_control_min;
+    VectorXd m_control_min;
 
     /// The maximum control if bounded.
-    Eigen::VectorXd m_control_max;
+    VectorXd m_control_max;
 
     /// If the end of the trajectory is reached, the control to return.
-    std::optional<Eigen::VectorXd> m_control_default;
+    std::optional<VectorXd> m_control_default;
 };
 
 } // namespace mppi

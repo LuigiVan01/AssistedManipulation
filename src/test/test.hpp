@@ -150,10 +150,11 @@ public:
         // Add the current datetime to t
         auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         char buffer[30] = {'\0'};
-        std::strftime(buffer, sizeof(buffer),  "%F_%H-%M-%S", std::localtime(&time));
+        std::strftime(buffer, sizeof(buffer),  "%F_%rh%Mm%Ss%p", std::localtime(&time));
         std::string datetime {buffer};
 
-        output_folder += name + "_" + datetime;
+        // Write to the folder containing the name and the datetime.
+        output_folder /= name + "_" + datetime;
 
         Test::Options meta {
             .patch = patch,
@@ -164,7 +165,7 @@ public:
         auto test = it->second(meta);
         if (!test) {
             std::cerr << "failed to create test \"" << name << "\""
-                      << " with options " << ((json)meta).dump(0)
+                      << " with options " << ((json)meta).dump(4)
                       << std::endl;
             return false;
         }

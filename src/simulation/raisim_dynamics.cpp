@@ -55,7 +55,7 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
     );
 
     // Start with zero force on the joints.
-    auto zero = Eigen::VectorXd::Zero((Eigen::Index)frankaridgeback->getDOF());
+    auto zero = VectorXd::Zero((Eigen::Index)frankaridgeback->getDOF());
     frankaridgeback->setGeneralizedForce(zero);
 
     return std::unique_ptr<RaisimDynamics>(
@@ -94,7 +94,7 @@ RaisimDynamics::RaisimDynamics(
    , m_end_effector_angular_velocity(Vector3d::Zero())
    , m_end_effector_linear_acceleration(Vector3d::Zero())
    , m_end_effector_angular_acceleration(Vector3d::Zero())
-   , m_end_effector_true_wrench(Vector6d::Zero())
+   , m_end_effector_simulated_wrench(Vector6d::Zero())
    , m_end_effector_forecast_wrench(Vector6d::Zero())
    , m_end_effector_virtual_wrench(Vector6d::Zero())
    , m_power(0.0)
@@ -111,7 +111,7 @@ RaisimDynamics::RaisimDynamics(
     set_state(configuration.initial_state, m_world->getWorldTime());
 }
 
-void RaisimDynamics::set_state(const Eigen::VectorXd &state, double time)
+void RaisimDynamics::set_state(const VectorXd &state, double time)
 {
     m_world->setWorldTime(time);
 
@@ -122,23 +122,22 @@ void RaisimDynamics::set_state(const Eigen::VectorXd &state, double time)
     calculate();
 }
 
-void RaisimDynamics::add_end_effector_true_wrench(
-    Eigen::Ref<Eigen::Vector<double, 6>> wrench
-) {
-    m_end_effector_true_wrench += wrench;
+void RaisimDynamics::add_end_effector_simulated_wrench(Vector6d wrench)
+{
+    m_end_effector_simulated_wrench += wrench;
 
     // Calculates the applied torque / force from the frame itself on the parent
     // joint. Other methods apply the force to the parent body itself. There is
     // no setting external force using the frame index instead of name.
     m_robot->setExternalForce(
         m_end_effector_frame_name,
-        m_end_effector_true_wrench.head<3>()
+        m_end_effector_simulated_wrench.head<3>()
     );
 
     // Torque is applied to the parent joint itself.
     m_robot->setExternalTorque(
         m_robot->getFrameByIdx(m_end_effector_frame_index).parentId,
-        m_end_effector_true_wrench.tail<3>()
+        m_end_effector_simulated_wrench.tail<3>()
     );
 
     std::cout << "applied force now " << get_end_effector_true_force().transpose() << std::endl;
@@ -218,14 +217,14 @@ void RaisimDynamics::act(const Control &control)
 
     m_robot->setPdTarget(m_position_command, m_velocity_command);
     m_robot->setGeneralizedForce(forces);
- 
+
     // We could simulate the forecasted end effector wrench, but this would make
     // the calculation of the user observed end effector force incorrect.
 }
 
 void RaisimDynamics::update()
 {
-    m_end_effector_true_wrench.setZero();
+    m_end_effector_simulated_wrench.setZero();
 
     calculate();
 
@@ -248,8 +247,8 @@ void RaisimDynamics::update()
     m_state.available_energy().setConstant(m_energy_tank.get_energy());
 }
 
-Eigen::Ref<Eigen::VectorXd> RaisimDynamics::step(
-    const Eigen::VectorXd &control,
+Eigen::Ref<VectorXd> RaisimDynamics::step(
+    const VectorXd &control,
     double dt
 ) {
     act(control);

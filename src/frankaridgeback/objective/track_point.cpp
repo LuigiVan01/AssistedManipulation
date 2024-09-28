@@ -5,6 +5,40 @@
 #include <iostream>
 #include <random>
 
+const TrackPoint::Configuration TrackPoint::DEFAULT_CONFIGURATION {
+    .point = Vector3d(1.0, 1.0, 1.0),
+    .enable_joint_limits = true,
+    .enable_power_limit = false,
+    .lower_joint_limit = {{
+        {-2.0,    1'000, 100'00}, // Base rotation
+        {-2.0,    1'000, 100'00}, // Base x
+        {-6.28,   1'000, 100'00}, // Base y
+        {-2.8973, 1'000, 100'00}, // Joint1
+        {-1.7628, 1'000, 100'00}, // Joint2
+        {-2.8973, 1'000, 100'00}, // Joint3
+        {-3.0718, 1'000, 100'00}, // Joint4
+        {-2.8973, 1'000, 100'00}, // Joint5
+        {-0.0175, 1'000, 100'00}, // Joint6
+        {-2.8973, 1'000, 100'00}, // Joint7
+        {0.5,     1'000, 100'00}, // Gripper x
+        {0.5,     1'000, 100'00}  // Gripper y
+    }},
+    .upper_joint_limit = {{
+        {2.0,    1'000, 100'00}, // Base rotation
+        {2.0,    1'000, 100'00}, // Base x
+        {6.28,   1'000, 100'00}, // Base y
+        {2.8973, 1'000, 100'00}, // Joint1
+        {1.7628, 1'000, 100'00}, // Joint2
+        {2.8973, 1'000, 100'00}, // Joint3
+        {3.0718, 1'000, 100'00}, // Joint4
+        {2.8973, 1'000, 100'00}, // Joint5
+        {0.0175, 1'000, 100'00}, // Joint6
+        {2.8973, 1'000, 100'00}, // Joint7
+        {0.5,    1'000, 100'00}, // Gripper x
+        {0.5,    1'000, 100'00}  // Gripper y
+    }}
+};
+
 double TrackPoint::get_cost(
     const VectorXd & s,
     const VectorXd & /*control */,
@@ -20,7 +54,7 @@ double TrackPoint::get_cost(
         cost += joint_cost(state);
     }
 
-    if (m_configuration.enable_minimuse_power) {
+    if (m_configuration.enable_power_limit) {
         cost += power_cost(dynamics);
     }
 

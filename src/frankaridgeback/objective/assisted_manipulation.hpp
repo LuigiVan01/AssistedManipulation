@@ -71,41 +71,9 @@ public:
         )
     };
 
-    // Joint cost limits probably don't need this high fidelity.
-
-    /// The default lower joint limits.
-    inline static std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS>
-    s_default_lower_joint_limits {{
-        {-2.0,    1'000, 100'00}, // Base rotation
-        {-2.0,    1'000, 100'00}, // Base x
-        {-6.28,   1'000, 100'00}, // Base y
-        {-2.8973, 1'000, 100'00}, // Joint1
-        {-1.7628, 1'000, 100'00}, // Joint2
-        {-2.8973, 1'000, 100'00}, // Joint3
-        {-3.0718, 1'000, 100'00}, // Joint4
-        {-2.8973, 1'000, 100'00}, // Joint5
-        {-0.0175, 1'000, 100'00}, // Joint6
-        {-2.8973, 1'000, 100'00}, // Joint7
-        // {0.5,     1'000, 100'00}, // Gripper x
-        // {0.5,     1'000, 100'00}  // Gripper y
-    }};
-
-    /// The default upper joint limits.
-    inline static std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS>
-    s_default_upper_joint_limits {{
-        {2.0,    1'000, 100'00}, // Base rotation
-        {2.0,    1'000, 100'00}, // Base x
-        {6.28,   1'000, 100'00}, // Base y
-        {2.8973, 1'000, 100'00}, // Joint1
-        {1.7628, 1'000, 100'00}, // Joint2
-        {2.8973, 1'000, 100'00}, // Joint3
-        {3.0718, 1'000, 100'00}, // Joint4
-        {2.8973, 1'000, 100'00}, // Joint5
-        {0.0175, 1'000, 100'00}, // Joint6
-        {2.8973, 1'000, 100'00}, // Joint7
-        // {0.5,    1'000, 100'00}, // Gripper x
-        // {0.5,    1'000, 100'00}  // Gripper y
-    }};
+    /// The default configuration of the assisted manipulation objective.
+    /// Includes the standard joint limits.
+    static const Configuration DEFAULT_CONFIGURATION;
 
     /**
      * @brief Get the number of state degrees of freedom.

@@ -10,7 +10,37 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
         .gravity = {0.0, 0.0, 9.81}
     },
     .actor = {
-        .simulated_dynamics = {
+        .dynamics = {
+            .type = FrankaRidgeback::SimulatorAdaptor::Type::RAISIM,
+            .raisim = FrankaRidgeback::RaisimDynamics::Configuration {
+                .simulator = Simulator::Configuration {
+                    .time_step = 0.005,
+                    .gravity = {0.0, 0.0, 9.81}
+                },
+                .filename = "",
+                .end_effector_frame = "panda_grasp_joint",
+                .initial_state = FrankaRidgeback::State::Zero(),
+                .proportional_gain = FrankaRidgeback::Control{
+                    0.0, 0.0, 0.0, // base
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
+                    100.0, 100.0
+                },
+                .differential_gain = FrankaRidgeback::Control{
+                    1000.0, 1000.0, 1.0, // base
+                    10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                    50.0, 50.0
+                },
+                .energy = 10.0
+            },
+            .pinocchio = FrankaRidgeback::PinocchioDynamics::Configuration {
+                .filename = "",
+                .end_effector_frame = "panda_grasp_joint",
+                .initial_state = FrankaRidgeback::State::Zero(),
+                .energy = 10.0
+            }
+        },
+        .mppi_type = FrankaRidgeback::Actor::Type::RAISIM,
+        .mppi_raisim = FrankaRidgeback::RaisimDynamics::Configuration {
             .simulator = Simulator::Configuration {
                 .time_step = 0.005,
                 .gravity = {0.0, 0.0, 9.81}
@@ -30,28 +60,7 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
             },
             .energy = 10.0
         },
-        .mppi_dynamics_type = FrankaRidgeback::Actor::Type::RAISIM,
-        .mppi_dynamics_raisim = FrankaRidgeback::RaisimDynamics::Configuration {
-            .simulator = Simulator::Configuration {
-                .time_step = 0.005,
-                .gravity = {0.0, 0.0, 9.81}
-            },
-            .filename = "",
-            .end_effector_frame = "panda_grasp_joint",
-            .initial_state = FrankaRidgeback::State::Zero(),
-            .proportional_gain = FrankaRidgeback::Control{
-                0.0, 0.0, 0.0, // base
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
-                100.0, 100.0
-            },
-            .differential_gain = FrankaRidgeback::Control{
-                1000.0, 1000.0, 1.0, // base
-                10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
-                50.0, 50.0
-            },
-            .energy = 10.0
-        },
-        .mppi_dynamics_pinocchio = FrankaRidgeback::PinocchioDynamics::Configuration{
+        .mppi_pinocchio = FrankaRidgeback::PinocchioDynamics::Configuration {
             .filename = "",
             .end_effector_frame = "panda_grasp_joint",
             .initial_state = FrankaRidgeback::State::Zero(),
@@ -95,15 +104,7 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
     },
     .objective = {
         .type = BaseTest::Objective::Type::ASSISTED_MANIPULATION,
-        .assisted_manipulation = AssistedManipulation::Configuration {
-            .enable_joint_limit = true,
-            .enable_reach_limit = false,
-            .enable_maximise_manipulability = false,
-            .enable_minimise_power = false,
-            .enable_variable_damping = false,
-            .lower_joint_limit = AssistedManipulation::s_default_lower_joint_limits,
-            .upper_joint_limit = AssistedManipulation::s_default_upper_joint_limits
-        }
+        .assisted_manipulation = AssistedManipulation::DEFAULT_CONFIGURATION
     },
     .wrench_forecast = std::nullopt,
     .mppi_logger = {
@@ -139,8 +140,8 @@ std::unique_ptr<BaseTest> BaseTest::create(Options &options)
     }
     catch (const json::exception &err) {
         std::cerr << "error when patching json configuration: " << err.what() << std::endl;
-        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGURATION).dump(0) << std::endl;
-        std::cerr << "patch was " << options.patch.dump(0) << std::endl;
+        std::cerr << "configuration was " << ((json)DEFAULT_CONFIGURATION).dump(4) << std::endl;
+        std::cerr << "patch was " << options.patch.dump(4) << std::endl;
         return nullptr;
     }
 
@@ -239,7 +240,7 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
             std::cerr << "failed create configuration file" << std::endl;
             return nullptr;
         }
-        file->get_stream() << ((json)configuration).dump(0);
+        file->get_stream() << ((json)configuration).dump(4);
     }
 
     return std::unique_ptr<BaseTest>(

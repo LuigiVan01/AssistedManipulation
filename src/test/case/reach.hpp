@@ -29,9 +29,7 @@ public:
 
     inline const static Configuration DEFAULT_CONFIGIURATION {
         .base = BaseTest::DEFAULT_CONFIGURATION,
-        .objective = {
-            .point = Eigen::Vector3d(1.0, 1.0, 1.0),
-        }
+        .objective = TrackPoint::DEFAULT_CONFIGURATION
     };
 
     /**

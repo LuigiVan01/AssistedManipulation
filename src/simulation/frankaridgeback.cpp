@@ -15,31 +15,42 @@ std::shared_ptr<Actor> Actor::create(
     if (wrench_forecast)
         mppi_forecast = wrench_forecast->copy();
 
+    // Create the dynamics to be simulated for the frankaridgeback robot.
+    auto adaptor = SimulatorAdaptor::create(
+        configuration.dynamics,
+        simulator,
+        std::move(mppi_forecast)
+    );
+    if (!adaptor) {
+        std::cerr << "failed to create simulator actor dynamics" << std::endl;
+        return nullptr;
+    }
+
     std::unique_ptr<mppi::Dynamics> mppi_dynamics = nullptr;
 
     // Create the dynamics for the mppi controller.
-    if (configuration.mppi_dynamics_type == Type::RAISIM) {
-        if (!configuration.mppi_dynamics_raisim) {
+    if (configuration.mppi_type == Type::RAISIM) {
+        if (!configuration.mppi_raisim) {
             std::cerr << "no mppi raisim dynamics configuration provided" << std::endl;
             return nullptr;
         }
         mppi_dynamics = RaisimDynamics::create(
-            *configuration.mppi_dynamics_raisim,
+            *configuration.mppi_raisim,
             std::move(mppi_forecast)
         );
     }
-    else if (configuration.mppi_dynamics_type == Type::PINOCCHIO) {
-        if (!configuration.mppi_dynamics_pinocchio) {
+    else if (configuration.mppi_type == Type::PINOCCHIO) {
+        if (!configuration.mppi_pinocchio) {
             std::cerr << "no mppi pinocchio dynamics configuration provided" << std::endl;
             return nullptr;
         }
         mppi_dynamics = PinocchioDynamics::create(
-            *configuration.mppi_dynamics_pinocchio,
+            *configuration.mppi_pinocchio,
             std::move(mppi_forecast)
         );
     }
     else {
-        std::cerr << "unrecognised mppi dynamics type " << configuration.mppi_dynamics_type << std::endl;
+        std::cerr << "unrecognised mppi dynamics type " << configuration.mppi_type << std::endl;
         return nullptr;
     }
 
@@ -60,20 +71,6 @@ std::shared_ptr<Actor> Actor::create(
         return nullptr;
     }
 
-    // Use the passed in raisim world, rather than instantiating another one.
-    configuration.simulated_dynamics.simulator = std::nullopt;
-
-    // Create the raisim dynamics to simulate the robot with.
-    auto simulated_dynamics = FrankaRidgeback::RaisimDynamics::create(
-        configuration.simulated_dynamics,
-        std::move(wrench_forecast),
-        simulator->get_world()
-    );
-    if (!simulated_dynamics) {
-        std::cerr << "failed to create frankaridgeback raisim dynamics for simulation" << std::endl;
-        return nullptr;
-    }
-
     // The rate of updating 
     std::int64_t controller_countdown_max = (std::int64_t)(
         configuration.controller_rate / simulator->get_time_step()
@@ -88,7 +85,7 @@ std::shared_ptr<Actor> Actor::create(
     return std::shared_ptr<Actor>(
         new Actor(
             std::move(configuration),
-            std::move(simulated_dynamics),
+            std::move(adaptor),
             std::move(controller),
             controller_countdown_max
         )
@@ -97,7 +94,7 @@ std::shared_ptr<Actor> Actor::create(
 
 Actor::Actor(
     Configuration &&configuration,
-    std::unique_ptr<RaisimDynamics> &&dynamics,
+    std::unique_ptr<SimulatorAdaptor> &&dynamics,
     std::unique_ptr<mppi::Trajectory> &&controller,
     std::int64_t controller_countdown_max
 ) : m_configuration(std::move(configuration))
@@ -117,13 +114,17 @@ void Actor::act(Simulator *simulator)
     if (--m_trajectory_countdown <= 0) {
         m_trajectory_countdown = m_trajectory_countdown_max;
 
-        for (unsigned int i = 0; i < m_configuration.controller_substeps; i++)
-            m_controller->update(m_dynamics->get_state(), simulator->get_time());
+        for (unsigned int i = 0; i < m_configuration.controller_substeps; i++) {
+            m_controller->update(
+                m_dynamics->get_dynamics()->get_state(),
+                simulator->get_time()
+            );
+        }
     }
 
     // Get the controls to apply to the dynamics.
     m_controller->get(m_control, simulator->get_time());
-    m_dynamics->act(m_control);
+    m_dynamics->act(m_control, simulator->get_time_step());
 }
 
 void Actor::update(Simulator *simulator)

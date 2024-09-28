@@ -3,14 +3,13 @@
 #include <optional>
 
 #include "simulation/simulator.hpp"
-#include "simulation/raisim_dynamics.hpp"
+#include "simulation/adaptor.hpp"
 #include "controller/pid.hpp"
 #include "controller/mppi.hpp"
 #include "controller/energy.hpp"
 #include "controller/forecast.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
-#include "frankaridgeback/pinocchio_dynamics.hpp"
 
 namespace FrankaRidgeback {
 
@@ -41,17 +40,19 @@ public:
 
     struct Configuration {
 
-        /// The raisim simulated dynamics.
-        RaisimDynamics::Configuration simulated_dynamics;
+        /// Configuration of the actor dynamics. The adaptor provides a 
+        /// consistent interface between simulated dynamics and the simulated
+        // actor.
+        SimulatorAdaptor::Configuration dynamics;
 
         /// The selected type of pinocchio dynamics.
-        Type mppi_dynamics_type;
+        Type mppi_type;
 
         /// The mppi dynamics configuration for pinocchio if selected.
-        std::optional<RaisimDynamics::Configuration> mppi_dynamics_raisim;
+        std::optional<RaisimDynamics::Configuration> mppi_raisim;
 
         /// The mppi dynamics configuration for raisim if selected.
-        std::optional<PinocchioDynamics::Configuration> mppi_dynamics_pinocchio;
+        std::optional<PinocchioDynamics::Configuration> mppi_pinocchio;
 
         /// Configuration of the mppi trajectory generator.
         mppi::Configuration mppi;
@@ -65,8 +66,8 @@ public:
         // JSON conversion for franka ridgeback actor configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            simulated_dynamics, mppi_dynamics_type, mppi_dynamics_raisim,
-            mppi_dynamics_pinocchio, mppi, controller_rate, controller_substeps
+            dynamics, mppi_type, mppi_raisim, mppi_pinocchio, mppi,
+            controller_rate, controller_substeps
         )
     };
 
@@ -98,15 +99,15 @@ public:
      */
     inline void add_end_effector_wrench(Vector6d wrench)
     {
-        m_dynamics->add_end_effector_true_wrench(wrench);
+        m_dynamics->get_dynamics()->add_end_effector_simulated_wrench(wrench);
     }
 
     /**
      * @brief Get a pointer to the simulated articulated system.
      */
-    inline const RaisimDynamics &get_dynamics() const
+    inline const FrankaRidgeback::Dynamics &get_dynamics() const
     {
-        return *m_dynamics;
+        return *m_dynamics->get_dynamics();
     }
 
     /**
@@ -114,7 +115,7 @@ public:
      */
     inline const FrankaRidgeback::State &get_state() const
     {
-        return m_dynamics->get_state();
+        return m_dynamics->get_dynamics()->get_state();
     }
 
     /**
@@ -131,7 +132,7 @@ private:
 
     Actor(
         Configuration &&configuration,
-        std::unique_ptr<RaisimDynamics> &&dynamics,
+        std::unique_ptr<SimulatorAdaptor> &&dynamics,
         std::unique_ptr<mppi::Trajectory> &&controller,
         std::int64_t controller_countdown_max
     );
@@ -152,7 +153,7 @@ private:
     Configuration m_configuration;
 
     /// The simulated dynamics.
-    std::unique_ptr<RaisimDynamics> m_dynamics;
+    std::unique_ptr<SimulatorAdaptor> m_dynamics;
 
     /// The trajectory generator.
     std::unique_ptr<mppi::Trajectory> m_controller;

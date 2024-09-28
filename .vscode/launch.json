@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/install/bin/test.exe",
-            "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results/${input:test}"],
+            "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results"],
             "environment": [
                 {
                     "name": "RAISIM_ACTIVATION",
@@ -72,7 +72,7 @@
                 "forecast"
             ],
             "type": "pickString",
-            "default": "forecast"
+            "default": "reach"
         }
     ]
 }

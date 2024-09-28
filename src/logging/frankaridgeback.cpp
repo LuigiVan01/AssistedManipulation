@@ -28,8 +28,8 @@ std::unique_ptr<FrankaRidgebackDynamics> FrankaRidgebackDynamics::create(
             .path = configuration.folder / "end_effector_linear_velocity.csv",
             .header = CSV::make_header("time", "x", "y", "z")
         });
-        logger->m_linear_velocity_logger = CSV::create(CSV::Configuration{
-            .path = configuration.folder / "end_effector_velocity.csv",
+        logger->m_angular_velocity_logger = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "end_effector_angular_velocity.csv",
             .header = CSV::make_header("time", "wx", "wy", "wz")
         });
     }
@@ -40,7 +40,7 @@ std::unique_ptr<FrankaRidgebackDynamics> FrankaRidgebackDynamics::create(
             .header = CSV::make_header("time", "ax", "ay", "az")
         });
         logger->m_angular_acceleration_logger = CSV::create(CSV::Configuration{
-            .path = configuration.folder / "end_effector_anguhlar_acceleration.csv",
+            .path = configuration.folder / "end_effector_angular_acceleration.csv",
             .header = CSV::make_header("time", "alpha_x", "alpha_y", "alpha_z")
         });
     }
@@ -92,7 +92,7 @@ void FrankaRidgebackDynamics::log(
     if (m_orientation_logger) {
         m_orientation_logger->write(
             time,
-            dynamics.get_end_effector_orientation()
+            dynamics.get_end_effector_orientation().coeffs()
         );
     }
 

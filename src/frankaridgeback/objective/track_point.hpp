@@ -19,10 +19,10 @@ public:
         Eigen::Vector3d point;
 
         /// If the objective should avoid joint limits.
-        bool enable_joint_limits = true;
+        bool enable_joint_limits;
 
-        /// If the objective should minimise power usage.
-        bool enable_minimuse_power = true;
+        /// If the objective should limit power usage.
+        bool enable_power_limit;
 
         /// Lower joint limits if enabled.
         std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> lower_joint_limit;
@@ -37,10 +37,19 @@ public:
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, point)
     };
 
+    /// The default configuration of the track point objective.
+    static const Configuration DEFAULT_CONFIGURATION; 
+
+    /**
+     * @brief Get the number of state degrees of freedom.
+     */
     inline constexpr int get_state_dof() override {
         return FrankaRidgeback::DoF::STATE;
     }
 
+    /**
+     * @brief Get the number of control degrees of freedom.
+     */
     inline constexpr int get_control_dof() override {
         return FrankaRidgeback::DoF::CONTROL;
     }

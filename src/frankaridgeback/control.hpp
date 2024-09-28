@@ -1,7 +1,6 @@
 #pragma once
 
-#include <Eigen/Eigen>
-
+#include "controller/eigen.hpp"
 #include "controller/json.hpp"
 #include "frankaridgeback/dof.hpp"
 

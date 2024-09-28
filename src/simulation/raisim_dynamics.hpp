@@ -92,7 +92,7 @@ public:
      * 
      * @returns The subsequent state.
      */
-    Eigen::Ref<Eigen::VectorXd> step(const Eigen::VectorXd &control, double dt) override;
+    Eigen::Ref<VectorXd> step(const VectorXd &control, double dt) override;
 
     /**
      * @brief Set the control actions for the dynamics.
@@ -119,13 +119,13 @@ public:
      * @param state The system state.
      * @param time The time of the state.
      */
-    void set_state(const Eigen::VectorXd &state, double time) override;
+    void set_state(const VectorXd &state, double time) override;
 
     /**
      * @brief Get the dynamics state.
      * @returns The state of the dynamics.
      */
-    Eigen::Ref<Eigen::VectorXd> get_state() override
+    Eigen::Ref<VectorXd> get_state() override
     {
         return m_state;
     }
@@ -163,7 +163,7 @@ public:
     {
         raisim::Mat<3, 3> orientation;
         m_robot->getFrameOrientation(m_end_effector_frame_index, orientation);
-        return Eigen::Quaterniond(orientation.e());
+        return Quaterniond(orientation.e());
     }
 
     /**
@@ -271,31 +271,32 @@ public:
      * @returns The actually applied wrench (fx, fy, fz, tau_x, tau_y, tau_z) at
      * the end effector in the world frame.
      */
-    inline Vector6d get_end_effector_true_wrench()
+    inline Vector6d get_end_effector_simulated_wrench() const override
     {
         return m_end_effector_virtual_wrench;
     }
 
     /**
      * @brief Add cumulative wrench to the end effector, to be simulated on the
-     * next step.
+     * next step, after which it is set to zero.
      * 
      * @note This is only used for simulating the robot actor.
-     * 
-     * After the next step, the end effector true wrench is set to zero.
      * 
      * @param wrench The wrench to cumulative add to the end effector to be
      * simulated.
      */
-    void add_end_effector_true_wrench(Eigen::Ref<Vector6d> wrench);
+    void add_end_effector_simulated_wrench(Vector6d wrench) override;
 
     /**
      * @brief Get the previously set end effector force.
      */
     inline Vector3d get_end_effector_true_force()
     {
-        /// TODO: Check if this is correct. Why index zero? Documentation says
+        /// TODO: Check if this is correct.Documentation says
         // used for visualisation.
+
+        /// Force indexes begin at the distal (as far along the chain) end and
+        /// increment to the base. Index 0 is the last frame.
         return m_robot->getExternalForce()[0].e();
     }
 
@@ -304,8 +305,11 @@ public:
      */
     inline Vector3d get_end_effector_true_torque()
     {
-        /// TODO: Check if this is correct. Why index zero? Documentation says
+        /// TODO: Check if this is correct.Documentation says
         // used for visualisation.
+
+        /// Force indexes begin at the distal (as far along the chain) end and
+        /// increment to the base. Index 0 is the last frame.
         return m_robot->getExternalTorque()[0].e();
     }
 
@@ -361,16 +365,16 @@ private:
     raisim::ArticulatedSystem *m_robot;
 
     /// The current joint positions.
-    Eigen::VectorXd m_position_command;
+    VectorXd m_position_command;
 
     /// The current joint velocities.
-    Eigen::VectorXd m_velocity_command;
+    VectorXd m_velocity_command;
 
     /// The current joint positions.
-    Eigen::VectorXd m_position;
+    VectorXd m_position;
 
     /// The current joint velocities.
-    Eigen::VectorXd m_velocity;
+    VectorXd m_velocity;
 
     /// Handle to the forecast to get forecast wrench from.
     std::unique_ptr<Forecast::Handle> m_forecast;
@@ -382,10 +386,10 @@ private:
     std::string m_end_effector_frame_name;
 
     /// Linear part of the jacobian, returned by raisim.
-    Eigen::MatrixXd m_end_effector_linear_jacobian;
+    MatrixXd m_end_effector_linear_jacobian;
 
     /// Angular part of the jacobian, returned by raisim.
-    Eigen::MatrixXd m_end_effector_angular_jacobian;
+    MatrixXd m_end_effector_angular_jacobian;
 
     /// Combined linear and angular end effector jacobian in the world frame.
     Jacobian m_end_effector_jacobian;
@@ -410,7 +414,7 @@ private:
     Vector6d m_end_effector_virtual_wrench;
 
     /// Cumulative wrench added to the end effector, only for simulation.
-    Vector6d m_end_effector_true_wrench;
+    Vector6d m_end_effector_simulated_wrench;
 
     /// The most recently calculated power consumption.
     double m_power;
