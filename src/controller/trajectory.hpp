@@ -313,8 +313,8 @@ public:
 
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            origin, x_amplitude, y_amplitude, z_amplitude, y_frequency,
-            z_frequency, y_phase, z_phase
+            origin, x_amplitude, y_amplitude, z_amplitude, x_frequency,
+            y_frequency, z_frequency, y_phase, z_phase
         )
     };
 
@@ -482,7 +482,7 @@ public:
         /// JSON conversion for SlerpTrajectory.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            first_axis, first_angle, second_axis, second_angle
+            first_axis, first_angle, second_axis, second_angle, frequency
         )
     };
 
@@ -581,6 +581,6 @@ struct OrientationTrajectory::Configuration {
     /// JSON conversion for orientation trajectory configuration.
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(
         OrientationTrajectory::Configuration,
-        axis_angle, slerp
+        type, axis_angle, slerp
     )
 };

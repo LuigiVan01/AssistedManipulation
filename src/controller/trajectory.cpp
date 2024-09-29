@@ -10,14 +10,14 @@ const PointTrajectory::Configuration PointTrajectory::DEFAULT_CONFIGURATION {
 
 const CircularTrajectory::Configuration CircularTrajectory::DEFAULT_CONFIGURATION {
     .origin = Vector3d(1.0, 1.0, 0.5),
-    .axis = Vector3d(0.0, 0.0, 1.0),
+    .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
     .radius = 0.25,
     .angular_velocity = 1
 };
 
 const RectangularTrajectory::Configuration RectangularTrajectory::DEFAULT_CONFIGURATION {
     .origin = Vector3d(1.0, 1.0, 0.5),
-    .axis = Vector3d(0.0, 0.0, 1.0),
+    .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
     .angle = 0.0,
     .width = 0.5,
     .height = 0.5,
@@ -44,14 +44,14 @@ const FigureEightTrajectory::Configuration FigureEightTrajectory::DEFAULT_CONFIG
 };
 
 const AxisAngleTrajectory::Configuration AxisAngleTrajectory::DEFAULT_CONFIGURATION {
-    .axis = Vector3d(0, 0, 1),
+    .axis = Vector3d(1, 1, 1).normalized(),
     .angle = 0.0
 };
 
 const SlerpTrajectory::Configuration SlerpTrajectory::DEFAULT_CONFIGURATION {
-    .first_axis = Vector3d(0.0, 0.0, 1.0),
+    .first_axis = Vector3d(0.0, 0.0, 1.0).normalized(),
     .first_angle = 0.0,
-    .second_axis = Vector3d(0.0, 0.0, -1.0),
+    .second_axis = Vector3d(0.0, 1.0, 0.0).normalized(),
     .second_angle = 0.0
 };
 
@@ -126,12 +126,14 @@ std::unique_ptr<OrientationTrajectory> OrientationTrajectory::create(
                 configuration.axis_angle,
                 "axis angle"
             );
+            break;
         }
         case Configuration::Type::SLERP: {
             return try_configuration<SlerpTrajectory, SlerpTrajectory::Configuration>(
                 configuration.slerp,
                 "slerp"
             );
+            break;
         }
         default: {
             std::cerr << "unknown orientation trajectory type"
@@ -209,7 +211,7 @@ std::unique_ptr<RectangularTrajectory> RectangularTrajectory::create(
     const Configuration &configuration
 ) {
     if (configuration.velocity < 0) {
-        std::cout << "cannot have zero velocity" << std::endl;
+        std::cerr << "cannot have zero velocity" << std::endl;
         return nullptr;
     }
 
@@ -237,7 +239,7 @@ RectangularTrajectory::RectangularTrajectory(const Configuration &configuration)
 Vector3d RectangularTrajectory::get_position(double time)
 {
     // Distance relative to the bottom left hand corner 
-    double distance = std::remainder(
+    double distance = std::fmod(
         time * m_configuration.velocity, m_circumference
     );
 
@@ -280,7 +282,7 @@ LissajousTrajectory::LissajousTrajectory(const Configuration &configuration)
 
 Vector3d LissajousTrajectory::get_position(double time)
 {
-    return m_configuration.origin + Vector3d(
+    Vector3d position = m_configuration.origin + Vector3d(
         m_configuration.x_amplitude * std::sin(
             m_configuration.x_frequency * time
         ),
@@ -291,6 +293,7 @@ Vector3d LissajousTrajectory::get_position(double time)
             m_configuration.z_frequency * time + m_configuration.z_phase
         )
     );
+    return position;
 }
 
 std::unique_ptr<FigureEightTrajectory> FigureEightTrajectory::create(
@@ -358,8 +361,8 @@ SlerpTrajectory::SlerpTrajectory(
     );
 
     m_second = (
-        Eigen::AngleAxisd(configuration.first_angle, Vector3d(0, 0, 1)) *
-        Quaterniond::FromTwoVectors(Vector3d(0, 0, 1), configuration.first_axis)
+        Eigen::AngleAxisd(configuration.second_angle, Vector3d(0, 0, 1)) *
+        Quaterniond::FromTwoVectors(Vector3d(0, 0, 1), configuration.second_axis)
     );
 }
 

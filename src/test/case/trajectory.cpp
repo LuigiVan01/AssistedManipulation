@@ -1,21 +1,21 @@
 #include "test/case/trajectory.hpp"
 
 const TrajectoryTest::Configuration TrajectoryTest::DEFAULT_CONFIGURATION {
-    .duration = 30.0,
+    .duration = 300.0,
     .position = PositionTrajectory::Configuration {
-        .type = PositionTrajectory::Configuration::Type::LISSAJOUS,
+        .type = PositionTrajectory::Configuration::Type::POINT,
         .point = PointTrajectory::DEFAULT_CONFIGURATION,
         .circle = CircularTrajectory::DEFAULT_CONFIGURATION,
         .rectangle = RectangularTrajectory::DEFAULT_CONFIGURATION,
         .lissajous = LissajousTrajectory::DEFAULT_CONFIGURATION,
         .figure_eight = FigureEightTrajectory::DEFAULT_CONFIGURATION
     },
-    .orientation = std::nullopt,
-    // .orientation = OrientationTrajectory::Configuration {
-    //     .type = OrientationTrajectory::Configuration::Type::AXIS_ANGLE,
-    //     .axis_angle = AxisAngleTrajectory::DEFAULT_CONFIGURATION,
-    //     .slerp = SlerpTrajectory::DEFAULT_CONFIGURATION
-    // }
+    // .orientation = std::nullopt,
+    .orientation = OrientationTrajectory::Configuration {
+        .type = OrientationTrajectory::Configuration::Type::SLERP,
+        .axis_angle = AxisAngleTrajectory::DEFAULT_CONFIGURATION,
+        .slerp = SlerpTrajectory::DEFAULT_CONFIGURATION
+    }
 };
 
 std::unique_ptr<TrajectoryTest> TrajectoryTest::create(Options &options)
