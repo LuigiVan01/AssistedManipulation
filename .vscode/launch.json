@@ -45,11 +45,7 @@
             "request": "launch",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "module": "analysis",
-            "args": [
-                "--executable", "install/bin/test.exe",
-                "circle", "run", "out"
-            ],
+            "program": "${file}",
             "cwd": "${workspaceFolder}",
         }
     ],
@@ -73,7 +69,7 @@
                 "trajectory"
             ],
             "type": "pickString",
-            "default": "trajectory"
+            "default": "reach"
         }
     ]
 }

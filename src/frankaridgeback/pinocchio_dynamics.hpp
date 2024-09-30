@@ -71,6 +71,14 @@ public:
     std::unique_ptr<mppi::Dynamics> copy() override;
 
     /**
+     * @brief Get the configuration of the dynamics.
+     */
+    inline const Configuration &get_configuration()
+    {
+        return m_configuration;
+    }
+
+    /**
      * @brief Step the dynamics simulation.
      * 
      * @param control The controls applied at the current state (before dt).

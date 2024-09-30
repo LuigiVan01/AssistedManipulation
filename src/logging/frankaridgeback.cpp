@@ -26,7 +26,7 @@ std::unique_ptr<FrankaRidgebackDynamics> FrankaRidgebackDynamics::create(
     if (configuration.log_end_effector_velocity) {
         logger->m_linear_velocity_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_linear_velocity.csv",
-            .header = CSV::make_header("time", "x", "y", "z")
+            .header = CSV::make_header("time", "vx", "vy", "vz")
         });
         logger->m_angular_velocity_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_angular_velocity.csv",

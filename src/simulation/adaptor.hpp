@@ -164,7 +164,7 @@ public:
 
         auto visual = simulator->get_server().addVisualArticulatedSystem(
             "pinocchio",
-            configuration.filename
+            pinocchio->get_configuration().filename
         );
 
         return std::unique_ptr<PinocchioAdaptor>(

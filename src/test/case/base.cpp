@@ -11,7 +11,7 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
     },
     .actor = {
         .dynamics = {
-            .type = FrankaRidgeback::SimulatorAdaptor::Type::RAISIM,
+            .type = FrankaRidgeback::SimulatorAdaptor::Type::PINOCCHIO,
             .raisim = FrankaRidgeback::RaisimDynamics::Configuration {
                 .simulator = Simulator::Configuration {
                     .time_step = 0.005,
@@ -103,8 +103,9 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
         .controller_substeps = 5
     },
     .objective = {
-        .type = BaseTest::Objective::Type::ASSISTED_MANIPULATION,
-        .assisted_manipulation = AssistedManipulation::DEFAULT_CONFIGURATION
+        .type = BaseTest::Objective::Type::TRACK_POINT,
+        .assisted_manipulation = AssistedManipulation::DEFAULT_CONFIGURATION,
+        .track_point = TrackPoint::DEFAULT_CONFIGURATION
     },
     .wrench_forecast = std::nullopt,
     .mppi_logger = {
