@@ -3,7 +3,7 @@
 const TrajectoryTest::Configuration TrajectoryTest::DEFAULT_CONFIGURATION {
     .duration = 300.0,
     .position = PositionTrajectory::Configuration {
-        .type = PositionTrajectory::Configuration::Type::POINT,
+        .type = PositionTrajectory::Configuration::Type::LISSAJOUS,
         .point = PointTrajectory::DEFAULT_CONFIGURATION,
         .circle = CircularTrajectory::DEFAULT_CONFIGURATION,
         .rectangle = RectangularTrajectory::DEFAULT_CONFIGURATION,
@@ -71,18 +71,23 @@ std::unique_ptr<TrajectoryTest> TrajectoryTest::create(
         {
             case PositionTrajectory::Configuration::POINT: {
                 origin = configuration.position->point->point;
+                break;
             }
             case PositionTrajectory::Configuration::CIRCLE: {
                 origin = configuration.position->circle->origin;
+                break;
             }
             case PositionTrajectory::Configuration::RECTANGLE: {
                 origin = configuration.position->rectangle->origin;
+                break;
             }
             case PositionTrajectory::Configuration::LISSAJOUS: {
                 origin = configuration.position->lissajous->origin;
+                break;
             }
             case PositionTrajectory::Configuration::FIGURE_EIGHT: {
                 origin = configuration.position->figure_eight->origin;
+                break;
             }
         }
     }
@@ -128,9 +133,11 @@ TrajectoryTest::TrajectoryTest(
         "trajectory_orientation",
         0.2, 0.2
     );
+
+    // Bug, changing the origin changes the camera orientation.
     m_simulator->get_server().setCameraPositionAndLookAt(
-        origin + Vector3d(-1, -1, 1),
-        Vector3d(0, 0, -1)
+        origin + Vector3d(0, 0.5, 0.5),
+        origin
     );
 }
 
