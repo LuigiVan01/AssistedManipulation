@@ -54,13 +54,15 @@ public:
         )
     };
 
+    static const Configuration DEFAULT_CONFIGURATION;
+
     /**
      * @brief Create a new franka-ridgeback raisim dynamics instance.
      * 
      * Copies the configuration.
      * 
      * @param configuration The configuration of the raisim dynamics.
-     * @param force_forecast Handle to the force forecaster.
+     * @param wrench_forecast Handle to the wrenched dynamics forecast.
      * @param world Optional pointer to the world in which to simulate the
      * dynamics. If nullptr then the simulator
      * 
@@ -68,7 +70,7 @@ public:
      */
     static std::unique_ptr<RaisimDynamics> create(
         Configuration configuration,
-        std::unique_ptr<Forecast::Handle> &&force_forecast,
+        std::unique_ptr<DynamicsForecast::Handle> &&wrench_forecast,
         std::shared_ptr<raisim::World> world = nullptr
     );
 
@@ -147,67 +149,11 @@ public:
     }
 
     /**
-     * @brief Get the position of the end effector in world space.
+     * @brief Get the kinematics of the end effector.
      */
-    inline Vector3d get_end_effector_position() const override
+    inline const EndEffectorState &get_end_effector_state() const
     {
-        raisim::Vec<3> position;
-        m_robot->getFramePosition(m_end_effector_frame_index, position);
-        return position.e();
-    }
-
-    /**
-     * @brief Get the orientation of the end effector in world space.
-     */
-    inline Quaterniond get_end_effector_orientation() const override
-    {
-        raisim::Mat<3, 3> orientation;
-        m_robot->getFrameOrientation(m_end_effector_frame_index, orientation);
-        return Quaterniond(orientation.e());
-    }
-
-    /**
-     * @brief Get the linear velocity (vx, vy, vz) of the end effector in world
-     * space.
-     */
-    inline Vector3d get_end_effector_linear_velocity() const override
-    {
-        return m_end_effector_linear_velocity;
-    }
-
-    /**
-     * @brief Get the angular velocity (wx, wy, wz) of the end effector in world
-     * space.
-     */
-    inline Vector3d get_end_effector_angular_velocity() const override
-    {
-        return m_end_effector_angular_velocity;
-    }
-
-    /**
-     * @brief Get the linear acceleration (ax, ay, az) of the end effector in
-     * world space.
-     */
-    inline Vector3d get_end_effector_linear_acceleration() const override
-    {
-        return m_end_effector_linear_acceleration;
-    }
-
-    /**
-     * @brief Get the angular acceleration (alpha_x, alpha_y, alpha_z) of the
-     * end effector in world space.
-     */
-    inline Vector3d get_end_effector_angular_acceleration() const override
-    {
-        return m_end_effector_angular_acceleration;
-    }
-
-    /**
-     * @brief Get the jacobian of the end effector.
-     */
-    Eigen::Ref<Jacobian> get_end_effector_jacobian() override
-    {
-        return m_end_effector_jacobian;
+        return m_end_effector_state;
     }
 
     /**
@@ -233,37 +179,6 @@ public:
     }
 
     /**
-     * @brief Get the end effector forecast wrench.
-     * 
-     * A prediction of the wrench applied to the end effector during rollout.
-     * 
-     * @returns The wrench (fx, fy, fz, tau_x, tau_y, tau_z) expected at the end
-     * effector.
-     */
-    inline Vector6d get_end_effector_forecast_wrench() const override
-    {
-        return m_end_effector_forecast_wrench;
-    }
-
-    /**
-     * @brief Get the end effector virtual wrench.
-     * 
-     * The virtual wrench is the wrench that would be applied to the end
-     * effector to produce its current linear and angular acceleration.
-     * 
-     * @note This can be compared against the forecasted end effector wrench to
-     * reward rollouts that 
-     * 
-     * @returns A wrench (fx, fy, fz, tau_x, tau_y, tau_z) at the end effector
-     * in the world frame, that results in the current end effector
-     * acceleration.
-     */
-    inline Vector6d get_end_effector_virtual_wrench() const override
-    {
-        return m_end_effector_virtual_wrench;
-    }
-
-    /**
      * @brief Get the actual wrench of the end effector.
      * 
      * @note This is only used for simulating the robot actor.
@@ -273,7 +188,7 @@ public:
      */
     inline Vector6d get_end_effector_simulated_wrench() const override
     {
-        return m_end_effector_virtual_wrench;
+        return m_end_effector_simulated_wrench;
     }
 
     /**
@@ -287,32 +202,6 @@ public:
      */
     void add_end_effector_simulated_wrench(Vector6d wrench) override;
 
-    /**
-     * @brief Get the previously set end effector force.
-     */
-    inline Vector3d get_end_effector_true_force()
-    {
-        /// TODO: Check if this is correct.Documentation says
-        // used for visualisation.
-
-        /// Force indexes begin at the distal (as far along the chain) end and
-        /// increment to the base. Index 0 is the last frame.
-        return m_robot->getExternalForce()[0].e();
-    }
-
-    /**
-     * @brief Get the previously set end effector torque.
-     */
-    inline Vector3d get_end_effector_true_torque()
-    {
-        /// TODO: Check if this is correct.Documentation says
-        // used for visualisation.
-
-        /// Force indexes begin at the distal (as far along the chain) end and
-        /// increment to the base. Index 0 is the last frame.
-        return m_robot->getExternalTorque()[0].e();
-    }
-
 private:
 
     /**
@@ -320,7 +209,7 @@ private:
      * 
      * @param configuration 
      * @param world The world in which the franka-ridgeback exists.
-     * @param forecast_handle Handle to the external wrench forecast.
+     * @param wrench_forecast Handle to the external wrench forecast.
      * @param robot Pointer to the robot in the world.
      * @param end_effector_frame_index Index of the end effector frame.
      * @param end_effector_frame_name The name of the end effector frame.
@@ -328,32 +217,16 @@ private:
     RaisimDynamics(
         const Configuration &configuration,
         std::shared_ptr<raisim::World> &&world,
-        std::unique_ptr<Forecast::Handle> &&forecast_handle,
+        std::unique_ptr<DynamicsForecast::Handle> &&wrench_forecast,
         raisim::ArticulatedSystem *robot,
         std::int64_t end_effector_frame_index,
         std::string end_effector_frame_name
     );
 
     /**
-     * @brief Updates derived kinematic information.
-     * 
-     * Called on setting the state and every step.
-     * 
-     * Responsible for:
-     * - Getting the end effector jacobian.
-     * - Calculating the power consumption.
-     * - Calculating end effector velocity.
-     * - Calculating end effector acceleration.
+     * @brief Calculate dynamics information on stepping or setting the state.
      */
     void calculate();
-
-    /**
-     * @brief Calculates the virtual end effector wrench.
-     * 
-     * The virtual wrench is the wrench that would be applied to the end
-     * effector to produce its current linear and angular acceleration.
-     */
-    Vector6d calculate_virtual_end_effector_wrench();
 
     /// The configuration of the frankaridgeback dynamics.
     Configuration m_configuration;
@@ -376,45 +249,20 @@ private:
     /// The current joint velocities.
     VectorXd m_velocity;
 
-    /// Handle to the forecast to get forecast wrench from.
-    std::unique_ptr<Forecast::Handle> m_forecast;
-
     /// The index of the end effector frame into raisim data structure.
     std::int64_t m_end_effector_frame_index;
 
     /// The name of the end effector frame of reference.
     std::string m_end_effector_frame_name;
 
+    /// The current kinematics of the end effector frame.
+    EndEffectorState m_end_effector_state;
+
     /// Linear part of the jacobian, returned by raisim.
     MatrixXd m_end_effector_linear_jacobian;
 
     /// Angular part of the jacobian, returned by raisim.
     MatrixXd m_end_effector_angular_jacobian;
-
-    /// Combined linear and angular end effector jacobian in the world frame.
-    Jacobian m_end_effector_jacobian;
-
-    /// The linear velocity (vx, vy, vz) of the end effector in the world frame.
-    Vector3d m_end_effector_linear_velocity;
-
-    /// The angular velocity (wx, wy, wz) of the end effector in the world frame. 
-    Vector3d m_end_effector_angular_velocity;
-
-    /// The linear acceleration of the end effector in the world frame.
-    Vector3d m_end_effector_linear_acceleration;
-
-    /// The angular acceleration of the end effector in the world frame.
-    Vector3d m_end_effector_angular_acceleration;
-
-    /// A prediction of the wrench applied to the end effector during rollout.
-    Vector6d m_end_effector_forecast_wrench;
-
-    /// The virtual wrench is the wrench that would be applied to the end
-    /// effector to produce its current linear and angular acceleration.
-    Vector6d m_end_effector_virtual_wrench;
-
-    /// Cumulative wrench added to the end effector, only for simulation.
-    Vector6d m_end_effector_simulated_wrench;
 
     /// The most recently calculated power consumption.
     double m_power;
@@ -424,6 +272,12 @@ private:
 
     /// The current state of the dynamics.
     State m_state;
+
+    /// Handle to the forecast dynamics, unused, passed to the objective.
+    std::unique_ptr<DynamicsForecast::Handle> m_forecast;
+
+    /// Cumulative wrench added to the end effector, only for simulation.
+    Vector6d m_end_effector_simulated_wrench;
 };
 
 } // FrankaRidgeback

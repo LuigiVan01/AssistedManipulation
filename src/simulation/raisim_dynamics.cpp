@@ -2,10 +2,31 @@
 
 namespace FrankaRidgeback {
 
+const RaisimDynamics::Configuration RaisimDynamics::DEFAULT_CONFIGURATION {
+    .simulator = Simulator::Configuration {
+        .time_step = 0.005,
+        .gravity = {0.0, 0.0, 9.81}
+    },
+    .filename = "",
+    .end_effector_frame = "panda_grasp_joint",
+    .initial_state = FrankaRidgeback::State::Zero(),
+    .proportional_gain = FrankaRidgeback::Control{
+        0.0, 0.0, 0.0, // base
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
+        100.0, 100.0
+    },
+    .differential_gain = FrankaRidgeback::Control{
+        1000.0, 1000.0, 1.0, // base
+        10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+        50.0, 50.0
+    },
+    .energy = 10.0
+};
+
 std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
     Configuration configuration,
-    std::unique_ptr<Forecast::Handle> &&forecast,
-    std::shared_ptr<raisim::World> world
+    std::unique_ptr<DynamicsForecast::Handle> &&wrench_forecast,
+    std::shared_ptr<raisim::World> world = nullptr
 ) {
     if (configuration.filename.empty())
         configuration.filename = find_path().string();
@@ -62,7 +83,7 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
         new RaisimDynamics(
             configuration,
             std::move(world),
-            std::move(forecast),
+            std::move(wrench_forecast),
             frankaridgeback,
             end_effector_frame_index,
             configuration.end_effector_frame
@@ -73,7 +94,7 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
 RaisimDynamics::RaisimDynamics(
     const Configuration &configuration,
     std::shared_ptr<raisim::World> &&world,
-    std::unique_ptr<Forecast::Handle> &&forecast_handle,
+    std::unique_ptr<DynamicsForecast::Handle> &&wrench_forecast,
     raisim::ArticulatedSystem *robot,
     std::int64_t end_effector_frame_index,
     std::string end_effector_frame_name
@@ -84,22 +105,16 @@ RaisimDynamics::RaisimDynamics(
    , m_velocity_command(DoF::CONTROL)
    , m_position(DoF::CONTROL)
    , m_velocity(DoF::CONTROL)
-   , m_forecast(std::move(forecast_handle))
    , m_end_effector_frame_index(end_effector_frame_index)
    , m_end_effector_frame_name(end_effector_frame_name)
+   , m_end_effector_state()
    , m_end_effector_linear_jacobian(3, FrankaRidgeback::DoF::JOINTS)
    , m_end_effector_angular_jacobian(3, FrankaRidgeback::DoF::JOINTS)
-   , m_end_effector_jacobian(Jacobian::Zero())
-   , m_end_effector_linear_velocity(Vector3d::Zero())
-   , m_end_effector_angular_velocity(Vector3d::Zero())
-   , m_end_effector_linear_acceleration(Vector3d::Zero())
-   , m_end_effector_angular_acceleration(Vector3d::Zero())
-   , m_end_effector_simulated_wrench(Vector6d::Zero())
-   , m_end_effector_forecast_wrench(Vector6d::Zero())
-   , m_end_effector_virtual_wrench(Vector6d::Zero())
    , m_power(0.0)
    , m_energy_tank(configuration.energy)
    , m_state(configuration.initial_state)
+   , m_forecast(std::move(wrench_forecast))
+   , m_end_effector_simulated_wrench(Vector6d::Zero())
 {
     m_position_command.setZero();
     m_velocity_command.setZero();
@@ -139,9 +154,6 @@ void RaisimDynamics::add_end_effector_simulated_wrench(Vector6d wrench)
         m_robot->getFrameByIdx(m_end_effector_frame_index).parentId,
         m_end_effector_simulated_wrench.tail<3>()
     );
-
-    std::cout << "applied force now " << get_end_effector_true_force().transpose() << std::endl;
-    std::cout << "applied torque now " << get_end_effector_true_torque().transpose() << std::endl;
 }
 
 void RaisimDynamics::calculate()
@@ -160,16 +172,17 @@ void RaisimDynamics::calculate()
         m_end_effector_angular_jacobian
     );
 
-    m_end_effector_jacobian.topRows(3) = m_end_effector_linear_jacobian;
-    m_end_effector_jacobian.bottomRows(3) = m_end_effector_angular_jacobian;
+    m_end_effector_state.jacobian.topRows(3) = m_end_effector_linear_jacobian;
+    m_end_effector_state.jacobian.bottomRows(3) = m_end_effector_angular_jacobian;
 
     // Update the base jacobian to be relative to the arm.
     double yaw = m_state.base_yaw().value();
-    m_end_effector_jacobian.topLeftCorner<3, 3>()
+    m_end_effector_state.jacobian.topLeftCorner<3, 3>()
         << std::cos(yaw), -std::sin(yaw), 0,
            std::sin(yaw), std::cos(yaw), 0,
            0, 0, 1;
 
+    /// TODO: Incorrect, power port is from the external wrench only.
     m_power = (
         m_robot->getGeneralizedForce().e().transpose() *
         m_robot->getGeneralizedVelocity().e()
@@ -184,19 +197,29 @@ void RaisimDynamics::calculate()
     //     m_external_torque.setZero();
     // }
 
-    // Update the end effector velocity.
-    // raisim::Vec<3> end_effector_linear_velocity, end_effector_angular_velocity;
-    // auto frame = m_robot->getFrameByIdx(m_end_effector_frame_index);
-    // m_robot->getFrameVelocity(frame, end_effector_linear_velocity);
-    // m_robot->getAngularVelocity(frame.parentId, end_effector_angular_velocity);
-    // m_end_effector_linear_velocity = end_effector_linear_velocity.e();
-    // m_end_effector_angular_velocity = end_effector_angular_velocity.e();
+    // Update end effector position and orientation.
+    raisim::Vec<3> position;
+    m_robot->getFramePosition(m_end_effector_frame_index, position);
+    m_end_effector_state.position = position.e();
 
-    // // Update the end effector acceleration.
-    // raisim::Vec<3> end_effector_linear_acceleration;
-    // m_robot->getFrameAcceleration(m_end_effector_frame_name, end_effector_linear_acceleration);
-    // m_end_effector_linear_acceleration = end_effector_linear_acceleration.e();
-    // m_end_effector_angular_acceleration.setZero();
+    /// Update end effector orientation.
+    raisim::Mat<3, 3> orientation;
+    m_robot->getFrameOrientation(m_end_effector_frame_index, orientation);
+    m_end_effector_state.orientation = Quaterniond(orientation.e());
+
+    // Update the end effector velocity.
+    raisim::Vec<3> end_effector_linear_velocity, end_effector_angular_velocity;
+    auto frame = m_robot->getFrameByIdx(m_end_effector_frame_index);
+    m_robot->getFrameVelocity(frame, end_effector_linear_velocity);
+    m_robot->getAngularVelocity(frame.parentId, end_effector_angular_velocity);
+    m_end_effector_state.linear_velocity = end_effector_linear_velocity.e();
+    m_end_effector_state.angular_velocity = end_effector_angular_velocity.e();
+
+    // Update the end effector acceleration.
+    raisim::Vec<3> end_effector_linear_acceleration;
+    m_robot->getFrameAcceleration(m_end_effector_frame_name, end_effector_linear_acceleration);
+    m_end_effector_state.linear_acceleration = end_effector_linear_acceleration.e();
+    m_end_effector_state.angular_acceleration.setZero();
 }
 
 void RaisimDynamics::act(const Control &control)
@@ -228,16 +251,6 @@ void RaisimDynamics::update()
 
     calculate();
 
-    // Calculate the wrench on the end effector.
-    if (m_forecast) {
-        m_end_effector_forecast_wrench = m_forecast->forecast(m_world->getWorldTime());
-        m_end_effector_virtual_wrench = calculate_virtual_end_effector_wrench();
-        m_state.end_effector_wrench() = m_end_effector_forecast_wrench - m_end_effector_virtual_wrench;
-    }
-    else {
-        m_state.end_effector_wrench().setZero();
-    }
-
     // Update position and velocity.
     m_state.position() = m_position;
     m_state.velocity() = m_velocity;
@@ -256,26 +269,6 @@ Eigen::Ref<VectorXd> RaisimDynamics::step(
     update();
 
     return m_state;
-}
-
-Vector6d RaisimDynamics::calculate_virtual_end_effector_wrench()
-{
-    return Vector6d::Zero();
-
-    // Calculate the effective end effector mass matrix.
-    // auto end_effector_mass = (
-    //     m_end_effector_jacobian.transpose() *
-    //     m_robot->getMassMatrix().e() *
-    //     m_end_effector_jacobian.inverse()
-    // );
-
-    /// TODO: The following calculation is not correct. The end
-    /// effector mass matrix only maps to wrench when joint velocities are
-    /// zero and the force is along the principal axes. Hopefully this is a good
-    /// enough approximation.
-
-    // Calculate the effective end effector wrench.
-    // return end_effector_mass * end_effector_linear_acceleration;
 }
 
 } // namespace FrankaRidgeback

@@ -50,6 +50,8 @@ public:
         );
     };
 
+    static const Configuration DEFAULT_CONFIGURATION;
+
     /**
      * @brief Create a new franka ridgeback dynamics object.
      * 

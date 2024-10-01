@@ -2,6 +2,12 @@
 
 namespace FrankaRidgeback {
 
+const Actor::Configuration Actor::DEFAULT_CONFIGURATION {
+    .type = FrankaRidgeback::SimulatorAdaptor::Type::RAISIM,
+    .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+    .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
+}
+
 std::shared_ptr<Actor> Actor::create(
     Configuration configuration,
     Simulator *simulator,

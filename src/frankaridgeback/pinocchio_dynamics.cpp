@@ -16,6 +16,13 @@ using namespace std::string_literals;
 
 namespace FrankaRidgeback {
 
+const PinocchioDynamics::Configuration PinocchioDynamics::DEFAULT_CONFIGURATION {
+    .filename = "",
+    .end_effector_frame = "panda_grasp_joint",
+    .initial_state = FrankaRidgeback::State::Zero(),
+    .energy = 10.0
+};
+
 std::unique_ptr<PinocchioDynamics> PinocchioDynamics::create(
     Configuration configuration,
     std::unique_ptr<Forecast::Handle> &&wrench_forecast_handle
@@ -218,6 +225,11 @@ void PinocchioDynamics::calculate()
         m_end_effector_frame_index,
         pinocchio::WORLD
     ).toVector();
+
+    m_end_effector_kinematics.position = m_data->oMf[m_end_effector_frame_index].translation();
+    m_end_effector_kinematics.orientation = m_data->oMf[m_end_effector_frame_index].rotation();
+    m_end_effector_kinematics.linear_velocity = m_end_effector_spatial_velocity.head<3>();
+    m_end_effector_kinematics.angular_velocity = m_end_effector_spatial_velocity.tail<3>();
 }
 
 Eigen::Ref<Eigen::VectorXd> PinocchioDynamics::step(const Eigen::VectorXd &c, double dt)

@@ -11,7 +11,7 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
     },
     .actor = {
         .dynamics = {
-            .type = FrankaRidgeback::SimulatorAdaptor::Type::PINOCCHIO,
+            .type = FrankaRidgeback::SimulatorAdaptor::Type::RAISIM,
             .raisim = FrankaRidgeback::RaisimDynamics::Configuration {
                 .simulator = Simulator::Configuration {
                     .time_step = 0.005,

@@ -71,6 +71,8 @@ public:
         )
     };
 
+    static const Configuration DEFAULT_CONFIGURATION;
+
     /**
      * @brief Create a franka-ridgeback actor.
      * 

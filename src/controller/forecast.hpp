@@ -17,32 +17,6 @@ public:
     struct Configuration;
 
     /**
-     * @brief A handle to a forecast.
-     * 
-     * Used to copy amongst multiple dynamics instances to allow multithreading.
-     * Typically the forecast() methods would hold a shared read only lock
-     * with the other handles. The parent holds an exclusive write lock when
-     * the forecast prediction update occurs.
-     */
-    class Handle
-    {
-    public:
-
-        /**
-         * @brief Forecast at a time in the future.
-         * 
-         * @param time The time of the forecast.
-         * @returns The predicted state.
-         */
-        virtual VectorXd forecast(double time) = 0;
-
-        /**
-         * @brief Make a copy of the handle.
-         */
-        virtual std::unique_ptr<Handle> copy() = 0;
-    };
-
-    /**
      * @brief Create a handle to the forecast.
      */
     virtual std::unique_ptr<Handle> create_handle() = 0;
@@ -102,47 +76,6 @@ public:
     };
 
     /**
-     * @brief A prediction only handle to a last observation carried forward
-     * forecast.
-     */
-    class Handle : public Forecast::Handle
-    {
-    public:
-
-        /**
-         * @brief Get the last observation carried forward.
-         * 
-         * @param time The time of the observation, unused.
-         * @returns The last observation.
-         */
-        inline VectorXd forecast(double time) override {
-            std::shared_lock lock(m_parent->m_mutex);
-            return m_parent->m_observation;
-        };
-
-        /**
-         * @brief Make a copy of the last observation carried forward forecast
-         * handle.
-         * 
-         * Used to copy amongst dynamics objects for multi-threading.
-         */
-        inline std::unique_ptr<Forecast::Handle> copy() override {
-            return std::unique_ptr<Forecast::Handle>(new Handle(*this));
-        }
-
-    private:
-
-        friend class LOCFForecast;
-
-        inline Handle(LOCFForecast *parent)
-            : m_parent(parent)
-        {}
-
-        /// Pointer to the parent forecaster.
-        LOCFForecast *m_parent;
-    };
-
-    /**
      * @brief Create a last observation carried forward forecast.
      * 
      * @param configuration The forecast configuration.
@@ -154,13 +87,6 @@ public:
         return std::unique_ptr<LOCFForecast>(
             new LOCFForecast(configuration.observation)
         );
-    }
-
-    /**
-     * @brief Create a handle to the last observation carried forward forecast.
-     */
-    inline std::unique_ptr<Forecast::Handle> create_handle() override {
-        return std::unique_ptr<Handle>(new Handle(this));
     }
 
     /**
@@ -226,49 +152,6 @@ public:
     };
 
     /**
-     * @brief A prediction only handle to a average forecast.
-     */
-    class Handle : public Forecast::Handle
-    {
-    public:
-
-        /**
-         * @brief Yields the average observation.
-         * 
-         * @param time The time of the observation, unused.
-         * @returns The average observation.
-         */
-        inline VectorXd forecast(double time) override {
-            std::shared_lock lock(m_parent->m_mutex);
-            return m_parent->m_average;
-        };
-
-        /**
-         * @brief Make a copy of the average forecast handle.
-         * 
-         * Used to copy amongst dynamics objects for multi-threading.
-         */
-        inline std::unique_ptr<Forecast::Handle> copy() override {
-            return m_parent->create_handle();
-        }
-
-    private:
-
-        friend class AverageForecast;
-
-        /**
-         * @brief Initialise a average forecast handle.
-         * @param parent The owning average forecast.
-         */
-        Handle(AverageForecast *parent)
-            : m_parent(parent)
-        {}
-
-        /// Pointer to the average forecast.
-        std::unique_ptr<AverageForecast> m_parent;
-    };
-
-    /**
      * @brief Create an average forecast.
      * 
      * @param configuration 
@@ -277,13 +160,6 @@ public:
     static std::unique_ptr<AverageForecast> create(
         const Configuration &configuration
     );
-
-    /**
-     * @brief Create a handle to the average forecast.
-     */
-    inline std::unique_ptr<Forecast::Handle> create_handle() override {
-        return std::unique_ptr<Handle>(new Handle(this));
-    }
 
     /**
      * @brief Does nothing.
@@ -378,47 +254,6 @@ public:
     };
 
     /**
-     * @brief A read only handle to a KalmanForecast.
-     */
-    class Handle : public Forecast::Handle
-    {
-    public:
-
-        /**
-         * @brief Predict the state at a time since the last kalman forecast
-         * update.
-         * 
-         * @param time The time of the forecast.
-         * @returns The predicted state.
-         */
-        inline VectorXd forecast(double time) {
-            return m_parent->forecast(time);
-        }
-
-        /**
-         * @brief Create a copy of the kalman forecast handle.
-         */
-        inline std::unique_ptr<Forecast::Handle> copy() override {
-            return m_parent->create_handle();
-        }
-
-    private:
-
-        friend class KalmanForecast;
-
-        /**
-         * @brief Initialise a kalman forecast handle.
-         * @param parent The kalman forecast.
-         */
-        Handle(KalmanForecast *parent)
-            : m_parent(parent)
-        {}
-
-        /// Pointer to the kalman forecast.
-        std::shared_ptr<KalmanForecast> m_parent;
-    };
-
-    /**
      * @brief Create a new kalman forecast.
      * 
      * @param configuration The configuration of the predictor.
@@ -427,13 +262,6 @@ public:
     static std::unique_ptr<KalmanForecast> create(
         const Configuration &configuration
     );
-
-    /**
-     * @brief Create a handle to the forecast.
-     */
-    inline std::unique_ptr<Forecast::Handle> create_handle() override {
-        return std::unique_ptr<Handle>(new Handle(this));
-    }
 
     /**
      * @brief Create a state transition matrix where each state accumulates its

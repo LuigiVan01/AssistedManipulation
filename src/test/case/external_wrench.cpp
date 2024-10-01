@@ -10,16 +10,11 @@ ExternalWrenchTest::Configuration ExternalWrenchTest::DEFAULT_CONFIGURATION {
         // .position = std::nullopt,
         .position = PositionTrajectory::Configuration {
             .type = PositionTrajectory::Configuration::CIRCLE,
-            .point = std::nullopt,
-            .circle = CircularTrajectory::Configuration {
-                .origin = Eigen::Vector3d(0.75, 0.75, 0.75),
-                .axis = Eigen::Vector3d(0.0, 0.0, 1.0),
-                .radius = 0.25,
-                .angular_velocity = M_PI / 3
-            },
-            .rectangle = std::nullopt,
-            .lissajous = std::nullopt,
-            .figure_eight = std::nullopt
+            .point = PointTrajectory::DEFAULT_CONFIGURATION,
+            .circle = CircularTrajectory::DEFAULT_CONFIGURATION,
+            .rectangle = RectangularTrajectory::DEFAULT_CONFIGURATION,
+            .lissajous = LissajousTrajectory::DEFAULT_CONFIGURATION,
+            .figure_eight = FigureEightTrajectory::DEFAULT_CONFIGURATION
         },
         .orientation = std::nullopt
         // .orientation = OrientationTrajectory::Configuration {
