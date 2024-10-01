@@ -217,13 +217,13 @@ public:
         /// Height of the rectangle along the y axis of the plane.
         double height;
 
-        /// The velocity of the trajectory.
-        double velocity;
+        /// The frequency of the trajectory, in rad/s.
+        double frequency;
 
         /// JSON conversion for rectangular trajectory configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            origin, axis, angle, width, height, velocity
+            origin, axis, angle, width, height, frequency
         );
     };
 
@@ -258,6 +258,9 @@ private:
 
     /// The total circumference of the rectangle on the 2D plane.
     double m_circumference;
+
+    /// Mapping of frequency to linear velocity around the rectangular.
+    double m_velocity;
 
     /// Transformation from the 2D plane to the 3D plane.
     Eigen::Transform<double, 3, Eigen::Affine>  m_transform;

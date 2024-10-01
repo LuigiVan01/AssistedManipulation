@@ -21,13 +21,13 @@ const RectangularTrajectory::Configuration RectangularTrajectory::DEFAULT_CONFIG
     .angle = 0.0,
     .width = 0.5,
     .height = 0.5,
-    .velocity = 0.5
+    .frequency = 1.0
 };
 
 const LissajousTrajectory::Configuration LissajousTrajectory::DEFAULT_CONFIGURATION {
     .origin = Vector3d(1.0, 1.0, 1.0),
-    .x_amplitude = 1.0,
-    .y_amplitude = 0.5,
+    .x_amplitude = 0.4,
+    .y_amplitude = 0.2,
     .z_amplitude = 0.0,
     .x_frequency = 0.5,
     .y_frequency = 1.5,
@@ -38,9 +38,9 @@ const LissajousTrajectory::Configuration LissajousTrajectory::DEFAULT_CONFIGURAT
 
 const FigureEightTrajectory::Configuration FigureEightTrajectory::DEFAULT_CONFIGURATION {
     .origin = Vector3d(1.0, 1.0, 1.0),
-    .x_amplitude = 1.0,
-    .y_amplitude = 0.5,
-    .frequency = 0.5
+    .x_amplitude = 0.5,
+    .y_amplitude = 0.25,
+    .frequency = 1
 };
 
 const AxisAngleTrajectory::Configuration AxisAngleTrajectory::DEFAULT_CONFIGURATION {
@@ -210,8 +210,8 @@ Vector3d CircularTrajectory::get_position(double time)
 std::unique_ptr<RectangularTrajectory> RectangularTrajectory::create(
     const Configuration &configuration
 ) {
-    if (configuration.velocity < 0) {
-        std::cerr << "cannot have zero velocity" << std::endl;
+    if (configuration.frequency < 0) {
+        std::cerr << "cannot have non-positive` frequency" << std::endl;
         return nullptr;
     }
 
@@ -223,6 +223,7 @@ std::unique_ptr<RectangularTrajectory> RectangularTrajectory::create(
 RectangularTrajectory::RectangularTrajectory(const Configuration &configuration)
     : m_configuration(configuration)
     , m_circumference(2 * configuration.width + 2 * configuration.height)
+    , m_velocity(m_circumference / configuration.frequency / 2 / M_PI)
 {
     m_transform.setIdentity();
 
@@ -232,16 +233,17 @@ RectangularTrajectory::RectangularTrajectory(const Configuration &configuration)
         m_configuration.axis.normalized()
     ).normalized().toRotationMatrix();
 
-    // Offset by the origin.
-    m_transform.translation() = m_configuration.origin;
+    // Offset by the origin, and translate the bottom left corner to the
+    // origin.
+    m_transform.translation() = m_configuration.origin - Vector3d(
+        configuration.width / 2, configuration.height / 2, 0
+    );
 }
 
 Vector3d RectangularTrajectory::get_position(double time)
 {
     // Distance relative to the bottom left hand corner 
-    double distance = std::fmod(
-        time * m_configuration.velocity, m_circumference
-    );
+    double distance = std::fmod(time * m_velocity, m_circumference);
 
     if (distance < m_configuration.width) {
         return m_transform * Vector3d(distance, 0, 0.0);
