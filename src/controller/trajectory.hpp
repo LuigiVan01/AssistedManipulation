@@ -7,6 +7,8 @@
 #include "controller/eigen.hpp"
 #include "controller/json.hpp"
 
+#define M_PI 3.141592653589793
+
 /**
  * @brief Base class for implementing a positional trajectory.
  */
@@ -95,7 +97,13 @@ public:
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, point)
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    /**
+     * @brief Default configuration of the point trajectory.
+     * @note Inlined since static initialisation order is undefined.
+     */
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .point = Vector3d(1.0, 1.0, 1.0)
+    };
 
     /**
      * @brief Create a new point trajectory.
@@ -155,8 +163,16 @@ public:
         )
     };
 
-    /// Default configuration of the circular trajectory.
-    static const Configuration DEFAULT_CONFIGURATION;
+    /**
+     * @brief Default configuration of the circular trajectory.
+     * @note Inlined since static initialisation order is undefined.
+     */
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .origin = Vector3d(1.0, 1.0, 0.5),
+        .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
+        .radius = 0.25,
+        .angular_velocity = 1
+    };
 
     /**
      * @brief Create a new circular trajectory.
@@ -227,7 +243,18 @@ public:
         );
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    /**
+     * @brief Default configuration of the rectangular trajectory.
+     * @note Inlined since static initialisation order is undefined.
+     */
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .origin = Vector3d(1.0, 1.0, 0.5),
+        .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
+        .angle = 0.0,
+        .width = 0.5,
+        .height = 0.5,
+        .frequency = 1.0
+    };
 
     /**
      * @brief Create a new circular trajectory.
@@ -321,7 +348,21 @@ public:
         )
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    /**
+     * @brief Default configuration of the lissajous trajectory.
+     * @note Inlined since static initialisation order is undefined.
+     */
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .origin = Vector3d(1.0, 1.0, 1.0),
+        .x_amplitude = 0.4,
+        .y_amplitude = 0.2,
+        .z_amplitude = 0.0,
+        .x_frequency = 0.5,
+        .y_frequency = 1.5,
+        .z_frequency = 0.0,
+        .y_phase = 3.141592653589793 / 2,
+        .z_phase = 0.0
+    };
 
     /**
      * @brief Create a new lissajous trajectory.
@@ -381,7 +422,16 @@ public:
         )
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    /**
+     * @brief Default configuration of the figure eight trajectory.
+     * @note Inlined since static initialisation order is undefined.
+     */
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .origin = Vector3d(1.0, 1.0, 1.0),
+        .x_amplitude = 0.5,
+        .y_amplitude = 0.25,
+        .frequency = 1
+    };
 
     /**
      * @brief Create a new circular trajectory.
@@ -421,7 +471,14 @@ public:
         );
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    /**
+     * @brief Default configuration of the axis angle trajectory.
+     * @note Inlined since static initialisation order is undefined.
+     */
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .axis = Vector3d(1, 1, 1).normalized(),
+        .angle = 0.0
+    };
 
     /**
      * @brief Create a new static axis angle trajectory.
@@ -489,7 +546,16 @@ public:
         )
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    /**
+     * @brief Default configuration of the slerp trajectory.
+     * @note Inlined since static initialisation order is undefined.
+     */
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .first_axis = Vector3d(0.0, 0.0, 1.0).normalized(),
+        .first_angle = 0.0,
+        .second_axis = Vector3d(0.0, 1.0, 0.0).normalized(),
+        .second_angle = 0.0
+    };
 
     /**
      * @brief Create a new interpolated orientation trajectory.

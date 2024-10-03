@@ -67,8 +67,8 @@ void from_json(const json &source, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options
 {
     using T = typename Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>::Scalar;
 
-    // Note that json::operator[] is used exclusively for indexing arrays,will throw an exception, and not produce
-    // undefined behaviour.
+    if (source.empty())
+        matrix.resize(0, 0);
 
     std::size_t n = source.size();
     std::size_t m = source[0].size();

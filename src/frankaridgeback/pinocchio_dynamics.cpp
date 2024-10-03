@@ -16,16 +16,9 @@ using namespace std::string_literals;
 
 namespace FrankaRidgeback {
 
-const PinocchioDynamics::Configuration PinocchioDynamics::DEFAULT_CONFIGURATION {
-    .filename = "",
-    .end_effector_frame = "panda_grasp_joint",
-    .initial_state = FrankaRidgeback::State::Zero(),
-    .energy = 10.0
-};
-
 std::unique_ptr<PinocchioDynamics> PinocchioDynamics::create(
     Configuration configuration,
-    std::unique_ptr<Forecast::Handle> &&wrench_forecast_handle
+    std::unique_ptr<DynamicsForecast::Handle> &&dynamics_forecast_handle
 ) {
     if (configuration.filename.empty())
         configuration.filename = find_path().string();
@@ -83,7 +76,7 @@ std::unique_ptr<PinocchioDynamics> PinocchioDynamics::create(
             std::move(data),
             std::move(geometry_model),
             std::move(geometry_data),
-            std::move(wrench_forecast_handle),
+            std::move(dynamics_forecast_handle),
             end_effector_frame_index
         )
     );
@@ -95,7 +88,7 @@ PinocchioDynamics::PinocchioDynamics(
     std::unique_ptr<pinocchio::Data> &&data,
     std::unique_ptr<pinocchio::GeometryModel> &&geometry_model,
     std::unique_ptr<pinocchio::GeometryData> &&geometry_data,
-    std::unique_ptr<Forecast::Handle> &&force_predictor_handle,
+    std::unique_ptr<DynamicsForecast::Handle> &&dynamics_forecast_handle,
     std::size_t end_effector_frame_index
   ) : m_configuration(configuration)
     , m_model(std::move(model))
@@ -107,12 +100,8 @@ PinocchioDynamics::PinocchioDynamics(
     , m_joint_velocity()
     , m_joint_torque()
     , m_joint_acceleration()
-    , m_end_effector_jacobian(Jacobian::Zero())
-    , m_end_effector_spatial_velocity(Vector6d::Zero())
-    , m_end_effector_spatial_acceleration(Vector6d::Zero())
-    , m_forecast(std::move(force_predictor_handle))
-    , m_end_effector_forecast_wrench(Vector6d::Zero())
-    , m_end_effector_virtual_wrench(Vector6d::Zero())
+    , m_end_effector_state()
+    , m_forecast(std::move(dynamics_forecast_handle))
     , m_power(0.0)
     , m_energy_tank(configuration.energy)
     , m_state()
@@ -133,9 +122,9 @@ std::unique_ptr<mppi::Dynamics> PinocchioDynamics::copy()
     auto geometry_model = std::make_unique<pinocchio::GeometryModel>(*m_geometry_model);
     auto geometry_data = std::make_unique<pinocchio::GeometryData>(*m_geometry_data);
 
-    std::unique_ptr<Forecast::Handle> predictor = nullptr;
+    std::unique_ptr<DynamicsForecast::Handle> forecast = nullptr;
     if (m_forecast)
-        predictor = m_forecast->copy();
+        forecast = m_forecast->copy();
 
     return std::unique_ptr<PinocchioDynamics>(
         new PinocchioDynamics(
@@ -144,7 +133,7 @@ std::unique_ptr<mppi::Dynamics> PinocchioDynamics::copy()
             std::move(data),
             std::move(geometry_model),
             std::move(geometry_data),
-            std::move(predictor),
+            std::move(forecast),
             m_end_effector_frame_index
         )
     );
@@ -193,25 +182,25 @@ void PinocchioDynamics::calculate()
     pinocchio::updateFramePlacements(*m_model, *m_data);
 
     // Get the end effector jacobian.
-    m_end_effector_jacobian.setZero();
+    m_end_effector_state.jacobian.setZero();
     pinocchio::computeFrameJacobian(
         *m_model.get(),
         *m_data.get(),
         m_joint_position,
         m_end_effector_frame_index,
         pinocchio::ReferenceFrame::WORLD,
-        m_end_effector_jacobian
+        m_end_effector_state.jacobian
     );
 
     // Update the base jacobian to be relative to the arm.
     double yaw = m_joint_position[2];
-    m_end_effector_jacobian.topLeftCorner<3, 3>()
+    m_end_effector_state.jacobian.topLeftCorner<3, 3>()
         << std::cos(yaw), -std::sin(yaw), 0,
            std::sin(yaw), std::cos(yaw), 0,
            0, 0, 1;
 
     // Update the end effector velocity.
-    m_end_effector_spatial_velocity = pinocchio::getFrameVelocity(
+    auto spatial_velocity = pinocchio::getFrameVelocity(
         *m_model,
         *m_data,
         m_end_effector_frame_index,
@@ -219,17 +208,19 @@ void PinocchioDynamics::calculate()
     ).toVector();
 
     // Update the end effector acceleration.
-    m_end_effector_spatial_acceleration = pinocchio::getFrameAcceleration(
+    auto spatial_acceleration = pinocchio::getFrameAcceleration(
         *m_model,
         *m_data,
         m_end_effector_frame_index,
         pinocchio::WORLD
     ).toVector();
 
-    m_end_effector_kinematics.position = m_data->oMf[m_end_effector_frame_index].translation();
-    m_end_effector_kinematics.orientation = m_data->oMf[m_end_effector_frame_index].rotation();
-    m_end_effector_kinematics.linear_velocity = m_end_effector_spatial_velocity.head<3>();
-    m_end_effector_kinematics.angular_velocity = m_end_effector_spatial_velocity.tail<3>();
+    m_end_effector_state.position = m_data->oMf[m_end_effector_frame_index].translation();
+    m_end_effector_state.orientation = m_data->oMf[m_end_effector_frame_index].rotation();
+    m_end_effector_state.linear_velocity = spatial_velocity.head<3>();
+    m_end_effector_state.angular_velocity = spatial_velocity.tail<3>();
+    m_end_effector_state.linear_acceleration = spatial_acceleration.head<3>();
+    m_end_effector_state.angular_acceleration = spatial_acceleration.tail<3>();
 }
 
 Eigen::Ref<Eigen::VectorXd> PinocchioDynamics::step(const Eigen::VectorXd &c, double dt)
@@ -259,27 +250,13 @@ Eigen::Ref<Eigen::VectorXd> PinocchioDynamics::step(const Eigen::VectorXd &c, do
     m_energy_tank.step(m_power, dt);
     m_state.available_energy().setConstant(m_energy_tank.get_energy());
 
-    // Update the time of the wrench forecast.
-    m_time += dt;
-
-    if (m_forecast) {
-        m_end_effector_virtual_wrench = calculate_virtual_end_effector_wrench();
-        m_end_effector_forecast_wrench = m_forecast->forecast(m_time);
-        m_state.end_effector_wrench() = m_end_effector_forecast_wrench - m_end_effector_virtual_wrench;
-    }
-    else {
-        m_state.end_effector_wrench().setZero();
-    }
-
     m_state.position() = m_joint_position;
     m_state.velocity() = m_joint_velocity;
 
-    return m_state;
-}
+    // Update the time of the wrench forecast.
+    m_time += dt;
 
-Vector6d PinocchioDynamics::calculate_virtual_end_effector_wrench()
-{
-    return Vector6d::Zero();
+    return m_state;
 }
 
 } // namespace FrankaRidgeback

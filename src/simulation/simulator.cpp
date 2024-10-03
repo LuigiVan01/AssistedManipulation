@@ -1,10 +1,5 @@
 #include "simulator.hpp"
 
-const Simulator::Configuration Simulator::DEFAULT_CONFIGURATION {
-    .time_step = 0.01,
-    .gravity = Vector3d(0, 0, 9.81)
-};
-
 void Simulator::activate()
 {
     std::string key = std::getenv("RAISIM_ACTIVATION");

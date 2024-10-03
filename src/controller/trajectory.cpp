@@ -2,59 +2,6 @@
 
 #include <cmath>
 
-#define M_PI 3.141592653589793
-
-const PointTrajectory::Configuration PointTrajectory::DEFAULT_CONFIGURATION {
-    .point = Vector3d(1.0, 1.0, 1.0)
-};
-
-const CircularTrajectory::Configuration CircularTrajectory::DEFAULT_CONFIGURATION {
-    .origin = Vector3d(1.0, 1.0, 0.5),
-    .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
-    .radius = 0.25,
-    .angular_velocity = 1
-};
-
-const RectangularTrajectory::Configuration RectangularTrajectory::DEFAULT_CONFIGURATION {
-    .origin = Vector3d(1.0, 1.0, 0.5),
-    .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
-    .angle = 0.0,
-    .width = 0.5,
-    .height = 0.5,
-    .frequency = 1.0
-};
-
-const LissajousTrajectory::Configuration LissajousTrajectory::DEFAULT_CONFIGURATION {
-    .origin = Vector3d(1.0, 1.0, 1.0),
-    .x_amplitude = 0.4,
-    .y_amplitude = 0.2,
-    .z_amplitude = 0.0,
-    .x_frequency = 0.5,
-    .y_frequency = 1.5,
-    .z_frequency = 0.0,
-    .y_phase = M_PI / 2,
-    .z_phase = 0.0
-};
-
-const FigureEightTrajectory::Configuration FigureEightTrajectory::DEFAULT_CONFIGURATION {
-    .origin = Vector3d(1.0, 1.0, 1.0),
-    .x_amplitude = 0.5,
-    .y_amplitude = 0.25,
-    .frequency = 1
-};
-
-const AxisAngleTrajectory::Configuration AxisAngleTrajectory::DEFAULT_CONFIGURATION {
-    .axis = Vector3d(1, 1, 1).normalized(),
-    .angle = 0.0
-};
-
-const SlerpTrajectory::Configuration SlerpTrajectory::DEFAULT_CONFIGURATION {
-    .first_axis = Vector3d(0.0, 0.0, 1.0).normalized(),
-    .first_angle = 0.0,
-    .second_axis = Vector3d(0.0, 1.0, 0.0).normalized(),
-    .second_angle = 0.0
-};
-
 template<typename T, typename Configuration>
 std::unique_ptr<T> try_configuration(
     const std::optional<Configuration> &configuration,

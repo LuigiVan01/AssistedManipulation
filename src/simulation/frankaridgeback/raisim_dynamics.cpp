@@ -1,35 +1,16 @@
-#include "simulation/raisim_dynamics.hpp"
+#include "simulation/frankaridgeback/raisim_dynamics.hpp"
 
 namespace FrankaRidgeback {
 
-const RaisimDynamics::Configuration RaisimDynamics::DEFAULT_CONFIGURATION {
-    .simulator = Simulator::Configuration {
-        .time_step = 0.005,
-        .gravity = {0.0, 0.0, 9.81}
-    },
-    .filename = "",
-    .end_effector_frame = "panda_grasp_joint",
-    .initial_state = FrankaRidgeback::State::Zero(),
-    .proportional_gain = FrankaRidgeback::Control{
-        0.0, 0.0, 0.0, // base
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
-        100.0, 100.0
-    },
-    .differential_gain = FrankaRidgeback::Control{
-        1000.0, 1000.0, 1.0, // base
-        10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
-        50.0, 50.0
-    },
-    .energy = 10.0
-};
-
 std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
     Configuration configuration,
-    std::unique_ptr<DynamicsForecast::Handle> &&wrench_forecast,
-    std::shared_ptr<raisim::World> world = nullptr
+    std::unique_ptr<DynamicsForecast::Handle> &&dynamics_forecast_handle,
+    Simulator *simulator
 ) {
     if (configuration.filename.empty())
         configuration.filename = find_path().string();
+
+    std::shared_ptr<raisim::World> world = nullptr;
 
     // For simulating the system as a whole (not using for mppi trajectory
     // generation), the dynamics references a world created outside of this
@@ -37,16 +18,18 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
     // When using the mppi trajectory generation, the dynamics requires its own
     // world to simulate rollouts in, based on the provided simulator
     // configuration.
-    if (!world) {
-        if (!configuration.simulator) {
-            std::cerr << "simulation configuration when raisim dynamics world not provided" << std::endl;
-            return nullptr;
-        }
-
+    if (configuration.simulator) {
         world = std::make_shared<raisim::World>();
         world->setTimeStep(configuration.simulator->time_step);
         world->setGravity(configuration.simulator->gravity);
         world->addGround();
+    }
+    else {
+        if (!simulator) {
+            std::cerr << "provided simulator in raisim dynamics is nullptr" << std::endl;
+            return nullptr;
+        }
+        world = simulator->get_world();
     }
 
     // Ensure computing the inverse dynamics is enabled to get the end effector
@@ -83,7 +66,7 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
         new RaisimDynamics(
             configuration,
             std::move(world),
-            std::move(wrench_forecast),
+            std::move(dynamics_forecast_handle),
             frankaridgeback,
             end_effector_frame_index,
             configuration.end_effector_frame
@@ -94,7 +77,7 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
 RaisimDynamics::RaisimDynamics(
     const Configuration &configuration,
     std::shared_ptr<raisim::World> &&world,
-    std::unique_ptr<DynamicsForecast::Handle> &&wrench_forecast,
+    std::unique_ptr<DynamicsForecast::Handle> &&dynamics_forecast_handle,
     raisim::ArticulatedSystem *robot,
     std::int64_t end_effector_frame_index,
     std::string end_effector_frame_name
@@ -113,7 +96,7 @@ RaisimDynamics::RaisimDynamics(
    , m_power(0.0)
    , m_energy_tank(configuration.energy)
    , m_state(configuration.initial_state)
-   , m_forecast(std::move(wrench_forecast))
+   , m_forecast(std::move(dynamics_forecast_handle))
    , m_end_effector_simulated_wrench(Vector6d::Zero())
 {
     m_position_command.setZero();

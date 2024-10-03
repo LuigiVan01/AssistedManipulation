@@ -50,7 +50,10 @@ public:
     };
 
     /// The default configuration of the simulator.
-    static const Configuration DEFAULT_CONFIGURATION;
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .time_step = 0.01,
+        .gravity = Vector3d(0, 0, 9.81)
+    };
 
     /**
      * @brief Activate the raisim licence.

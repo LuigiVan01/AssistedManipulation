@@ -50,11 +50,30 @@ public:
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             simulator, filename, end_effector_frame, initial_state,
-            proportional_gain, differential_gain
+            proportional_gain, differential_gain, energy
         )
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .simulator = Simulator::Configuration {
+            .time_step = 0.005,
+            .gravity = {0.0, 0.0, 9.81}
+        },
+        .filename = "",
+        .end_effector_frame = "panda_grasp_joint",
+        .initial_state = FrankaRidgeback::State::Zero(),
+        .proportional_gain = FrankaRidgeback::Control{
+            0.0, 0.0, 0.0, // base
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
+            100.0, 100.0
+        },
+        .differential_gain = FrankaRidgeback::Control{
+            1000.0, 1000.0, 1.0, // base
+            10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+            50.0, 50.0
+        },
+        .energy = 10.0
+    };
 
     /**
      * @brief Create a new franka-ridgeback raisim dynamics instance.
@@ -62,23 +81,24 @@ public:
      * Copies the configuration.
      * 
      * @param configuration The configuration of the raisim dynamics.
-     * @param wrench_forecast Handle to the wrenched dynamics forecast.
-     * @param world Optional pointer to the world in which to simulate the
-     * dynamics. If nullptr then the simulator
+     * @param dynamics_forecast_handle Handle to the dynamics forecast.
+     * @param simulator Pointer to the simulator to use for the world, if the
+     * configuration for the world is std::nullopt.
      * 
      * @returns A pointer to the dynamics on success or nullptr on failure.
      */
     static std::unique_ptr<RaisimDynamics> create(
         Configuration configuration,
-        std::unique_ptr<DynamicsForecast::Handle> &&wrench_forecast,
-        std::shared_ptr<raisim::World> world = nullptr
+        std::unique_ptr<DynamicsForecast::Handle> &&dynamics_forecast_handle = nullptr,
+        Simulator *simulator = nullptr
     );
 
     /**
      * @brief Copy the dynamics.
      * @returns A copy of the dynamics.
      */
-    inline std::unique_ptr<mppi::Dynamics> copy() override {
+    inline std::unique_ptr<mppi::Dynamics> copy() override
+    {
         if (m_forecast)
             return create(m_configuration, std::move(m_forecast->copy()));
         return create(m_configuration, nullptr);
@@ -179,6 +199,19 @@ public:
     }
 
     /**
+     * @brief Get a pointer to the dynamics forecast if it exists.
+     * 
+     * @returns A pointer to the dynamics forecast on success or std::nullopt if
+     * there is no dynamics forecast handle.
+     */
+    const std::optional<DynamicsForecast::Handle*> get_forecast() const override
+    {
+        if (m_forecast)
+            return m_forecast.get();
+        return std::nullopt;
+    }
+
+    /**
      * @brief Get the actual wrench of the end effector.
      * 
      * @note This is only used for simulating the robot actor.
@@ -209,7 +242,7 @@ private:
      * 
      * @param configuration 
      * @param world The world in which the franka-ridgeback exists.
-     * @param wrench_forecast Handle to the external wrench forecast.
+     * @param dynamics_forecast_handle Handle to the dynamics forecast.
      * @param robot Pointer to the robot in the world.
      * @param end_effector_frame_index Index of the end effector frame.
      * @param end_effector_frame_name The name of the end effector frame.
@@ -217,7 +250,7 @@ private:
     RaisimDynamics(
         const Configuration &configuration,
         std::shared_ptr<raisim::World> &&world,
-        std::unique_ptr<DynamicsForecast::Handle> &&wrench_forecast,
+        std::unique_ptr<DynamicsForecast::Handle> &&dynamics_forecast_handle,
         raisim::ArticulatedSystem *robot,
         std::int64_t end_effector_frame_index,
         std::string end_effector_frame_name

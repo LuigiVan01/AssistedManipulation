@@ -14,12 +14,8 @@ class Forecast
 {
 public:
 
+    // Forward declare configuration before defining forecast types.
     struct Configuration;
-
-    /**
-     * @brief Create a handle to the forecast.
-     */
-    virtual std::unique_ptr<Handle> create_handle() = 0;
 
     /**
      * @brief Create a forecast.

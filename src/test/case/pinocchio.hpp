@@ -1,66 +1,71 @@
 #pragma once
 
-#include "simulation/simulator.hpp"
-#include "test/test.hpp"
-#include "frankaridgeback/pinocchio_dynamics.hpp"
-#include "controller/forecast.hpp"
+#include "test/case/base.hpp"
 
+/**
+ * @brief Convenience test for testing the functionality of the pinocchio
+ * dynamics for the robot and rollouts, using the assisted manipulation
+ * objective function.
+ * 
+ * @warning The pinocchio dynamics is currently broken.
+ */
 class PinocchioDynamicsTest : public RegisteredTest<PinocchioDynamicsTest>
 {
 public:
 
-    struct Configuration {
-
-        double duration;
-
-        Simulator::Configuration simulator;
-
-        FrankaRidgeback::PinocchioDynamics::Configuration dynamics;
-
-        LOCFForecast::Configuration force;
-
-        FrankaRidgeback::State initial_state;
-
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, dynamics);
-    };
-
     static inline constexpr const char *TEST_NAME = "pinocchio";
 
+    struct Configuration {
+
+        /// The duration of the test.
+        double duration;
+
+        /// The pinocchio dynamics configuration.
+        FrankaRidgeback::PinocchioDynamics::Configuration dynamics;
+
+        /// The initial state of the frankarigeback.
+        FrankaRidgeback::State initial_state;
+
+        // JSON conversion for pinocchio dynamics test configuration.
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            duration, dynamics, initial_state
+        )
+    };
+
+    inline const static Configuration DEFAULT_CONFIGURATION {
+        .duration = 300.0,
+        .dynamics = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION,
+        .initial_state = FrankaRidgeback::State::Zero()
+    };
+
     /**
-     * @brief Create a test reaching for a point.
+     * @brief Create a instance of the pinocchio dynamics test
      * 
-     * @param options The test options. The configuration overrides from the
-     * default configuration.
-     * 
+     * @param options The test options.
      * @return A pointer to the test on success or nullptr on failure.
      */
-    static std::unique_ptr<Test> create(Options &options);
+    inline static std::unique_ptr<Test> create(Options &options)
+    {
+        if (options.folder.empty())
+            options.folder = "pinocchio";
 
-    static std::unique_ptr<Test> create(const Configuration &configuration);
+        json default_patch = {{
 
-    /**
-     * @brief Run the test.
-     * @returns If the test was successful.
-     */
-    bool run() override;
+        }};
+
+        default_patch.merge_patch(options.patch);
+        options.patch = default_patch;
+
+        return BaseTest::create(options);
+    }
 
 private:
 
-    PinocchioDynamicsTest(
-        std::unique_ptr<Simulator> &&simulator,
-        std::unique_ptr<FrankaRidgeback::Dynamics> &&dynamics,
-        std::unique_ptr<LOCFForecast> &&force,
-        raisim::ArticulatedSystemVisual *visual,
-        double duration
-    );
+    /**
+     * @brief Disabled
+     */
+    bool run() override;
 
-    double m_duration;
-
-    std::unique_ptr<Simulator> m_simulator;
-
-    std::unique_ptr<FrankaRidgeback::Dynamics> m_dynamics;
-
-    std::unique_ptr<LOCFForecast> m_force;
-
-    raisim::ArticulatedSystemVisual *m_visual;
+    PinocchioDynamicsTest() = delete;
 };

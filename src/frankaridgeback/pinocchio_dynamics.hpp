@@ -50,7 +50,12 @@ public:
         );
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .filename = "",
+        .end_effector_frame = "panda_grasp_joint",
+        .initial_state = FrankaRidgeback::State::Zero(),
+        .energy = 10.0
+    };
 
     /**
      * @brief Create a new franka ridgeback dynamics object.
@@ -58,13 +63,14 @@ public:
      * Copies the configuration.
      * 
      * @param configuration The configuration of the dynamics.
-     * @param wrench_forecast_handle An optional wrench estimation strategy.
+     * @param dynamics_forecast_handle An optional dynamics forecast to
+     * forward to the objective function.
      * 
      * @returns A pointer to the dynamics on success or nullptr on failure.
      */
     static std::unique_ptr<PinocchioDynamics> create(
         Configuration configuration,
-        std::unique_ptr<Forecast::Handle> &&wrench_forecast_handle = nullptr
+        std::unique_ptr<DynamicsForecast::Handle> &&dynamics_forecast_handle = nullptr
     );
 
     /**
@@ -124,63 +130,11 @@ public:
     }
 
     /**
-     * @brief Get the position of the end effector in world space.
+     * @brief Get the kinematics of the end effector.
      */
-    Vector3d get_end_effector_position() const override
+    inline const EndEffectorState &get_end_effector_state() const override
     {
-        return m_data->oMf[m_end_effector_frame_index].translation();
-    }
-
-    /**
-     * @brief Get the orientation of the end effector in world space.
-     */
-    Quaterniond get_end_effector_orientation() const override
-    {
-        return (Quaterniond)m_data->oMf[m_end_effector_frame_index].rotation();
-    }
-
-    /**
-     * @brief Get the linear velocity (vx, vy, vz) of the end effector in world
-     * space.
-     */
-    Vector3d get_end_effector_linear_velocity() const override
-    {
-        return m_end_effector_spatial_velocity.head<3>();
-    }
-
-    /**
-     * @brief Get the angular velocity (wx, wy, wz) of the end effector in world
-     * space.
-     */
-    Vector3d get_end_effector_angular_velocity() const override
-    {
-        return m_end_effector_spatial_velocity.tail<3>();
-    }
-
-    /**
-     * @brief Get the linear acceleration (ax, ay, az) of the end effector in
-     * world space.
-     */
-    Vector3d get_end_effector_linear_acceleration() const override
-    {
-        return m_end_effector_spatial_acceleration.head<3>();
-    }
-
-    /**
-     * @brief Get the angular acceleration (alpha_x, alpha_y, alpha_z) of the
-     * end effector in world space.
-     */
-    Vector3d get_end_effector_angular_acceleration() const override
-    {
-        return m_end_effector_spatial_acceleration.tail<3>();
-    }
-
-    /**
-     * @brief Get the jacobian of the end effector.
-     */
-    Eigen::Ref<Jacobian> get_end_effector_jacobian() override
-    {
-        return m_end_effector_jacobian;
+        return m_end_effector_state;
     }
 
     /**
@@ -206,34 +160,16 @@ public:
     }
 
     /**
-     * @brief Get the end effector forecast wrench.
+     * @brief Get a pointer to the dynamics forecast if it exists.
      * 
-     * A prediction of the wrench applied to the end effector during rollout.
-     * 
-     * @returns The wrench (fx, fy, fz, tau_x, tau_y, tau_z) expected at the end
-     * effector.
+     * @returns A pointer to the dynamics forecast on success or std::nullopt if
+     * there is no dynamics forecast handle.
      */
-    Vector6d get_end_effector_forecast_wrench() const override
+    const std::optional<DynamicsForecast::Handle*> get_forecast() const override
     {
-        return m_end_effector_forecast_wrench;
-    }
-
-    /**
-     * @brief Get the end effector virtual wrench.
-     * 
-     * The virtual wrench is the wrench that would be applied to the end
-     * effector to produce its current linear and angular acceleration.
-     * 
-     * @note This can be compared against the forecasted end effector wrench to
-     * reward rollouts that 
-     * 
-     * @returns A wrench (fx, fy, fz, tau_x, tau_y, tau_z) at the end effector
-     * in the world frame, that results in the current end effector
-     * acceleration.
-     */
-    Vector6d get_end_effector_virtual_wrench() const override
-    {
-        return m_end_effector_virtual_wrench;
+        if (m_forecast)
+            return m_forecast.get();
+        return std::nullopt;
     }
 
     /**
@@ -266,26 +202,6 @@ public:
      * simulated.
      */
     inline void add_end_effector_simulated_wrench(Vector6d wrench) override {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     /**
      * @brief Get the underlying pinocchio model.
@@ -368,13 +284,6 @@ protected:
     void calculate();
 
     /**
-     * @brief Calculate the effective end effector wrench based on the current.
-     * 
-     * @return Vector6d 
-     */
-    Vector6d calculate_virtual_end_effector_wrench();
-
-    /**
      * @brief Initialise the dynamics parameters.
      * 
      * @param configuration The configuration of the dynamics.
@@ -383,7 +292,8 @@ protected:
      * @param geometry Pointer to the pinocchio geometry model.
      * @param end_effector_index Index into the vector of model joint frames for
      * the end effector.
-     * @param wrench_forecast_handle An optional wrench estimation strategy.
+     * @param dynamics_forecast_handle An optional handle to the forecasted
+     * dynamics, forwarded to the objective function.
      */
     PinocchioDynamics(
         const Configuration &configuration,
@@ -391,7 +301,7 @@ protected:
         std::unique_ptr<pinocchio::Data> &&data,
         std::unique_ptr<pinocchio::GeometryModel> &&geometry_model,
         std::unique_ptr<pinocchio::GeometryData> &&geometry_data,
-        std::unique_ptr<Forecast::Handle> &&wrench_forecast_handle,
+        std::unique_ptr<DynamicsForecast::Handle> &&dynamics_forecast_handle,
         std::size_t end_effector_index
     );
 
@@ -425,25 +335,11 @@ protected:
     /// The acceleration of the joints from forward dynamics.
     Eigen::Vector<double, DoF::JOINTS> m_joint_acceleration;
 
-    /// End effector jacobian in the world frame if enabled.
-    Jacobian m_end_effector_jacobian;
-
-    /// The velocity (vx, vy, vz, wx, wy, wz) of the end effector in the world
-    /// frame.
-    Vector6d m_end_effector_spatial_velocity;
-
-    /// Get the acceleration of the end effector 
-    Vector6d m_end_effector_spatial_acceleration;
+    /// The kinematic state of the end effector.
+    EndEffectorState m_end_effector_state;
 
     /// Optional pointer to the force predictor.
-    std::unique_ptr<Forecast::Handle> m_forecast;
-
-    /// A prediction of the wrench applied to the end effector during rollout.
-    Vector6d m_end_effector_forecast_wrench;
-
-    /// The virtual wrench is the wrench that would be applied to the end
-    /// effector to produce its current linear and angular acceleration.
-    Vector6d m_end_effector_virtual_wrench;
+    std::unique_ptr<DynamicsForecast::Handle> m_forecast;
 
     /// The current power consumption.
     double m_power;

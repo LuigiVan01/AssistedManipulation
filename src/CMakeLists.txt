@@ -41,13 +41,16 @@ add_executable(
     # test/case/manipulability.cpp
     # test/case/pinocchio.cpp
 
-    simulation/frankaridgeback.cpp
-    simulation/raisim_dynamics.cpp
+    simulation/frankaridgeback/raisim_dynamics.cpp
+    simulation/frankaridgeback/dynamics.cpp
+    simulation/frankaridgeback/actor.cpp
+    simulation/frankaridgeback/actor_dynamics.cpp
     simulation/simulator.cpp
 
     frankaridgeback/objective/track_point.cpp
     frankaridgeback/objective/assisted_manipulation.cpp
     frankaridgeback/pinocchio_dynamics.cpp
+    frankaridgeback/dynamics.cpp
 
     # logging/assisted_manipulation.cpp
     logging/frankaridgeback.cpp

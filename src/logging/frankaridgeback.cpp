@@ -82,45 +82,46 @@ void FrankaRidgebackDynamics::log(
     double time,
     const FrankaRidgeback::Dynamics &dynamics)
 {
+    const auto &end_effector = dynamics.get_end_effector_state();
     if (m_position_logger) {
         m_position_logger->write(
             time,
-            dynamics.get_end_effector_position()
+            end_effector.position
         );
     }
 
     if (m_orientation_logger) {
         m_orientation_logger->write(
             time,
-            dynamics.get_end_effector_orientation().coeffs()
+            end_effector.orientation.coeffs()
         );
     }
 
     if (m_linear_velocity_logger) {
         m_linear_velocity_logger->write(
             time,
-            dynamics.get_end_effector_linear_velocity()
+            end_effector.linear_velocity
         );
     }
 
     if (m_angular_velocity_logger) {
         m_angular_velocity_logger->write(
             time,
-            dynamics.get_end_effector_angular_velocity()
+            end_effector.angular_velocity
         );
     }
 
     if (m_linear_acceleration_logger) {
         m_linear_acceleration_logger->write(
             time,
-            dynamics.get_end_effector_linear_acceleration()
+            end_effector.linear_acceleration
         );
     }
 
     if (m_angular_acceleration_logger) {
         m_angular_acceleration_logger->write(
             time,
-            dynamics.get_end_effector_angular_acceleration()
+            end_effector.angular_acceleration
         );
     }
 

@@ -4,8 +4,7 @@
 #include <filesystem>
 
 #include "simulation/simulator.hpp"
-#include "simulation/frankaridgeback.hpp"
-#include "simulation/raisim_dynamics.hpp"
+#include "simulation/frankaridgeback/actor.hpp"
 #include "frankaridgeback/objective/assisted_manipulation.hpp"
 #include "frankaridgeback/objective/track_point.hpp"
 #include "logging/mppi.hpp"
@@ -61,9 +60,6 @@ public:
         /// The reach for point objective configuration.
         Objective objective;
 
-        /// Optional force prediction for the dynamics.
-        std::optional<Forecast::Configuration> wrench_forecast;
-
         /// MPPI logging configuration.
         logger::MPPI::Configuration mppi_logger;
 
@@ -73,8 +69,8 @@ public:
         // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, duration, simulator, actor, objective, wrench_forecast,
-            mppi_logger, dynamics_logger
+            folder, duration, simulator, actor, objective, mppi_logger,
+            dynamics_logger
         )
     };
 

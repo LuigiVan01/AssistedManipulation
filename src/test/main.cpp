@@ -5,13 +5,14 @@
 #include <optional>
 #include <vector>
 
-#include "test/test.hpp"
-#include "test/case/reach.hpp"
-#include "test/case/figure_eight.hpp"
-#include "test/case/pose.hpp"
 #include "test/case/circle.hpp"
+#include "test/case/figure_eight.hpp"
+#include "test/case/pinocchio.hpp"
+#include "test/case/pose.hpp"
+#include "test/case/reach.hpp"
 #include "test/case/rectangle.hpp"
 #include "test/case/slerp.hpp"
+#include "test/test.hpp"
 
 /**
  * @brief Parse command line arguments.

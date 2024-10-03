@@ -3,7 +3,7 @@
 #include <optional>
 
 #include "simulation/simulator.hpp"
-#include "simulation/adaptor.hpp"
+#include "simulation/frankaridgeback/actor_dynamics.hpp"
 #include "controller/pid.hpp"
 #include "controller/mppi.hpp"
 #include "controller/energy.hpp"
@@ -40,22 +40,44 @@ public:
 
     struct Configuration {
 
-        /// Configuration of the actor dynamics. The adaptor provides a 
-        /// consistent interface between simulated dynamics and the simulated
-        // actor.
-        SimulatorAdaptor::Configuration dynamics;
+        /// Configuration of the actor dynamics.
+        SimulatorDynamics::Configuration dynamics;
 
-        /// The selected type of pinocchio dynamics.
-        Type mppi_type;
+        /**
+         * @brief Configuration structure for the mppi trajectory generator.
+         */
+        struct MPPI {
 
-        /// The mppi dynamics configuration for pinocchio if selected.
-        std::optional<RaisimDynamics::Configuration> mppi_raisim;
+            /// Configuration of the mppi controller
+            mppi::Configuration configuration;
 
-        /// The mppi dynamics configuration for raisim if selected.
-        std::optional<PinocchioDynamics::Configuration> mppi_pinocchio;
+            /// Configuration of the mppi rollout dynamics.
+            SimulatorDynamics::Configuration dynamics;
 
-        /// Configuration of the mppi trajectory generator.
-        mppi::Configuration mppi;
+            // JSON conversion for MPPI configuration.
+            NLOHMANN_DEFINE_TYPE_INTRUSIVE(MPPI, configuration, dynamics)
+        };
+
+        /// Configuration of the trajectory generator.
+        MPPI mppi;
+
+        /**
+         * @brief Configuration structure for the dynamics forecast.
+         */
+        struct Forecast {
+
+            /// Configuration of the dynamics forecast.
+            DynamicsForecast::Configuration configuration;
+
+            /// Configuration of the dynamics used for forecast external wrench.
+            SimulatorDynamics::Configuration dynamics;
+
+            // JSON conversion for Forecast configuration.
+            NLOHMANN_DEFINE_TYPE_INTRUSIVE(Forecast, configuration, dynamics)
+        };
+
+        /// The configuration of the forecast, if provided.
+        std::optional<Forecast> forecast;
 
         /// The period of time between the controller updates.
         double controller_rate;
@@ -63,15 +85,18 @@ public:
         /// The number of controller updates each update.
         unsigned int controller_substeps;
 
+        /// The period of time between forecast observations.
+        double forecast_rate;
+
         // JSON conversion for franka ridgeback actor configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            dynamics, mppi_type, mppi_raisim, mppi_pinocchio, mppi,
-            controller_rate, controller_substeps
+            dynamics, mppi, forecast, controller_rate, controller_substeps,
+            forecast_rate
         )
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    // static const Configuration DEFAULT_CONFIGURATION;
 
     /**
      * @brief Create a franka-ridgeback actor.
@@ -82,27 +107,23 @@ public:
      * @param simulator Pointer to the owning simulator.
      * @param dynamics Pointer to the dynamics to use for trajectory generation.
      * @param cost Pointer to the cost to use for trajectory generation.
-     * @param wrench_forecast Optional pointer to the external wrench prediction
-     * algorithm.
      * @param filter Pointer to the optional safety filter.
+     * 
      * @returns A pointer to the actor on success, or nullptr on failure.
      */
     static std::shared_ptr<Actor> create(
         Configuration configuration,
         Simulator *simulator,
         std::unique_ptr<mppi::Cost> &&cost,
-        std::unique_ptr<Forecast::Handle> &&wrench_forecast = nullptr,
         std::unique_ptr<mppi::Filter> &&filter = nullptr
     );
 
     /**
      * @brief Add wrench to the actors end effector.
-     * @param wrench The wrench to add, in the world frame.
+     * @param wrench The wrench to add in the world frame.
+     * @param time The time of the wrench.
      */
-    inline void add_end_effector_wrench(Vector6d wrench)
-    {
-        m_dynamics->get_dynamics()->add_end_effector_simulated_wrench(wrench);
-    }
+    void add_end_effector_wrench(Vector6d wrench, double time);
 
     /**
      * @brief Get a pointer to the simulated articulated system.
@@ -134,9 +155,11 @@ private:
 
     Actor(
         Configuration &&configuration,
-        std::unique_ptr<SimulatorAdaptor> &&dynamics,
+        std::unique_ptr<ActorDynamics> &&dynamics,
         std::unique_ptr<mppi::Trajectory> &&controller,
-        std::int64_t controller_countdown_max
+        std::unique_ptr<DynamicsForecast> &&forecast,
+        std::int64_t controller_countdown_max,
+        std::int64_t forecast_countdown_max
     );
 
     /**
@@ -155,7 +178,10 @@ private:
     Configuration m_configuration;
 
     /// The simulated dynamics.
-    std::unique_ptr<SimulatorAdaptor> m_dynamics;
+    std::unique_ptr<ActorDynamics> m_dynamics;
+
+    /// The forecast dynamics.
+    std::unique_ptr<DynamicsForecast> m_forecast;
 
     /// The trajectory generator.
     std::unique_ptr<mppi::Trajectory> m_controller;
@@ -163,8 +189,14 @@ private:
     /// Countdown to next trajectory update.
     std::int64_t m_trajectory_countdown;
 
-    /// The value to reset the countdown after update.
+    /// The value to reset the trajectory countdown after update.
     std::int64_t m_trajectory_countdown_max;
+
+    /// Countdown to next forecast observation update.
+    std::int64_t m_forecast_countdown;
+
+    /// The value to reset the forecast countdown after update.
+    std::int64_t m_forecast_countdown_max;
 
     /// The current control action.
     FrankaRidgeback::Control m_control;

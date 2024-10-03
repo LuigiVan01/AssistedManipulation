@@ -37,8 +37,43 @@ public:
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, point)
     };
 
-    /// The default configuration of the track point objective.
-    static const Configuration DEFAULT_CONFIGURATION; 
+    /**
+     * @brief The default configuration of the track point objective.
+     * @note Inlined since static initialisation order is undefined.
+     */
+    static inline const Configuration DEFAULT_CONFIGURATION {
+        .point = Vector3d(1.0, 1.0, 1.0),
+        .enable_joint_limits = true,
+        .enable_power_limit = false,
+        .lower_joint_limit = {{
+            {-2.0,    1'000, 100'00}, // Base rotation
+            {-2.0,    1'000, 100'00}, // Base x
+            {-6.28,   1'000, 100'00}, // Base y
+            {-2.8973, 1'000, 100'00}, // Joint1
+            {-1.7628, 1'000, 100'00}, // Joint2
+            {-2.8973, 1'000, 100'00}, // Joint3
+            {-3.0718, 1'000, 100'00}, // Joint4
+            {-2.8973, 1'000, 100'00}, // Joint5
+            {-0.0175, 1'000, 100'00}, // Joint6
+            {-2.8973, 1'000, 100'00}, // Joint7
+            {0.5,     1'000, 100'00}, // Gripper x
+            {0.5,     1'000, 100'00}  // Gripper y
+        }},
+        .upper_joint_limit = {{
+            {2.0,    1'000, 100'00}, // Base rotation
+            {2.0,    1'000, 100'00}, // Base x
+            {6.28,   1'000, 100'00}, // Base y
+            {2.8973, 1'000, 100'00}, // Joint1
+            {1.7628, 1'000, 100'00}, // Joint2
+            {2.8973, 1'000, 100'00}, // Joint3
+            {3.0718, 1'000, 100'00}, // Joint4
+            {2.8973, 1'000, 100'00}, // Joint5
+            {0.0175, 1'000, 100'00}, // Joint6
+            {2.8973, 1'000, 100'00}, // Joint7
+            {0.5,    1'000, 100'00}, // Gripper x
+            {0.5,    1'000, 100'00}  // Gripper y
+        }}
+    };
 
     /**
      * @brief Get the number of state degrees of freedom.
