@@ -9,3 +9,7 @@ using Vector4d = Eigen::Vector4d;
 using Vector6d = Eigen::Vector<double, 6>;
 using MatrixXd = Eigen::MatrixXd;
 using Quaterniond = Eigen::Quaterniond;
+
+#ifndef M_PI
+#define M_PI 3.141592653589793
+#endif

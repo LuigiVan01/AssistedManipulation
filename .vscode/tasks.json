@@ -104,8 +104,16 @@
             "label": "Start Visualiser",
             "detail": "Start the raisim server and visualiser. Must be run outside of the development container.",
             "type": "shell",
-            "linux": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64"},
-            "windows": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/win32/RaiSimUnity"},
+            "linux": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64 &"},
+            "windows": { "command": "start ${workspaceFolder}/lib/raisimlib/raisimUnity/win32/RaiSimUnity"},
+            "problemMatcher": []
+        },
+        {
+            "label": "Stop Visualiser",
+            "detail": "Stop the raisimvisualiser. Must be run outside of the development container.",
+            "type": "shell",
+            "linux": { "command": ""},
+            "windows": { "command": "taskkill /IM RaiSimUnity.exe"},
             "problemMatcher": []
         },
         {
@@ -116,6 +124,17 @@
             "linux": { "command": "xacro panda_mobile.urdf.xacro > robot.urdf"},
             "windows": { "command": ""},
             "problemMatcher": []
+        },
+        {
+            "label": "Prepare for Debug",
+            "detail": "Tasks to perform before debugging.",
+            "type": "shell",
+            "problemMatcher": [],
+            "dependsOrder": "sequence",
+            "dependsOn":[
+                "Compile Debug",
+                "Start Visualiser"
+            ]
         }
     ]
 }

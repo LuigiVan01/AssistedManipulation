@@ -109,6 +109,7 @@ Actor::Actor(
     std::int64_t forecast_countdown_max
 ) : m_configuration(std::move(configuration))
   , m_dynamics(std::move(dynamics))
+  , m_forecast(std::move(forecast))
   , m_controller(std::move(controller))
   , m_trajectory_countdown(0) // Update on first step.
   , m_trajectory_countdown_max(controller_countdown_max)
@@ -121,7 +122,7 @@ void Actor::add_end_effector_wrench(Vector6d wrench, double time)
 {
     m_dynamics->get_dynamics()->add_end_effector_simulated_wrench(wrench);
 
-    if (m_forecast_countdown <= 0) {
+    if (m_forecast && m_forecast_countdown <= 0) {
         m_forecast->observe_wrench(wrench, time);
         m_forecast_countdown = m_forecast_countdown_max;
     }

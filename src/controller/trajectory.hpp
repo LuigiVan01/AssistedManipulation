@@ -7,8 +7,6 @@
 #include "controller/eigen.hpp"
 #include "controller/json.hpp"
 
-#define M_PI 3.141592653589793
-
 /**
  * @brief Base class for implementing a positional trajectory.
  */

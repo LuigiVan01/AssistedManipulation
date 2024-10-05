@@ -23,14 +23,14 @@ std::unique_ptr<MPPI> MPPI::create(const Configuration &configuration)
     if (configuration.log_costs) {
         mppi->m_costs = CSV::create(CSV::Configuration{
             .path = configuration.folder / "costs.csv",
-            .header = CSV::make_header("update", rollouts)
+            .header = CSV::make_header("update", "time", rollouts)
         });
     }
 
     if (configuration.log_weights) {
         mppi->m_weights = CSV::create(CSV::Configuration{
             .path = configuration.folder / "weights.csv",
-            .header = CSV::make_header("update", rollouts)
+            .header = CSV::make_header("update", "time", rollouts)
         });
     }
 
@@ -51,7 +51,7 @@ std::unique_ptr<MPPI> MPPI::create(const Configuration &configuration)
     if (configuration.log_optimal_cost) {
         mppi->m_optimal_cost = CSV::create(CSV::Configuration{
             .path = configuration.folder / "optimal_cost.csv",
-            .header = CSV::make_header("update", "cost")
+            .header = CSV::make_header("update", "time", "cost")
         });
     }
 
@@ -112,11 +112,11 @@ void MPPI::log(const mppi::Trajectory &trajectory)
             trajectory.get_rollouts(),
             [](const auto &rollout) { return rollout.cost; }
         );
-        m_costs->write(iteration, costs);
+        m_costs->write(iteration, time, costs);
     }
 
     if (m_weights) {
-        m_weights->write(iteration, trajectory.get_weights());
+        m_weights->write(iteration, time, trajectory.get_weights());
     }
 
     if (m_gradient) {
@@ -130,7 +130,7 @@ void MPPI::log(const mppi::Trajectory &trajectory)
     }
 
     if (m_optimal_cost) {
-        m_optimal_cost->write(iteration, trajectory.get_optimal_total_cost());
+        m_optimal_cost->write(iteration, time, trajectory.get_optimal_total_cost());
     }
 
     m_last_update = time;

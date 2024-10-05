@@ -97,7 +97,7 @@ Trajectory::Trajectory(
   , m_gaussian(configuration.covariance)
   , m_rollout_state(configuration.initial_state)
   , m_rollout_time(0.0)
-  , m_last_rollout_time(0.0)
+  , m_last_shift_time(0.0)
   , m_cost_discount_factor(configuration.cost_discount_factor)
   , m_cost_scale(configuration.cost_scale)
   , m_shift_by(0)
@@ -117,9 +117,11 @@ Trajectory::Trajectory(
   , m_control_max(configuration.control_max)
   , m_control_default(configuration.control_default)
 {
+    m_rollout_state.setZero();
     m_weights.setZero();
     m_gradient.setZero();
     m_optimal_control.setZero();
+    m_optimal_control_shifted.setZero();
 
     // Set the initial gaussian noise to zero.
     for (auto &rollout : m_rollouts) {
@@ -186,24 +188,30 @@ void Trajectory::update(const Eigen::Ref<Eigen::VectorXd> state, double time)
 void Trajectory::sample(double time)
 {
     // The number of time steps to shift the optimal control and best sampled
-    // trajectories forward by, to align them with the current time.
-    m_shift_by = (std::int64_t)((time - m_last_rollout_time) / m_time_step);
+    // trajectories forward by, to align them with the current time. Not
+    // shifting is equivalent to performing a subsample update.
+    m_shift_by = (std::int64_t)((time - m_last_shift_time) / m_time_step);
 
-    // The number of columns to shift back.
-    m_shifted = m_step_count - m_shift_by;
+    // Don't shift if the following copy operation doesn't do anything.
+    if (m_shift_by > 0) {
+        m_last_shift_time = time;
 
-    // Shift the the optimal control to align with the current time.
-    m_optimal_control_shifted.leftCols(m_shifted) = m_optimal_control.rightCols(m_shifted).eval();
-    m_optimal_control_shifted.rightCols(m_shift_by) = m_optimal_control.rightCols(1).replicate(1, m_shift_by);
+        // The number of columns to shift back.
+        m_shifted = m_step_count - m_shift_by;
 
-    // Reset to random noise if all trajectories are out of date.
-    if (m_shift_by >= m_step_count) {
-        for (std::int64_t index = s_static_rollouts; index < m_rollout_count; ++index) {
-            Rollout &rollout = m_rollouts[index];
-            for (int i = 0; i < m_step_count; i++)
-                rollout.noise.col(i) = m_gaussian();
+        // Shift the the optimal control to align with the current time.
+        m_optimal_control_shifted.leftCols(m_shifted) = m_optimal_control.rightCols(m_shifted).eval();
+        m_optimal_control_shifted.rightCols(m_shift_by) = m_optimal_control.rightCols(1).replicate(1, m_shift_by);
+
+        // Reset to random noise if all trajectories are out of date.
+        if (m_shift_by >= m_step_count) {
+            for (std::int64_t index = s_static_rollouts; index < m_rollout_count; ++index) {
+                Rollout &rollout = m_rollouts[index];
+                for (int i = 0; i < m_step_count; i++)
+                    rollout.noise.col(i) = m_gaussian();
+            }
+            return;
         }
-        return;
     }
 
     // Regenerate indexes of rollouts to sort by cost as 2, 2 + 1, 2 + 2, ...
@@ -228,15 +236,18 @@ void Trajectory::sample(double time)
     // Rollouts to resample.
     std::span resample = indexes.last(m_ordered_rollouts.size() - keep.size());
 
-    for (std::int64_t index : keep) {
-        Rollout &rollout = m_rollouts[index];
+    // Shift kept rollouts to align with the current time.
+    if (m_shift_by > 0) {
+        for (std::int64_t index : keep) {
+            Rollout &rollout = m_rollouts[index];
 
-        // Shift the rollout noise to align with current time.
-        rollout.noise.leftCols(m_shifted) = rollout.noise.rightCols(m_shifted).eval();
+            // Shift the rollout noise to align with current time.
+            rollout.noise.leftCols(m_shifted) = rollout.noise.rightCols(m_shifted).eval();
 
-        // Add noise to the rest of the rollout.
-        for (int i = m_shifted; i < m_step_count; i++)
-            rollout.noise.col(i) = m_gaussian();
+            // Add noise to the rest of the rollout.
+            for (int i = m_shifted; i < m_step_count; i++)
+                rollout.noise.col(i) = m_gaussian();
+        }
     }
 
     for (std::int64_t index : resample) {

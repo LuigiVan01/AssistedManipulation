@@ -1,7 +1,6 @@
 #pragma once
 
-#include <Eigen/Eigen>
-
+#include "controller/eigen.hpp"
 #include "controller/json.hpp"
 #include "frankaridgeback/dof.hpp"
 
@@ -259,6 +258,39 @@ struct State : public Eigen::Vector<double, DoF::STATE>
         return tail<DoF::AVAILABLE_ENERGY>(); 
     }
 };
+
+/**
+ * @brief ALl the selectable robot preset states.
+ */
+enum class Preset {
+    ZERO = 0,
+    HUDDLED_10J = 1
+};
+
+/**
+ * @brief Get a preset state.
+ * 
+ * @param preset The preset state to get
+ * @returns The state.
+ */
+State make_state(Preset preset);
+
+/**
+ * @brief Create an initial state.
+ * 
+ * @param position The position.
+ * @param velocity The velocity.
+ * @param wrench The wrench.
+ * @param energy The energy.
+ * 
+ * @returns The resulting state.
+ */
+State make_state(
+    VectorXd position,
+    VectorXd velocity,
+    Vector6d wrench,
+    double energy
+);
 
 // JSON conversion should be handled by the generic type, but are custom here
 // due to the issue in templated conversion function, see there.

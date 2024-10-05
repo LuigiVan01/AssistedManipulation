@@ -12,22 +12,41 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
     .actor = {
         .dynamics = {
             .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
-            .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+            .raisim = FrankaRidgeback::RaisimDynamics::Configuration {
+                .simulator = Simulator::Configuration {
+                    .time_step = 0.01,
+                    .gravity = {0.0, 0.0, 9.81}
+                },
+                .filename = "",
+                .end_effector_frame = "panda_grasp_joint",
+                .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
+                .proportional_gain = FrankaRidgeback::Control{
+                    0.0, 0.0, 0.0, // base
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
+                    100.0, 100.0
+                },
+                .differential_gain = FrankaRidgeback::Control{
+                    1000.0, 1000.0, 1.0, // base
+                    10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                    50.0, 50.0
+                },
+                .energy = 10.0
+            },
             .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
         },
         .mppi = {
             .configuration = {
-                .initial_state = FrankaRidgeback::State::Zero(),
+                .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
                 .rollouts = 20,
-                .keep_best_rollouts = 10,
-                .time_step = 0.1,
-                .horison = 1.0,
+                .keep_best_rollouts = 15,
+                .time_step = 0.01,
+                .horison = 0.25,
                 .gradient_step = 1.0,
                 .cost_scale = 10.0,
                 .cost_discount_factor = 1.0,
                 .covariance = FrankaRidgeback::Control{
-                    0.1, 0.1, 0.2, // base
-                    2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, // arm
+                    0.0, 0.0, 0.0, // base
+                    7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, // arm
                     0.0, 0.0 // gripper
                 }.asDiagonal(),
                 .control_bound = false,
@@ -51,36 +70,54 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
             },
             .dynamics = {
                 .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
-                .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+                .raisim = FrankaRidgeback::RaisimDynamics::Configuration {
+                    .simulator = Simulator::Configuration {
+                        .time_step = 0.01,
+                        .gravity = {0.0, 0.0, 9.81}
+                    },
+                    .filename = "",
+                    .end_effector_frame = "panda_grasp_joint",
+                    .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
+                    .proportional_gain = FrankaRidgeback::Control{
+                        0.0, 0.0, 0.0, // base
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
+                        100.0, 100.0
+                    },
+                    .differential_gain = FrankaRidgeback::Control{
+                        1000.0, 1000.0, 1.0, // base
+                        10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                        50.0, 50.0
+                    },
+                    .energy = 10.0
+                },
                 .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
             }
         },
-        .forecast = FrankaRidgeback::Actor::Configuration::Forecast {
-            .configuration = {
-                .time_step = 0.01,
-                .horison = 1.0,
-                .end_effector_wrench_forecast = {
-                    .type = Forecast::Configuration::Type::LOCF,
-                    .locf = LOCFForecast::Configuration {
-                        .observation = Vector6d::Zero()
-                    },
-                    .average = AverageForecast::Configuration {
-                        .states = 6,
-                        .window = 1.0
-                    },
-                    .kalman = KalmanForecast::Configuration {
-                        .observed_states = 3
-                    }
-                }
-            },
-            .dynamics = {
-                .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
-                .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
-                .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
-            }
-        },
-        .controller_rate = 0.15,
-        .controller_substeps = 5,
+        .forecast = std::nullopt,
+        // FrankaRidgeback::Actor::Configuration::Forecast {
+        //     .configuration = {
+        //         .time_step = 0.01,
+        //         .horison = 1.0,
+        //         .end_effector_wrench_forecast = {
+        //             .type = Forecast::Configuration::Type::LOCF,
+        //             .locf = LOCFForecast::Configuration {
+        //                 .observation = Vector6d::Zero()
+        //             },
+        //             .average = AverageForecast::Configuration {
+        //                 .states = 6,
+        //                 .window = 1.0
+        //             },
+        //             .kalman = std::nullopt
+        //         }
+        //     },
+        //     .dynamics = {
+        //         .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
+        //         .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+        //         .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
+        //     }
+        // },
+        .controller_rate = 0.03,
+        .controller_substeps = 1,
         .forecast_rate = 0.15
     },
     .objective = {
@@ -116,7 +153,6 @@ std::unique_ptr<BaseTest> BaseTest::create(Options &options)
         if (!options.patch.is_null()) {
             json json_configuration = configuration;
             json_configuration.merge_patch(options.patch);
-            std::cout << json_configuration.dump() << std::endl;
             configuration = json_configuration;
         }
     }

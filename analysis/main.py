@@ -1,9 +1,15 @@
 import dataclasses
 import enum
+import sys
 import matplotlib.pyplot as plt
 import pandas
 import pathlib
 import numpy as np
+
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "Helvetica"
+})
 
 @dataclasses.dataclass
 class PidResults:
@@ -33,15 +39,19 @@ class DynamicsResults:
     power: pandas.DataFrame | None = None
     tank_energy: pandas.DataFrame | None = None
 
+@dataclasses.dataclass
+class PlotData:
+    filename: str
+    pid: PidResults
+    mppi: MppiResults
+    dynamics: DynamicsResults
+
 class ResultsType(enum.Enum):
     MPPI = 0
     PID = 1
     DYNAMICS = 2
 
 def read_results(result_type: ResultsType, folder: str) -> PidResults | MppiResults | DynamicsResults:
-    directory = pathlib.Path(folder)
-    if not directory.exists():
-        raise FileNotFoundError(f'mppi directory {folder} not found')
 
     results = None
     match result_type:
@@ -54,6 +64,10 @@ def read_results(result_type: ResultsType, folder: str) -> PidResults | MppiResu
         case _:
             raise RuntimeError(f'unknown result type {result_type}')
 
+    directory = pathlib.Path(folder)
+    if not directory.exists():
+        return results
+
     for field in dataclasses.fields(results):
         filename = f'{field.name}.csv'
         path = directory / filename
@@ -63,99 +77,73 @@ def read_results(result_type: ResultsType, folder: str) -> PidResults | MppiResu
 
     return results
 
-def plot_time_series(axis, df):
-    axis.plot(df['time'], np.asarray(df.loc[:, df.columns != 'time']))
+def plot_optimal_cost(axis: plt.Axes, optimal_cost: pandas.DataFrame | None):
+    axis.set_title('Optimal Cost')
+    axis.set_xlabel('Time [$s$]')
+    axis.set_ylabel('Cost')
 
-def plot_time_norm(axis, df):
-    time = df['time']
-    other = df.loc[:, df.columns != 'time']
-    norm = np.sqrt(np.square(other).sum(axis = 1))
-    axis.plot(time, norm)
+    if optimal_cost is not None:
+        axis.plot(optimal_cost['time'], np.asarray(optimal_cost['cost']))
 
-def plot_2d(axis, values_df):
-    pass
+    axis.set_xlim(xmin = 0.0, xmax = max(optimal_cost['time']))
+    axis.set_ylim(ymin = 0.0)
 
-def plot_3d(axis: plt.Axes, values_df):
-    axis.set_
+def plot_tank_energy(axis: plt.Axes, tank_energy: pandas.DataFrame | None):
+    axis.set_title('Energy Tank Evolution')
+    axis.set_xlabel('Time [$s$]')
+    axis.set_ylabel('Energy [$J$]')
 
-def plot_dynamics(dynamics: DynamicsResults):
-    plt.figure(sharex = True, figsize = (10, 16))
+    if tank_energy is not None:
+        axis.plot(tank_energy['time'], tank_energy['energy'])
 
-    fig, axes = plt.subplots(8, 1, sharex = True, figsize = (10, 16))
-    it = iter(axes)
+    axis.set_xlim(xmin = 0.0, xmax = max(tank_energy['time']))
+    axis.set_ylim(ymin = 0.0)
 
-    time_series = [
-        dynamics.power,
-        dynamics.tank_energy
-    ]
+def plot_pid_error(axis: plt.Axes, pid_error: pandas.DataFrame | None):
+    axis.set_title('External Wrench PID Error')
+    axis.set_xlabel('Time [$s$]')
+    axis.set_ylabel('Error [$m$]')
 
-    for axis, df in zip(it, time_series):
-        plot_time_series(axis, df)
+    if pid_error is not None:
+        axis.plot(pid_error['time'], pid_error['error'])
 
-    time_norm = [
-        dynamics.end_effector_linear_velocity,
-        dynamics.end_effector_angular_velocity,
-        dynamics.end_effector_linear_acceleration,
-        dynamics.end_effector_angular_acceleration
-    ]
+    axis.set_xlim(xmin = 0.0)
+    axis.set_ylim(ymin = 0.0)
 
-    for axis, df in zip(it, time_norm):
-        plot_time_norm(axis, df)
+def plot_end_effector_trajectory(
+        axis: plt.Axes,
+        position: pandas.DataFrame | None,
+        reference: pandas.DataFrame | None
+    ):
 
-    # plt.figlegend([field.name for field in fields])
-    # plt.subplots_adjust(right=0.8, bottom = 0.07)
+    if position is not None:
+        axis.plot(position['time'], position['x'], position['y'], p)
 
-    fig.suptitle('Dynamics of f{}')
-    plt.show()
+    if reference is not None:
+        pass
 
-def plot_nice(dynamics: DynamicsResults, mppi: MppiResults, pid: PidResults):
-    plt.figure(figsize = (10, 10))
+def plot_useful(data: PlotData):
+    plt.figure(figsize = (10, 8))
 
-    if mppi.costs is not None:
-        axis = plt.subplot2grid((3, 3), (0, 0))
-        plot_time_series(axis, mppi.costs)
-        axis.set_title('Cost')
-
-    if dynamics.power is not None:
-        axis = plt.subplot2grid((3, 3), (0, 1))
-        plot_time_series(axis, dynamics.power)
-        axis.set_title('Power [J/s]')
-
-    if dynamics.tank_energy is not None:
-        axis = plt.subplot2grid((3, 3), (0, 2))
-        plot_time_series(axis, dynamics.tank_energy)
-        axis.set_title('Tank Energy [J]')
-
-    if dynamics.end_effector_linear_velocity is not None:
-        axis = plt.subplot2grid((3, 3), (1, 0))
-        plot_time_norm(axis, dynamics.end_effector_linear_velocity)
-        axis.set_title('Linear Velocity')
-
-    if dynamics.end_effector_linear_acceleration is not None:
-        axis = plt.subplot2grid((3, 3), (1, 1))
-        plot_time_norm(axis, dynamics.end_effector_linear_acceleration)
-        axis.set_title('Linear Velocity')
-
-    if pid.reference and dynamics.end_effector_position is not None:
-        axis = plt.subplot2grid((3, 3), (1, 2), rowspan = 2, projection = '3d')
-        axis.plot(pid.reference[pid.reference.columns != 'time'])
-        plot_time_norm(axis, dynamics.end_effector_linear_acceleration)
-        axis.set_title('Trajectory')
-
-    if pid.control is not None:
-        axis = plt.subplot2grid((3, 3), (2, 0))
-        plot_time_norm(axis, pid.control)
-        axis.set_title('External Force')
-
-    if pid.error is not None:
-        axis = plt.subplot2grid((3, 3), (2, 1))
-        plot_time_norm(axis, pid.error)
-        axis.set_title('Reference Trajectory Error')
+    plot_optimal_cost(plt.subplot2grid((3, 1), (0, 0)), data.mppi.optimal_cost)
+    plot_tank_energy(plt.subplot2grid((3, 1), (1, 0)), data.dynamics.tank_energy)
+    plot_pid_error(plt.subplot2grid((3, 1), (2, 0)), data.pid.error)
 
     plt.tight_layout()
     plt.show()
 
-mppi = MppiResults()
-pid = PidResults()
-dynamics = read_results(ResultsType.DYNAMICS, 'results/reach_2024-09-28_16-03-27/dynamics')
-plot_nice(dynamics, mppi, pid)
+if __name__ == '__main__':
+    if not sys.argv[1:]:
+        raise RuntimeError('No result directory provided.')
+
+    path = pathlib.Path(sys.argv[1])
+    print(f'analysing results of {path}')
+
+    data = PlotData(
+        filename = path,
+        mppi = read_results(ResultsType.MPPI, path / 'mppi'),
+        dynamics = read_results(ResultsType.DYNAMICS, path / 'dynamics'),
+        pid = read_results(ResultsType.PID, path / 'pid'),
+    )
+
+    plot_useful(data)

@@ -213,7 +213,7 @@ void RaisimDynamics::act(const Control &control)
 
     // Rotate the desired base velocity command into the base frame of reference.
     m_velocity_command.setZero();
-    m_velocity_command.head<DoF::BASE_POSITION>() = /* Eigen::Rotation2Dd(m_state.base_yaw().value()) * */ control.base_velocity();
+    m_velocity_command.head<DoF::BASE_POSITION>() = Eigen::Rotation2Dd(m_state.base_yaw().value()) * control.base_velocity();
     m_velocity_command.segment<DoF::BASE_YAW>(DoF::BASE_POSITION) = control.base_angular_velocity();
     // m_velocity_command.segment<DoF::ARM>(DoF::BASE) = control.arm_velocity();
 

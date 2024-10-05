@@ -296,7 +296,9 @@ public:
         Rollout(std::size_t control_dof, std::size_t steps)
             : noise(control_dof, steps)
             , cost(0.0)
-        {}
+        {
+            noise.setZero();
+        }
     };
 
     /// The number of rollouts added to the configured rollouts. These are the
@@ -590,6 +592,9 @@ private:
 
     /// The time of the last trajectory generation.
     double m_last_rollout_time;
+
+    /// The initial time of of the stored optimal control.
+    double m_last_shift_time;
 
     /// The number of time steps to shift control by to align with current time.
     std::int64_t m_shift_by;

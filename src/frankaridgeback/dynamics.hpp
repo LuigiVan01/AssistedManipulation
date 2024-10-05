@@ -19,6 +19,47 @@ class Dynamics;
 using Jacobian = Eigen::Matrix<double, 6, DoF::JOINTS>;
 
 /**
+ * @brief All the frames of the franka ridgeback model.
+ */
+namespace Frame {
+
+static inline const std::string
+    WORLD_JOINT = "world_joint",
+    X_BASE_JOINT = "x_base_joint",
+    Y_BASE_JOINT = "y_base_joint",
+    PIVOT_JOINT = "pivot_joint",
+    PANDA_JOINT1 = "panda_joint1",
+    OMNI_BASE_FLANGE = "omni_base_flange",
+    BASE_LINK_JOINT = "base_link_joint",
+    MID_MOUNT_JOINT = "mid_mount_joint",
+    RIGHT_SIDE_COVER_LINK_JOINT = "right_side_cover_link_joint",
+    LEFT_SIDE_COVER_LINK_JOINT = "left_side_cover_link_joint",
+    FRONT_COVER_LINK_JOINT = "front_cover_link_joint",
+    REAR_COVER_LINK_JOINT = "rear_cover_link_joint",
+    FRONT_LIGHTS_LINK_JOINT = "front_lights_link_joint",
+    REAR_LIGHTS_LINK_JOINT = "rear_lights_link_joint",
+    TOP_LINK_JOINT = "top_link_joint",
+    AXLE_JOINT = "axle_joint",
+    IMU_JOINT = "imu_joint",
+    RIDGEBACK_SENSOR_MOUNT_JOINT = "ridgeback_sensor_mount_joint",
+    REFERENCE_LINK_JOINT = "reference_link_joint",
+    ARM_MOUNT_JOINT = "arm_mount_joint",
+    PANDA_JOINT_FRANKA_MOUNT_LINK = "panda_joint_franka_mount_link",
+    PANDA_JOINT2 = "panda_joint2",
+    PANDA_JOINT3 = "panda_joint3",
+    PANDA_JOINT4 = "panda_joint4",
+    PANDA_JOINT5 = "panda_joint5",
+    PANDA_JOINT6 = "panda_joint6",
+    PANDA_JOINT7 = "panda_joint7",
+    PANDA_FINGER_JOINT1 = "panda_finger_joint1",
+    PANDA_FINGER_JOINT2 = "panda_finger_joint2",
+    PANDA_JOINT8 = "panda_joint8",
+    PANDA_HAND_JOINT = "panda_hand_joint",
+    PANDA_GRASP_JOINT = "panda_grasp_joint";
+
+} // namespace Frame
+
+/**
  * @brief Data structure containing frame kinematic information at a given time.
  */
 struct EndEffectorState {
@@ -271,6 +312,41 @@ public:
      */
     static inline std::filesystem::path find_path() {
         return (std::filesystem::current_path() / "model/robot.urdf").string();
+    }
+
+    /**
+     * @brief Get the position of a frame.
+     * 
+     * @todo Make the frame parameter an enumeration.
+     * 
+     * @param frame The frame.
+     * @returns The position of the frame.
+     */
+    virtual Vector3d get_frame_position(const std::string &frame) = 0;
+
+    /**
+     * @brief Get the orientation of a frame.
+     * 
+     * @todo Make the frame parameter an enumeration.
+     * 
+     * @param frame The frame.
+     * @returns The orientation of the frame.
+     */
+    virtual Quaterniond get_frame_orientation(const std::string &frame) = 0;
+
+    /**
+     * @brief Get the offset between two frames.
+     * 
+     * @param from The first frame.
+     * @param to The second frame.
+     * 
+     * @returns The offset.
+     */
+    inline Vector3d get_frame_offset(
+        const std::string &from,
+        const std::string &to
+    ) {
+        return get_frame_position(to) - get_frame_position(from); 
     }
 
     /**

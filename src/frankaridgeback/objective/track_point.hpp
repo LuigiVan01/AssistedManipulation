@@ -21,8 +21,14 @@ public:
         /// If the objective should avoid joint limits.
         bool enable_joint_limits;
 
+        /// Avoid colliding with itself.
+        bool enable_self_collision_avoidance;
+
         /// If the objective should limit power usage.
         bool enable_power_limit;
+
+        /// If the objective should have minimum reach.
+        bool enable_reach_limits;
 
         /// Lower joint limits if enabled.
         std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> lower_joint_limit;
@@ -33,9 +39,38 @@ public:
         /// Maximum power usage if enabled. 
         QuadraticCost maximum_power;
 
+        /// Self collision cost.
+        QuadraticCost self_collision;
+
+        /// Minimum reach if enabled.
+        QuadraticCost minimum_reach;
+
+        /// Maximum reach if enabled.
+        QuadraticCost maximum_reach;
+
         // JSON conversion for track point objective configuration.
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, point)
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+            Configuration,
+            point, enable_joint_limits, enable_self_collision_avoidance,
+            enable_power_limit, enable_reach_limits, lower_joint_limit,
+            upper_joint_limit, maximum_power, self_collision, minimum_reach,
+            maximum_reach
+        )
     };
+
+    /**
+     * @brief Pairs of links to be checked for self collision.
+     */
+    static inline std::vector<std::tuple<std::string, std::string>>
+    SELF_COLLISION_LINKS = {{
+        {"panda_link0", "panda_link1"},
+        {"panda_link1", "panda_link2"},
+        {"panda_link2", "panda_link3"},
+        {"panda_link3", "panda_link4"},
+        {"panda_link4", "panda_link5"},
+        {"panda_link5", "panda_link6"},
+        {"panda_link7", "panda_link0"},
+    }};
 
     /**
      * @brief The default configuration of the track point objective.
@@ -44,7 +79,9 @@ public:
     static inline const Configuration DEFAULT_CONFIGURATION {
         .point = Vector3d(1.0, 1.0, 1.0),
         .enable_joint_limits = true,
+        .enable_self_collision_avoidance = false,
         .enable_power_limit = false,
+        .enable_reach_limits = false,
         .lower_joint_limit = {{
             {-2.0,    1'000, 100'00}, // Base rotation
             {-2.0,    1'000, 100'00}, // Base x
@@ -72,7 +109,27 @@ public:
             {2.8973, 1'000, 100'00}, // Joint7
             {0.5,    1'000, 100'00}, // Gripper x
             {0.5,    1'000, 100'00}  // Gripper y
-        }}
+        }},
+        .maximum_power = {
+            .limit = 100.0,
+            .constant_cost = 100,
+            .quadratic_cost = 10000
+        },
+        .self_collision = {
+            .limit = 0.35,
+            .constant_cost = 0.0,
+            .quadratic_cost = 1000
+        },
+        .minimum_reach = {
+            .limit = 1.0,
+            .constant_cost = 100,
+            .quadratic_cost = 10000
+        },
+        .maximum_reach = {
+            .limit = 100.0,
+            .constant_cost = 0,
+            .quadratic_cost = 0
+        }
     };
 
     /**
@@ -119,8 +176,15 @@ public:
         double time
     ) override;
 
+    /**
+     * @brief Unused.
+     */
     void reset() override {};
 
+    /**
+     * @brief Make a copy of the objective function.
+     * @returns The copy of the objective function.
+     */
     inline std::unique_ptr<mppi::Cost> copy() override {
         return std::make_unique<TrackPoint>(*this);
     }
@@ -132,7 +196,7 @@ private:
      * @param configuration The configuration of the track point objective. 
      */
     inline TrackPoint(const Configuration &configuration)
-        : m_configuration(configuration.point)
+        : m_configuration(configuration)
     {}
 
     /**
@@ -150,7 +214,20 @@ private:
      * @param state The state of the franka-ridgeback.
      * @return The cost.
      */
-    double joint_cost(const FrankaRidgeback::State &state);
+    double joint_limit_cost(const FrankaRidgeback::State &state);
+
+    /**
+     * @brief Get the cost of self collision.
+     * 
+     * Self collision is implemented using imaginary spheres centered on each
+     * joint. The joints are considered colliding if the spheres are
+     * intersecting. The radii of the spheres can be adjusted to change the
+     * sensitivity to self collision.
+     * 
+     * @param dynamics Pointer to the dynamics.
+     * @returns The cost.
+     */
+    double self_collision_cost(FrankaRidgeback::Dynamics *dynamics);
 
     /**
      * @brief Get the cost of the current power usage.
@@ -159,6 +236,14 @@ private:
      * @returns The cost.
      */
     double power_cost(FrankaRidgeback::Dynamics *dynamics);
+
+    /**
+     * @brief Get the cost of minimum reach.
+     *
+     * @param dynamics pointer to the dynamics.
+     * @returns The cost.
+     */
+    double reach_cost(FrankaRidgeback::Dynamics *dynamics);
 
     /// The configuration of the track point objective, including point to
     /// track.

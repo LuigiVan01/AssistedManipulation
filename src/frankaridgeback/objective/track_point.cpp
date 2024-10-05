@@ -17,7 +17,15 @@ double TrackPoint::get_cost(
     double cost = point_cost(dynamics);
 
     if (m_configuration.enable_joint_limits) {
-        cost += joint_cost(state);
+        cost += joint_limit_cost(state);
+    }
+
+    if (m_configuration.enable_self_collision_avoidance) {
+        cost += self_collision_cost(dynamics);
+    }
+
+    if (m_configuration.enable_reach_limits) {
+        cost += reach_cost(dynamics);
     }
 
     if (m_configuration.enable_power_limit) {
@@ -36,7 +44,7 @@ double TrackPoint::point_cost(FrankaRidgeback::Dynamics *dynamics)
     return 100.0 * std::pow(distance, 2);
 }
 
-double TrackPoint::joint_cost(const FrankaRidgeback::State &state)
+double TrackPoint::joint_limit_cost(const FrankaRidgeback::State &state)
 {
     // Statically initialise the lower limits.
     static VectorXd lower_limit = []{
@@ -72,8 +80,58 @@ double TrackPoint::joint_cost(const FrankaRidgeback::State &state)
     return cost;
 }
 
+double TrackPoint::self_collision_cost(FrankaRidgeback::Dynamics *dynamics)
+{
+    double cost = 0.0;
+
+    // Self collision is implemented using imaginary spheres centered on each
+    // joint. The joints are considered colliding if the spheres are
+    // intersecting. The radii of the spheres can be adjusted to change the
+    // sensitivity to self collision.
+    const auto &self_collision = m_configuration.self_collision;
+
+    for (const auto &[first, second] : SELF_COLLISION_LINKS) {
+        auto offset = dynamics->get_frame_offset(first, second);
+        if (offset.norm() < self_collision.limit) {
+            cost += self_collision.quadratic_cost * std::pow(
+                self_collision.limit - offset.norm(), 2
+            );
+        }
+    }
+
+    return cost;
+}
+
 double TrackPoint::power_cost(FrankaRidgeback::Dynamics *dynamics)
 {
     const auto &power = m_configuration.maximum_power;
     return power.constant_cost * std::max(0.0, dynamics->get_power() - power.limit);
+}
+
+double TrackPoint::reach_cost(FrankaRidgeback::Dynamics *dynamics)
+{
+    double cost = 0.0;
+    const auto &minimum = m_configuration.minimum_reach;
+    const auto &maximum = m_configuration.maximum_reach;
+
+    double offset = dynamics->get_frame_offset(
+        FrankaRidgeback::Frame::BASE_LINK_JOINT,
+        FrankaRidgeback::Frame::PANDA_GRASP_JOINT
+    ).norm();
+
+    if (offset < minimum.limit) {
+        cost += (
+            minimum.constant_cost +
+            minimum.quadratic_cost * std::pow(offset - minimum.limit, 2)
+        );
+    }
+
+    if (offset > maximum.limit) {
+        cost += (
+            maximum.constant_cost +
+            maximum.quadratic_cost * std::pow(offset - maximum.limit, 2)
+        );
+    }
+
+    return 0.0;
 }

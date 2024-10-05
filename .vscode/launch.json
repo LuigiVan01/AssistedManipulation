@@ -1,7 +1,4 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
@@ -19,7 +16,8 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/install/bin",
             "console": "integratedTerminal",
-            "preLaunchTask": "Compile Debug",
+            "preLaunchTask": "Prepare for Debug",
+            "postDebugTask": "Stop Visualiser"
         },
         {
             "name": "Debug Linux",
@@ -30,7 +28,8 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
-            "preLaunchTask": "Compile Debug",
+            "preLaunchTask": "Prepare for Debug",
+            "postDebugTask": "Stop Visualiser",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -46,7 +45,10 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "program": "${file}",
-            "cwd": "${workspaceFolder}",
+            "args": [
+                "${input:directory}"
+            ],
+            "cwd": "${workspaceFolder}"
         }
     ],
     "inputs": [
@@ -70,6 +72,11 @@
             ],
             "type": "pickString",
             "default": "reach"
+        },
+        {
+            "id": "directory",
+            "description": "The directory of the test results.",
+            "type": "promptString"
         }
     ]
 }

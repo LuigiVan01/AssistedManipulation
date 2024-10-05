@@ -130,6 +130,32 @@ public:
     }
 
     /**
+     * @brief Get the position of a frame.
+     * 
+     * @todo Make the frame parameter an enumeration.
+     * 
+     * @param frame The frame.
+     * @returns The position of the frame.
+     */
+    inline Vector3d get_frame_position(const std::string &frame) override
+    {
+        return m_data->oMf[m_model->getFrameId(frame)].translation();
+    }
+
+    /**
+     * @brief Get the orientation of a frame.
+     * 
+     * @todo Make the frame parameter an enumeration.
+     * 
+     * @param frame The frame.
+     * @returns The orientation of the frame.
+     */
+    Quaterniond get_frame_orientation(const std::string &frame) override
+    {
+        return Quaterniond(m_data->oMf[m_model->getFrameId(frame)].rotation());
+    }
+
+    /**
      * @brief Get the kinematics of the end effector.
      */
     inline const EndEffectorState &get_end_effector_state() const override

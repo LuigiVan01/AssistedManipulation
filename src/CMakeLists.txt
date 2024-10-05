@@ -47,6 +47,7 @@ add_executable(
     simulation/frankaridgeback/actor_dynamics.cpp
     simulation/simulator.cpp
 
+    frankaridgeback/state.cpp
     frankaridgeback/objective/track_point.cpp
     frankaridgeback/objective/assisted_manipulation.cpp
     frankaridgeback/pinocchio_dynamics.cpp
