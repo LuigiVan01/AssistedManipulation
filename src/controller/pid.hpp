@@ -49,6 +49,20 @@ public:
     };
 
     /**
+     * @brief An approximation for the characteristics of a human attempting to
+     * move an object to a position in space by applying force.
+     */
+    static inline const Configuration HUMAN_POINT_CONTROL {
+        .n = 3,
+        .kp = Vector3d(500.0, 500.0, 500.0),
+        .kd = Vector3d(50.0, 50.0, 50.0),
+        .ki = Vector3d(50.0, 50.0, 50.0),
+        .minimum = Eigen::Vector3d(-10000.0, -10000.0, -10000.0),
+        .maximum = Eigen::Vector3d(10000.0, 10000.0, 10000.0),
+        .reference = Eigen::Vector3d::Zero()
+    };
+
+    /**
      * @brief Create a new pid controller.
      * 
      * All the dimensions of the pid controller must be equal.
@@ -64,7 +78,7 @@ public:
      * @param state The observed state of the system.
      * @param time The current time in seconds.
      */
-    virtual void update(Eigen::Ref<VectorXd> state, double time);
+    virtual void update(const Eigen::Ref<const VectorXd> state, double time);
 
     inline const VectorXd get_control() const {
         return m_control;
@@ -106,7 +120,7 @@ public:
      * @brief Updated the desired reference state of the pid controller.
      * @param state The desired reference state.
      */
-    inline void set_reference(Eigen::Ref<VectorXd> state) {
+    inline void set_reference(const Eigen::Ref<const VectorXd> state) {
         m_reference = state;
     }
 
@@ -114,7 +128,7 @@ public:
      * @brief Set the controllers proportional gain.
      * @param kp The proportional gain.
      */
-    inline void set_proportional_gain(Eigen::Ref<VectorXd> kp) {
+    inline void set_proportional_gain(const Eigen::Ref<const VectorXd> kp) {
         m_kp = kp;
     }
 
@@ -122,7 +136,7 @@ public:
      * @brief Set the controllers derivative gain.
      * @param kd The derivative gain.
      */
-    inline void set_derivative_gain(Eigen::Ref<VectorXd> kd) {
+    inline void set_derivative_gain(const Eigen::Ref<const VectorXd> kd) {
         m_kd = kd;
     }
 
@@ -130,7 +144,7 @@ public:
      * @brief Set the controllers integral gain.
      * @param ki The integral gain.
      */
-    inline void set_integral_gain(Eigen::Ref<VectorXd> ki) {
+    inline void set_integral_gain(const Eigen::Ref<const VectorXd> ki) {
         m_ki = ki;
     }
 
@@ -217,6 +231,19 @@ public:
     };
 
     /**
+     * @brief An approximation for the characteristics of a human attempting to
+     * orientate an object by applying torque.
+     */
+    static inline const Configuration HUMAN_ORIENTATION_CONTROL {
+        .kp = Vector3d(500.0, 500.0, 500.0),
+        .kd = Vector3d(50.0, 50.0, 50.0),
+        .ki = Vector3d(0.0, 0.0, 0.0),
+        .minimum = Eigen::Vector3d(-10000.0, -10000.0, -10000.0),
+        .maximum = Eigen::Vector3d(10000.0, 10000.0, 10000.0),
+        .reference = Eigen::Vector3d::Zero()
+    };
+
+    /**
      * @brief Create a quaternion pid controller.
      * 
      * @param configuration The configuration of the pid controller.
@@ -232,7 +259,7 @@ public:
      * @param quaternion The observed orientation of the system.
      * @param time The current time in seconds.
      */
-    void update(Eigen::Ref<VectorXd> quaternion, double time) override;
+    void update(const Eigen::Ref<const VectorXd> quaternion, double time) override;
 
     /**
      * @brief Update the controller with an observed quaternion.
@@ -242,7 +269,11 @@ public:
      * @param quaternion The observed quaternion.
      * @param time The current time in seconds.
      */
-    void update(Quaterniond quaternion, double time);
+    void update(const Quaterniond &quaternion, double time);
+
+    inline void set_reference(const Quaterniond &quaternion) {
+        
+    }
 
 private:
 

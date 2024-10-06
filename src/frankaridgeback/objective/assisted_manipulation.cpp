@@ -43,7 +43,7 @@ double AssistedManipulation::get_cost(
         m_joint_cost = joint_limit_cost(state);
 
     if (m_configuration.enable_reach_limit)
-        m_reach_cost = reach_cost();
+        m_reach_cost = reach_cost(dynamics);
 
     if (m_configuration.enable_variable_damping)
         m_variable_damping_cost = variable_damping_cost(state);
@@ -117,24 +117,27 @@ double AssistedManipulation::joint_limit_cost(const FrankaRidgeback::State &stat
     return cost;
 }
 
-double AssistedManipulation::reach_cost()
+double AssistedManipulation::reach_cost(FrankaRidgeback::Dynamics *dynamics)
 {
-    const auto &max = m_configuration.maximum_reach;
+    double cost = 0.0;
     const auto &min = m_configuration.minimum_reach;
+    const auto &max = m_configuration.maximum_reach;
 
-    // Distance of end effector to base frame.
-    double reach = 0.0; // TODO
+    double offset = dynamics->get_frame_offset(
+        FrankaRidgeback::Frame::BASE_LINK_JOINT,
+        FrankaRidgeback::Frame::PANDA_GRASP_JOINT
+    ).norm();
 
-    if (reach > max.limit) {
-        return (
-            max.constant_cost +
-            max.quadratic_cost * std::pow(max.limit - reach, 2)
+    if (offset < min.limit) {
+        cost += (
+            min.constant_cost +
+            min.quadratic_cost * std::pow(offset - min.limit, 2)
         );
     }
-    else if (reach < min.limit) {
-        return (
-            min.constant_cost +
-            min.quadratic_cost * std::pow(reach - min.limit, 2)
+    else if (offset > max.limit) {
+        cost += (
+            max.constant_cost +
+            max.quadratic_cost * std::pow(offset - max.limit, 2)
         );
     }
 

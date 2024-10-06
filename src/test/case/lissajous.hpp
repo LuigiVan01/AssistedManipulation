@@ -38,14 +38,14 @@ public:
             options.folder = "lissajous";
 
         // Patch to set the reach object with the default configuration.
-        json default_patch = {{
+        json default_patch = {
             {"trajectory", {
-                "position", {
+                {"position", {
                     {"type", PositionTrajectory::Configuration::Type::LISSAJOUS},
                     {"lissajous",  DEFAULT_CONFIGURATION.lissajous}
-                }
+                }}
             }}
-        }};
+        };
 
         // Unless the options overrides the default itself.
         default_patch.merge_patch(options.patch);

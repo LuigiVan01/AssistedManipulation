@@ -45,7 +45,7 @@ PID::PID(const Configuration &configuration)
     , m_last_time(configuration.initial_time)
 {}
 
-void PID::update(Eigen::Ref<Eigen::VectorXd> state, double time)
+void PID::update(const Eigen::Ref<const Eigen::VectorXd> state, double time)
 {
     // Time must be monotonically increasing. Also waits until dt
     // calculations are valid.
@@ -53,7 +53,7 @@ void PID::update(Eigen::Ref<Eigen::VectorXd> state, double time)
         return;
 
     double dt = time - m_last_time;
-    auto error = m_reference - state;
+    VectorXd error = m_reference - state;
 
     // Runge kutta? Inaccuracy of small number division?
 
@@ -87,6 +87,7 @@ std::unique_ptr<QuaternionPID> QuaternionPID::create(
         .ki = configuration.ki,
         .minimum = configuration.minimum,
         .maximum = configuration.maximum,
+        .reference = configuration.reference,
         .initial_time = configuration.initial_time
     };
 
@@ -99,14 +100,14 @@ QuaternionPID::QuaternionPID(const PID::Configuration &pid)
     : PID(pid)
 {}
 
-void QuaternionPID::update(Eigen::Ref<Eigen::VectorXd> state, double time)
+void QuaternionPID::update(const Eigen::Ref<const Eigen::VectorXd> state, double time)
 {
     assert(state.size() == 4);
     Quaterniond quaternion {(Vector4d)state};
     update(quaternion.normalized(), time);
 }
 
-void QuaternionPID::update(Quaterniond quaternion, double time)
+void QuaternionPID::update(const Quaterniond &quaternion, double time)
 {
 
 }

@@ -123,20 +123,20 @@ void RaisimDynamics::set_state(const VectorXd &state, double time)
 void RaisimDynamics::add_end_effector_simulated_wrench(Vector6d wrench)
 {
     m_end_effector_simulated_wrench += wrench;
+    auto body = m_robot->getFrameByIdx(m_end_effector_frame_index).parentId;
 
-    // Calculates the applied torque / force from the frame itself on the parent
-    // joint. Other methods apply the force to the parent body itself. There is
-    // no setting external force using the frame index instead of name.
+    // Set the external force on the end effector. Note that the end effector is
+    // offset from the origin of the most proximal link.
     m_robot->setExternalForce(
-        m_end_effector_frame_name,
-        m_end_effector_simulated_wrench.head<3>()
+        body,
+        raisim::ArticulatedSystem::Frame::WORLD_FRAME,
+        m_end_effector_simulated_wrench.head<3>(),
+        raisim::ArticulatedSystem::Frame::BODY_FRAME,
+        Vector3d(0.0, 0.0, 0.2)
     );
 
     // Torque is applied to the parent joint itself.
-    m_robot->setExternalTorque(
-        m_robot->getFrameByIdx(m_end_effector_frame_index).parentId,
-        m_end_effector_simulated_wrench.tail<3>()
-    );
+    m_robot->setExternalTorque(body, m_end_effector_simulated_wrench.tail<3>());
 }
 
 void RaisimDynamics::calculate()

@@ -21,16 +21,16 @@ public:
         bool enable_joint_limit = true;
 
         /// If reach costs are enabled.
-        bool enable_reach_limit = true;
+        bool enable_reach_limit = false;
 
         /// If end effector manipulability is maximised.
-        bool enable_maximise_manipulability = true;
+        bool enable_maximise_manipulability = false;
 
         /// If the power used by the trajectory is minimised.
-        bool enable_minimise_power = true;
+        bool enable_minimise_power = false;
 
         /// If variable damping should be enabled.
-        bool enable_variable_damping = true;
+        bool enable_variable_damping = false;
 
         /// Lower joint limits if enabled.
         std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> lower_joint_limit;
@@ -220,7 +220,7 @@ private:
 
     double joint_limit_cost(const FrankaRidgeback::State &state);
 
-    double reach_cost();
+    double reach_cost(FrankaRidgeback::Dynamics *dynamics);
 
     double variable_damping_cost(const FrankaRidgeback::State &state);
 

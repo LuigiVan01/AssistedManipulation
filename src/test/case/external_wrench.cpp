@@ -23,23 +23,8 @@ ExternalWrenchTest::Configuration ExternalWrenchTest::DEFAULT_CONFIGURATION {
         //     .slerp = std::nullopt
         // }
     },
-    .force_pid = {
-        .n = 3,
-        .kp = Vector3d(500.0, 500.0, 500.0),
-        .kd = Vector3d(50.0, 50.0, 50.0),
-        .ki = Vector3d(0.0, 0.0, 0.0),
-        .minimum = Eigen::Vector3d(-10000.0, -10000.0, -10000.0),
-        .maximum = Eigen::Vector3d(10000.0, 10000.0, 10000.0),
-        .reference = Eigen::Vector3d::Zero()
-    },
-    .torque_pid = {
-        .kp = Vector3d(500.0, 500.0, 500.0),
-        .kd = Vector3d(50.0, 50.0, 50.0),
-        .ki = Vector3d(0.0, 0.0, 0.0),
-        .minimum = Eigen::Vector3d(-10000.0, -10000.0, -10000.0),
-        .maximum = Eigen::Vector3d(10000.0, 10000.0, 10000.0),
-        .reference = Eigen::Vector3d::Zero()
-    }
+    .force_pid = controller::PID::HUMAN_POINT_CONTROL,
+    .torque_pid = controller::QuaternionPID::HUMAN_ORIENTATION_CONTROL
 };
 
 std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Options &options)
@@ -52,7 +37,7 @@ std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Options &options)
     // patch specification.
     try {
         if (!options.patch.is_null()) {
-            json json_configuration = DEFAULT_CONFIGURATION;
+            json json_configuration = configuration;
             json_configuration.merge_patch(options.patch);
             configuration = json_configuration;
         }
@@ -225,26 +210,29 @@ bool ExternalWrenchTest::run()
         // Reset the wrench.
         wrench.setZero();
 
+        const auto &state = m_base->get_frankaridgeback()->get_dynamics().get_end_effector_state();
+
         // Update the force component of the wrench.
         if (m_position) {
-            Vector3d reference = m_position->get_position(time);
-            m_force_pid->update(reference, time);
+            Vector3d position = m_position->get_position(time);
+            m_force_pid->set_reference(position);
+            m_force_pid->update(state.position, time);
             m_force_pid_logger->log(*m_force_pid);
 
             // Update the visual sphere to show the tracked point.
-            m_tracking_sphere->setPosition(reference);
+            m_tracking_sphere->setPosition(position);
 
             wrench.head<3>() = m_force_pid->get_control();
         }
 
         // Update the torque component of the wrench.
-        if (m_orientation) {
-            Quaterniond reference = m_orientation->get_orientation(time);
-            m_torque_pid->update(reference, time);
-            m_torque_pid_logger->log(*m_torque_pid);
-
-            wrench.tail<3>() = m_torque_pid->get_control();
-        }
+        // if (m_orientation) {
+        //     Quaterniond orientation = m_orientation->get_orientation(time);
+        //     m_torque_pid->set_reference(orientation);
+        //     m_torque_pid->update(state.orientation, time);
+        //     m_torque_pid_logger->log(*m_torque_pid);
+        //     wrench.tail<3>() = m_torque_pid->get_control();
+        // }
 
         // Apply the wrench to the end effector.
         m_base->get_frankaridgeback()->add_end_effector_wrench(wrench, time);

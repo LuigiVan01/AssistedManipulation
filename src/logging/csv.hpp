@@ -143,13 +143,15 @@ private:
     void write_value(const T &iterable) requires Iterable<T>
     {
         auto it = std::begin(iterable);
+        if (it == std::end(iterable))
+            return;
 
-        if (it != std::end(iterable))
-            *m_file << *it;
+        *m_file << *it;
 
         // Comma separation after the first element.
-        for (++it; it != std::end(iterable); ++it)
+        for (++it; it != std::end(iterable); ++it) {
             *m_file << ", " << *it;
+        }
     }
 
     /**

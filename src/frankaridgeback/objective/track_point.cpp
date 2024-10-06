@@ -111,25 +111,24 @@ double TrackPoint::power_cost(FrankaRidgeback::Dynamics *dynamics)
 double TrackPoint::reach_cost(FrankaRidgeback::Dynamics *dynamics)
 {
     double cost = 0.0;
-    const auto &minimum = m_configuration.minimum_reach;
-    const auto &maximum = m_configuration.maximum_reach;
+    const auto &min = m_configuration.minimum_reach;
+    const auto &max = m_configuration.maximum_reach;
 
     double offset = dynamics->get_frame_offset(
         FrankaRidgeback::Frame::BASE_LINK_JOINT,
         FrankaRidgeback::Frame::PANDA_GRASP_JOINT
     ).norm();
 
-    if (offset < minimum.limit) {
+    if (offset < min.limit) {
         cost += (
-            minimum.constant_cost +
-            minimum.quadratic_cost * std::pow(offset - minimum.limit, 2)
+            min.constant_cost +
+            min.quadratic_cost * std::pow(offset - min.limit, 2)
         );
     }
-
-    if (offset > maximum.limit) {
+    else if (offset > max.limit) {
         cost += (
-            maximum.constant_cost +
-            maximum.quadratic_cost * std::pow(offset - maximum.limit, 2)
+            max.constant_cost +
+            max.quadratic_cost * std::pow(offset - max.limit, 2)
         );
     }
 

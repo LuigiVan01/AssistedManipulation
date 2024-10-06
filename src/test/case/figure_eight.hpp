@@ -39,14 +39,14 @@ public:
             options.folder = "figure_eight";
 
         // Patch to set the reach object with the default configuration.
-        json default_patch = {{
+        json default_patch = {
             {"trajectory", {
-                "position", {
+                {"position", {
                     {"type", PositionTrajectory::Configuration::Type::FIGURE_EIGHT},
                     {"figure_eight",  DEFAULT_CONFIGURATION.figure_eight}
-                }
+                }}
             }}
-        }};
+        };
 
         // Unless the options overrides the default itself.
         default_patch.merge_patch(options.patch);

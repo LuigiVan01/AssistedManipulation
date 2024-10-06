@@ -37,17 +37,17 @@ public:
         Options &options
     ) {
         if (options.folder.empty())
-            options.folder = "pose";
+            options.folder = "rectangle";
 
         // Patch to set the reach object with the default configuration.
-        json default_patch = {{
+        json default_patch = {
             {"trajectory", {
-                "position", {
+                {"position", {
                     {"type", PositionTrajectory::Configuration::Type::RECTANGLE},
                     {"rectangle",  DEFAULT_CONFIGURATION.rectangle}
-                }
+                }}
             }}
-        }};
+        };
 
         // Unless the options overrides the default itself.
         default_patch.merge_patch(options.patch);

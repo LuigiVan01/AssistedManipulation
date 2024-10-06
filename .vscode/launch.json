@@ -44,7 +44,7 @@
             "request": "launch",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "program": "${file}",
+            "program": "${workspaceFolder}/analysis/main.py",
             "args": [
                 "${input:directory}"
             ],
@@ -59,19 +59,17 @@
                 "base",
                 "external_wrench",
                 "reach",
-                "point",
+                "pose",
                 "circle",
                 "rectangle",
                 "figure_eight",
                 "lissajous",
-                "manipulability",
-                "power",
                 "pinocchio",
                 "forecast",
                 "trajectory"
             ],
             "type": "pickString",
-            "default": "reach"
+            "default": "pose"
         },
         {
             "id": "directory",

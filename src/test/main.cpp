@@ -7,6 +7,7 @@
 
 #include "test/case/circle.hpp"
 #include "test/case/figure_eight.hpp"
+#include "test/case/lissajous.hpp"
 #include "test/case/pinocchio.hpp"
 #include "test/case/pose.hpp"
 #include "test/case/reach.hpp"

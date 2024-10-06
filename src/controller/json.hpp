@@ -20,12 +20,12 @@ struct adl_serializer<std::optional<T>>
         if (opt) {
             j = *opt;
         } else {
-            j = nullptr;
+            j = json::object();
         }
     }
 
     static void from_json(const json& j, std::optional<T>& opt) {
-        if (j.is_null()) {
+        if (j.is_object() && j.empty()) {
             opt = std::nullopt;
         } else {
             opt = j.get<T>();
