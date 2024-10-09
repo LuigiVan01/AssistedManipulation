@@ -9,6 +9,30 @@ std::unique_ptr<FrankaRidgebackDynamics> FrankaRidgebackDynamics::create(
         new FrankaRidgebackDynamics()
     );
 
+    if (configuration.log_joints) {
+        logger->m_joint_logger = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "joints.csv",
+            .header = CSV::make_header(
+                "time",
+                "x", "y", "yaw",
+                "arm1", "arm2", "arm3", "arm4", "arm5", "arm6", "arm7",
+                "gripper_x", "gripper_y"
+            )
+        });
+    }
+
+    if (configuration.log_control) {
+        logger->m_control_logger = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "control.csv",
+            .header = CSV::make_header(
+                "time",
+                "x", "y", "yaw",
+                "arm1", "arm2", "arm3", "arm4", "arm5", "arm6", "arm7",
+                "gripper_x", "gripper_y"
+            )
+        });
+    }
+
     if (configuration.log_end_effector_position) {
         logger->m_position_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_position.csv",
@@ -80,58 +104,42 @@ std::unique_ptr<FrankaRidgebackDynamics> FrankaRidgebackDynamics::create(
 
 void FrankaRidgebackDynamics::log(
     double time,
-    const FrankaRidgeback::Dynamics &dynamics)
-{
+    const FrankaRidgeback::Dynamics &dynamics
+) {
     const auto &end_effector = dynamics.get_end_effector_state();
-    if (m_position_logger) {
-        m_position_logger->write(
-            time,
-            end_effector.position
-        );
-    }
 
-    if (m_orientation_logger) {
-        m_orientation_logger->write(
-            time,
-            end_effector.orientation.coeffs()
-        );
-    }
+    if (m_joint_logger)
+        m_joint_logger->write(time, dynamics.get_joint_position());
 
-    if (m_linear_velocity_logger) {
-        m_linear_velocity_logger->write(
-            time,
-            end_effector.linear_velocity
-        );
-    }
+    if (m_position_logger)
+        m_position_logger->write(time, end_effector.position);
 
-    if (m_angular_velocity_logger) {
-        m_angular_velocity_logger->write(
-            time,
-            end_effector.angular_velocity
-        );
-    }
+    if (m_orientation_logger)
+        m_orientation_logger->write(time, end_effector.orientation.coeffs());
 
-    if (m_linear_acceleration_logger) {
-        m_linear_acceleration_logger->write(
-            time,
-            end_effector.linear_acceleration
-        );
-    }
+    if (m_linear_velocity_logger)
+        m_linear_velocity_logger->write(time, end_effector.linear_velocity);
 
-    if (m_angular_acceleration_logger) {
-        m_angular_acceleration_logger->write(
-            time,
-            end_effector.angular_acceleration
-        );
-    }
+    if (m_angular_velocity_logger)
+        m_angular_velocity_logger->write(time, end_effector.angular_velocity);
 
-    if (m_power_logger) {
+    if (m_linear_acceleration_logger)
+        m_linear_acceleration_logger->write(time, end_effector.linear_acceleration);
+
+    if (m_angular_acceleration_logger)
+        m_angular_acceleration_logger->write(time, end_effector.angular_acceleration);
+
+    if (m_power_logger)
         m_power_logger->write(time, dynamics.get_power());
-    }
 
-    if (m_energy_logger) {
+    if (m_energy_logger)
         m_energy_logger->write(time, dynamics.get_tank_energy());
-    }
+}
+
+void FrankaRidgebackDynamics::log_control(double time, const VectorXd &control)
+{
+    if (m_control_logger)
+        m_control_logger->write(time, control);
 }
 
 std::unique_ptr<FrankaRidgebackDynamicsForecast> FrankaRidgebackDynamicsForecast::create(
@@ -140,6 +148,18 @@ std::unique_ptr<FrankaRidgebackDynamicsForecast> FrankaRidgebackDynamicsForecast
     auto logger = std::unique_ptr<FrankaRidgebackDynamicsForecast>(
         new FrankaRidgebackDynamicsForecast()
     );
+
+    if (configuration.log_joints) {
+        logger->m_joint_logger = CSV::create(CSV::Configuration{
+            .path = configuration.folder / "joints.csv",
+            .header = CSV::make_header(
+                "time",
+                "x", "y", "yaw",
+                "arm1", "arm2", "arm3", "arm4", "arm5", "arm6", "arm7",
+                "gripper_x", "gripper_y"
+            )
+        });
+    }
 
     if (configuration.log_end_effector_position) {
         logger->m_position_logger = CSV::create(CSV::Configuration{
@@ -232,6 +252,9 @@ void FrankaRidgebackDynamicsForecast::log(
     for (std::int64_t i = 0; i < trajectory.size(); i++) {
         auto &state = trajectory[i];
         double t = time + i * time_step;
+
+        if (m_joint_logger)
+            m_joint_logger->write(time, forecast_dynamics.get_joint_position()[i]);
 
         if (m_position_logger)
             m_position_logger->write(time, t, state.position);

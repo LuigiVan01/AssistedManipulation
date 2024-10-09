@@ -225,12 +225,14 @@ void BaseTest::step()
 {
     m_simulator->step();
 
+    m_mppi_logger->log(m_frankaridgeback->get_controller());
+
+    m_dynamics_logger->log(m_simulator->get_time(), m_frankaridgeback->get_dynamics());
+    m_dynamics_logger->log_control(m_simulator->get_time(), m_frankaridgeback->get_control());
+
     auto &forecast = m_frankaridgeback->get_dynamics().get_forecast();
     if (forecast)
         m_forecast_logger->log(*forecast.value()->get());
-
-    m_mppi_logger->log(m_frankaridgeback->get_controller());
-    m_dynamics_logger->log(m_simulator->get_time(), m_frankaridgeback->get_dynamics());
 }
 
 bool BaseTest::run()

@@ -130,6 +130,22 @@ public:
     }
 
     /**
+     * @brief Get the current joint position.
+     */
+    inline const VectorXd &get_joint_position() const override
+    {
+        return m_joint_position;
+    }
+
+    /**
+     * @brief Get the current joint velocity.
+     */
+    const VectorXd &get_joint_velocity() const override
+    {
+        return m_joint_velocity;
+    }
+
+    /**
      * @brief Get the position of a frame.
      * 
      * @todo Make the frame parameter an enumeration.

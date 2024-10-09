@@ -160,6 +160,14 @@ public:
     }
 
     /**
+     * @brief Get the most recent control applied to the actor dynamics.
+     */
+    inline const FrankaRidgeback::Control &get_control() const
+    {
+        return m_control;
+    }
+
+    /**
      * @brief Get the current robot simulated state.
      */
     inline const FrankaRidgeback::State &get_state() const

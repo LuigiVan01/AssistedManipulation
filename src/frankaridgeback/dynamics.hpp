@@ -215,6 +215,11 @@ public:
         return m_last_forecast;
     }
 
+    inline const std::vector<Eigen::Vector<double, DoF::JOINTS>> &get_joint_position() const
+    {
+        return m_joint_position;
+    }
+
     /**
      * @brief Get the kinematics of the end effector.
      * @param time The time of the end effector state.
@@ -342,6 +347,9 @@ protected:
     /// Pointer to the forecast wrench.
     std::unique_ptr<Forecast> m_end_effector_wrench_forecast;
 
+    /// The forecast joint positions.
+    std::vector<Eigen::Vector<double, DoF::JOINTS>> m_joint_position;
+
     /// The forecasted end effector trajectory.
     std::vector<EndEffectorState> m_end_effector;
 
@@ -372,6 +380,16 @@ public:
     static inline std::filesystem::path find_path() {
         return (std::filesystem::current_path() / "model/robot.urdf").string();
     }
+
+    /**
+     * @brief Get the current joint position.
+     */
+    virtual const VectorXd &get_joint_position() const = 0;
+
+    /**
+     * @brief Get the current joint velocity.
+     */
+    virtual const VectorXd &get_joint_velocity() const = 0;
 
     /**
      * @brief Get the position of a frame.

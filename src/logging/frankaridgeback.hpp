@@ -16,6 +16,12 @@ public:
         /// The folder to log the dynamics into.
         std::filesystem::path folder;
 
+        /// Log the joint states.
+        bool log_joints = true;
+
+        /// Log the control input to the dynamics.
+        bool log_control = true;
+
         /// Log the end effector position in world space.
         bool log_end_effector_position = true;
 
@@ -59,18 +65,29 @@ public:
     /**
      * @brief Log the state of the frankaridgeback.
      * 
-     * Note that the dynamics should really be const, but returning const 
-     * Eigen::Ref<Jacobian> is complaining.
-     * 
      * @param time The time of the dynamics.
      * @param dynamics The dynamics to log.
      */
     void log(double time, const FrankaRidgeback::Dynamics &dynamics);
 
+    /**
+     * @brief Log a control.
+     * 
+     * @param time The time of the control.
+     * @param control The control to log.
+     */
+    void log_control(double time, const VectorXd &control);
+
 private:
 
     /// The configuration of the frankaridgeback dynamics logger.
     Configuration m_configuration;
+
+    /// Optional logger for joint positions.
+    std::unique_ptr<CSV> m_joint_logger;
+
+    /// Optional logger for joint controls.
+    std::unique_ptr<CSV> m_control_logger;
 
     /// Optional logger for end effector position.
     std::unique_ptr<CSV> m_position_logger;
@@ -108,6 +125,9 @@ public:
 
         /// Folder to log into.
         std::filesystem::path folder = "";
+
+        /// Log the joint states.
+        bool log_joints = true;
 
         /// Log the end effector position in world space.
         bool log_end_effector_position = true;
@@ -164,6 +184,9 @@ public:
 private:
 
     Configuration m_configuration;
+
+    /// Optional logger for joint positions.
+    std::unique_ptr<CSV> m_joint_logger;
 
     /// The time of the last log.
     double last_forecast_time;

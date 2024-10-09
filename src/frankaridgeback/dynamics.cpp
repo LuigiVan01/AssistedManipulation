@@ -42,6 +42,7 @@ DynamicsForecast::DynamicsForecast(
       , m_last_forecast(std::numeric_limits<double>::min())
       , m_dynamics(std::move(dynamics))
       , m_end_effector_wrench_forecast(std::move(end_effector_wrench_forecast))
+      , m_joint_position(steps, Eigen::Vector<double, DoF::JOINTS>::Zero())
       , m_end_effector(steps, EndEffectorState())
       , m_power(steps, 0.0)
       , m_energy(steps, 0.0)
@@ -56,6 +57,11 @@ void DynamicsForecast::forecast(State state, double time)
     for (unsigned int step = 0; step < m_steps; ++step) {
         double t = time + step * m_configuration.time_step;
 
+        m_joint_position[step] = m_dynamics->get_joint_position();
+        m_end_effector[step] = m_dynamics->get_end_effector_state();
+        m_power[step] = m_dynamics->get_power();
+        m_energy[step] = m_dynamics->get_tank_energy();
+
         Vector6d wrench = m_end_effector_wrench_forecast->forecast(t);
         m_end_effector_wrench[step] = wrench;
 
@@ -64,7 +70,6 @@ void DynamicsForecast::forecast(State state, double time)
 
         // Step the dynamics simulation.
         m_dynamics->step(control, m_configuration.time_step);
-        m_end_effector[step] = m_dynamics->get_end_effector_state();
     }
 }
 

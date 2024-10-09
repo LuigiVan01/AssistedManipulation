@@ -129,12 +129,27 @@
             "label": "Prepare for Debug",
             "detail": "Tasks to perform before debugging.",
             "type": "shell",
-            "problemMatcher": [],
             "dependsOrder": "sequence",
             "dependsOn":[
                 "Compile Debug",
                 "Start Visualiser"
-            ]
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Analyse Results",
+            "detail": "Plot and analyse results.",
+            "type": "shell",
+            "options": { "cwd": "${workspaceFolder}" },
+            "command": "${workspaceFolder}/analysis/main.py ${input:directory}",
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "directory",
+            "description": "The directory of the test results.",
+            "type": "promptString"
         }
     ]
 }
