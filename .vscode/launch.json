@@ -44,7 +44,7 @@
             "request": "launch",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "program": "${workspaceFolder}/analysis/main.py",
+            "program": "${workspaceFolder}/src/analysis.py",
             "args": [
                 "${input:directory}"
             ],

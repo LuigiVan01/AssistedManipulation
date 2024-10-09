@@ -141,7 +141,7 @@
             "detail": "Plot and analyse results.",
             "type": "shell",
             "options": { "cwd": "${workspaceFolder}" },
-            "command": "${workspaceFolder}/analysis/main.py ${input:directory}",
+            "command": "${workspaceFolder}/src/analysis.py ${input:directory}",
             "problemMatcher": []
         }
     ],

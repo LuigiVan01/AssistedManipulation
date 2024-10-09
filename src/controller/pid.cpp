@@ -66,12 +66,14 @@ void PID::update(const Eigen::Ref<const Eigen::VectorXd> state, double time)
 
     // Calculate saturation per degree of freedom.
     m_saturation = (
-        m_control.array() < m_maximum.array() &&
-        m_control.array() > m_minimum.array()
+        m_control.array() >= m_maximum.array() ||
+        m_control.array() <= m_minimum.array()
     ).cast<double>();
 
-    // Accumulate error only if not saturated (anti windup).
-    m_cumulative_error += error.cwiseProduct(m_saturation) * dt;
+    // If saturation is zero then accumulate error (anti-windup).
+    m_cumulative_error += error.cwiseProduct(
+        m_saturation.cwiseEqual(VectorXd::Zero(m_saturation.size())).cast<double>()
+    ) * dt;
 
     m_last_error = error;
     m_last_time = time;
