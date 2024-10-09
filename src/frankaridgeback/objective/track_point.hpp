@@ -5,6 +5,8 @@
 #include "controller/cost.hpp"
 #include "frankaridgeback/dynamics.hpp"
 
+namespace FrankaRidgeback {
+
 /**
  * @brief Cost function of the panda research 3 ridgeback assisted manipulation
  * task.
@@ -31,10 +33,10 @@ public:
         bool enable_reach_limits;
 
         /// Lower joint limits if enabled.
-        std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> lower_joint_limit;
+        std::array<QuadraticCost, DoF::JOINTS> lower_joint_limit;
 
         /// Upper joint limits if enabled.
-        std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> upper_joint_limit;
+        std::array<QuadraticCost, DoF::JOINTS> upper_joint_limit;
 
         /// Maximum power usage if enabled. 
         QuadraticCost maximum_power;
@@ -63,13 +65,13 @@ public:
      */
     static inline std::vector<std::tuple<std::string, std::string>>
     SELF_COLLISION_LINKS = {{
-        {"panda_link0", "panda_link1"},
-        {"panda_link1", "panda_link2"},
-        {"panda_link2", "panda_link3"},
-        {"panda_link3", "panda_link4"},
-        {"panda_link4", "panda_link5"},
-        {"panda_link5", "panda_link6"},
-        {"panda_link7", "panda_link0"},
+        {Frame::ARM_MOUNT_JOINT, Frame::PANDA_JOINT1},
+        {Frame::PANDA_JOINT1, Frame::PANDA_JOINT2},
+        {Frame::PANDA_JOINT2, Frame::PANDA_JOINT3},
+        {Frame::PANDA_JOINT3, Frame::PANDA_JOINT4},
+        {Frame::PANDA_JOINT4, Frame::PANDA_JOINT5},
+        {Frame::PANDA_JOINT5, Frame::PANDA_JOINT6},
+        {Frame::PANDA_JOINT7, Frame::ARM_MOUNT_JOINT},
     }};
 
     /**
@@ -136,14 +138,14 @@ public:
      * @brief Get the number of state degrees of freedom.
      */
     inline constexpr int get_state_dof() override {
-        return FrankaRidgeback::DoF::STATE;
+        return DoF::STATE;
     }
 
     /**
      * @brief Get the number of control degrees of freedom.
      */
     inline constexpr int get_control_dof() override {
-        return FrankaRidgeback::DoF::CONTROL;
+        return DoF::CONTROL;
     }
 
     /**
@@ -206,7 +208,7 @@ private:
      * @param dynamics Pointer to the dynamics.
      * @returns The cost.
      */
-    double point_cost(FrankaRidgeback::Dynamics *dynamics);
+    double point_cost(Dynamics *dynamics);
 
     /**
      * @brief Get the cost of the joint limit proximity.
@@ -214,7 +216,7 @@ private:
      * @param state The state of the franka-ridgeback.
      * @return The cost.
      */
-    double joint_limit_cost(const FrankaRidgeback::State &state);
+    double joint_limit_cost(const State &state);
 
     /**
      * @brief Get the cost of self collision.
@@ -227,7 +229,7 @@ private:
      * @param dynamics Pointer to the dynamics.
      * @returns The cost.
      */
-    double self_collision_cost(FrankaRidgeback::Dynamics *dynamics);
+    double self_collision_cost(Dynamics *dynamics);
 
     /**
      * @brief Get the cost of the current power usage.
@@ -235,7 +237,7 @@ private:
      * @param dynamics Pointer to the dynamics.
      * @returns The cost.
      */
-    double power_cost(FrankaRidgeback::Dynamics *dynamics);
+    double power_cost(Dynamics *dynamics);
 
     /**
      * @brief Get the cost of minimum reach.
@@ -243,9 +245,11 @@ private:
      * @param dynamics pointer to the dynamics.
      * @returns The cost.
      */
-    double reach_cost(FrankaRidgeback::Dynamics *dynamics);
+    double reach_cost(Dynamics *dynamics);
 
     /// The configuration of the track point objective, including point to
     /// track.
     Configuration m_configuration;
 };
+
+} // namespace FrankaRidgeback

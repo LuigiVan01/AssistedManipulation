@@ -5,14 +5,16 @@
 #include <iostream>
 #include <random>
 
+namespace FrankaRidgeback {
+
 double TrackPoint::get_cost(
     const VectorXd & s,
     const VectorXd & /*control */,
     mppi::Dynamics *d,
     double /*dt */
 ) {
-    const FrankaRidgeback::State &state = s;
-    auto dynamics = static_cast<FrankaRidgeback::Dynamics*>(d);
+    const State &state = s;
+    auto dynamics = static_cast<Dynamics*>(d);
 
     double cost = point_cost(dynamics);
 
@@ -35,7 +37,7 @@ double TrackPoint::get_cost(
     return cost;
 }
 
-double TrackPoint::point_cost(FrankaRidgeback::Dynamics *dynamics)
+double TrackPoint::point_cost(Dynamics *dynamics)
 {
     double distance = (
         dynamics->get_end_effector_state().position - m_configuration.point
@@ -44,11 +46,11 @@ double TrackPoint::point_cost(FrankaRidgeback::Dynamics *dynamics)
     return 100.0 * std::pow(distance, 2);
 }
 
-double TrackPoint::joint_limit_cost(const FrankaRidgeback::State &state)
+double TrackPoint::joint_limit_cost(const State &state)
 {
     // Statically initialise the lower limits.
     static VectorXd lower_limit = []{
-        VectorXd lower_limit = VectorXd(FrankaRidgeback::DoF::JOINTS);
+        VectorXd lower_limit = VectorXd(DoF::JOINTS);
         lower_limit <<
             -2.0, -2.0, -6.28,
             -2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973,
@@ -58,7 +60,7 @@ double TrackPoint::joint_limit_cost(const FrankaRidgeback::State &state)
 
     // Statically initialise the upper limits.
     static VectorXd upper_limit = []{
-        VectorXd upper_limit(FrankaRidgeback::DoF::JOINTS);
+        VectorXd upper_limit(DoF::JOINTS);
         upper_limit <<
             2.0, 2.0, 6.28,
             2.8973, 1.7628, 2.8973, 0.0698, 2.8973, 3.7525, 2.8973,
@@ -80,7 +82,7 @@ double TrackPoint::joint_limit_cost(const FrankaRidgeback::State &state)
     return cost;
 }
 
-double TrackPoint::self_collision_cost(FrankaRidgeback::Dynamics *dynamics)
+double TrackPoint::self_collision_cost(Dynamics *dynamics)
 {
     double cost = 0.0;
 
@@ -102,21 +104,21 @@ double TrackPoint::self_collision_cost(FrankaRidgeback::Dynamics *dynamics)
     return cost;
 }
 
-double TrackPoint::power_cost(FrankaRidgeback::Dynamics *dynamics)
+double TrackPoint::power_cost(Dynamics *dynamics)
 {
     const auto &power = m_configuration.maximum_power;
     return power.constant_cost * std::max(0.0, dynamics->get_power() - power.limit);
 }
 
-double TrackPoint::reach_cost(FrankaRidgeback::Dynamics *dynamics)
+double TrackPoint::reach_cost(Dynamics *dynamics)
 {
     double cost = 0.0;
     const auto &min = m_configuration.minimum_reach;
     const auto &max = m_configuration.maximum_reach;
 
     double offset = dynamics->get_frame_offset(
-        FrankaRidgeback::Frame::BASE_LINK_JOINT,
-        FrankaRidgeback::Frame::PANDA_GRASP_JOINT
+        Frame::BASE_LINK_JOINT,
+        Frame::PANDA_GRASP_JOINT
     ).norm();
 
     if (offset < min.limit) {
@@ -134,3 +136,5 @@ double TrackPoint::reach_cost(FrankaRidgeback::Dynamics *dynamics)
 
     return 0.0;
 }
+
+} // namespace FrankaRidgeback

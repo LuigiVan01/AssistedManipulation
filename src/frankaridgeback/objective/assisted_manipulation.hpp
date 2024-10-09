@@ -7,6 +7,8 @@
 #include "frankaridgeback/dynamics.hpp"
 #include "frankaridgeback/state.hpp"
 
+namespace FrankaRidgeback {
+
 /**
  * @brief Objective function of the franka research 3 ridgeback assisted
  * manipulation task.
@@ -20,6 +22,12 @@ public:
         /// If joint limit costs are enabled.
         bool enable_joint_limit = true;
 
+        /// If self collision costs are enabled.
+        bool enable_self_collision = true;
+
+        /// If tracking the expected trajectory is enabled.
+        bool enable_trajectory_tracking = true;
+
         /// If reach costs are enabled.
         bool enable_reach_limit = false;
 
@@ -27,27 +35,30 @@ public:
         bool enable_maximise_manipulability = false;
 
         /// If the power used by the trajectory is minimised.
-        bool enable_minimise_power = false;
+        bool enable_maximum_power = false;
 
         /// If variable damping should be enabled.
         bool enable_variable_damping = false;
 
         /// Lower joint limits if enabled.
-        std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> lower_joint_limit;
+        std::array<QuadraticCost, DoF::JOINTS> lower_joint_limit;
 
         /// Upper joint limits if enabled.
-        std::array<QuadraticCost, FrankaRidgeback::DoF::JOINTS> upper_joint_limit;
+        std::array<QuadraticCost, DoF::JOINTS> upper_joint_limit;
 
-        /// Maximum reach if enabled.
-        QuadraticCost maximum_reach;
+        /// Self collision cost.
+        QuadraticCost self_collision;
 
         /// Minimum reach if enabled.
         QuadraticCost minimum_reach;
 
-        /// Manipulability limits if enabled. Relative to `sqrt(det(J * J^T))`
-        /// that is proportional to the volume of the manipulability ellipsoid,
-        /// clipped above 1e-10. Jacobian in spatial frame. Greater values are
-        /// better. Limit is a lower bound on this value.
+        /// Maximum reach if enabled.
+        QuadraticCost maximum_reach;
+
+        /// 
+        QuadraticCost trajectory;
+
+        /// Manipulability limits if enabled.
         QuadraticCost minimum_manipulability;
 
         /// Maximum power (joules per second) usage if enabled. 
@@ -64,12 +75,27 @@ public:
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             enable_joint_limit, enable_reach_limit, 
-            enable_maximise_manipulability, enable_minimise_power,
+            enable_maximise_manipulability, enable_maximum_power,
             enable_variable_damping, lower_joint_limit, upper_joint_limit,
-            maximum_reach, minimum_reach, minimum_manipulability, maximum_power,
-            variable_damping_maximum, variable_damping_dropoff
+            self_collision, maximum_reach, minimum_reach,
+            minimum_manipulability, maximum_power, variable_damping_maximum,
+            variable_damping_dropoff
         )
     };
+
+    /**
+     * @brief Pairs of links to be checked for self collision.
+     */
+    static inline std::vector<std::tuple<std::string, std::string>>
+    SELF_COLLISION_LINKS = {{
+        {Frame::PANDA_JOINT_FRANKA_MOUNT_LINK, Frame::PANDA_JOINT1},
+        {Frame::PANDA_JOINT1, Frame::PANDA_JOINT2},
+        {Frame::PANDA_JOINT2, Frame::PANDA_JOINT3},
+        {Frame::PANDA_JOINT3, Frame::PANDA_JOINT4},
+        {Frame::PANDA_JOINT4, Frame::PANDA_JOINT5},
+        {Frame::PANDA_JOINT5, Frame::PANDA_JOINT6},
+        {Frame::PANDA_JOINT7, Frame::PANDA_JOINT_FRANKA_MOUNT_LINK},
+    }};
 
     /**
      * @brief The default configuration of the assisted manipulation objective
@@ -80,9 +106,11 @@ public:
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
+        .enable_self_collision = false,
+        .enable_trajectory_tracking = true,
         .enable_reach_limit = false,
         .enable_maximise_manipulability = false,
-        .enable_minimise_power = false,
+        .enable_maximum_power = false,
         .enable_variable_damping = false,
         .lower_joint_limit = {{
             {-2.0,    1'000, 100'00}, // Base rotation
@@ -118,14 +146,14 @@ public:
      * @brief Get the number of state degrees of freedom.
      */
     inline constexpr int get_state_dof() override {
-        return FrankaRidgeback::DoF::STATE;
+        return DoF::STATE;
     }
 
     /**
      * @brief Get the number of control degrees of freedom.
      */
     inline constexpr int get_control_dof() override {
-        return FrankaRidgeback::DoF::CONTROL;
+        return DoF::CONTROL;
     }
 
     /**
@@ -214,15 +242,76 @@ private:
      */
     AssistedManipulation(const Configuration &configuration);
 
-    double power_cost(FrankaRidgeback::Dynamics *dynamics);
+    /**
+     * @brief Penalises joint positions that exceed their limits.
+     * 
+     * @param state The current state of the frankaridgeback.
+     * @returns A cost depending on the joint state.
+     */
+    double joint_limit_cost(const State &state);
 
-    double manipulability_cost(FrankaRidgeback::Dynamics *dynamics);
+    /**
+     * @brief Penalise configurations that.
+     * 
+     * This is an approximation function where each link has an imagined sphere
+     * located, with some defined radius that is smaller than the maximum link
+     * dimension (otherwise will always be in collision with adjacent links).
+     * The joints are considered colliding if the spheres are intersecting. The
+     * radii of the spheres can be adjusted to change the sensitivity to self 
+     * collision.
+     * 
+     * @param dynamcs The current dynamics state.
+     * @returns A cost penalising self collision.
+     */
+    double self_collision_cost(Dynamics *dynamics);
 
-    double joint_limit_cost(const FrankaRidgeback::State &state);
+    /**
+     * @brief Reward trajectories that tend towards the expected trajectory
+     * given the end effector force.
+     * 
+     * @param dynamcs The current dynamics state.
+     * @param time The time of the dynamics.
+     * @returns A cost rewarding trajectories towards.
+     */
+    double trajectory_cost(Dynamics *dynamics, double time);
 
-    double reach_cost(FrankaRidgeback::Dynamics *dynamics);
+    /**
+     * @brief Penalises end effector positions that are too close or too far
+     * from the robot base.
+     * 
+     * Implemented as a check on the euclidean distance between the base of the
+     * arm and the end effector frame.
+     * 
+     * @param dynamics The current dynamics state.
+     * @returns A cost penalising end effector positions too close or too far
+     * from the base.
+     */
+    double reach_cost(Dynamics *dynamics);
 
-    double variable_damping_cost(const FrankaRidgeback::State &state);
+    /**
+     * @brief Penalises dynamics states that exceed the power limit.
+     * 
+     * @param dynamics The current dynamics state.
+     * @returns A cost penalising dynamics that go over the maximum power draw.
+     */
+    double power_cost(Dynamics *dynamics);
+
+    /**
+     * @brief Rewards higher manipulability joint configurations.
+     * 
+     * Manipulability is calculated based on the end effector jacobian and
+     * resulting manipulability ellipsoid.
+     * 
+     * Cost metric is proportional to `sqrt(det(J * J^T))` that is itself
+     * proportional to the volume of the manipulability ellipsoid, clipped above
+     * 1e-10. Jacobian in spatial frame. Greater values are better.
+     * 
+     * @param dynamics The current dynamics state.
+     * @returns A cost rewarding manipulability.
+     */
+    double manipulability_cost(Dynamics *dynamics);
+
+    double variable_damping_cost(const State &state);
 
     /// The configuration of the objective function.
     Configuration m_configuration;
@@ -230,15 +319,21 @@ private:
     /// Spatial jacobian.
     Eigen::Matrix<double, 6, 6> m_space_jacobian;
 
-    double m_cost;
+    double m_joint_cost;
+
+    double m_self_collision_cost;
+
+    double m_trajectory_cost;
+
+    double m_reach_cost;
 
     double m_power_cost;
 
     double m_manipulability_cost;
 
-    double m_joint_cost;
-
-    double m_reach_cost;
-
     double m_variable_damping_cost;
+
+    double m_cost;
 };
+
+} // namespace FrankaRidgeback

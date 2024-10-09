@@ -18,7 +18,7 @@ public:
         BaseTest::Configuration base;
 
         /// The reach for point objective configuration.
-        TrackPoint::Configuration objective;
+        FrankaRidgeback::TrackPoint::Configuration objective;
 
         // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
@@ -29,7 +29,7 @@ public:
 
     inline const static Configuration DEFAULT_CONFIGIURATION {
         .base = BaseTest::DEFAULT_CONFIGURATION,
-        .objective = TrackPoint::DEFAULT_CONFIGURATION
+        .objective = FrankaRidgeback::TrackPoint::DEFAULT_CONFIGURATION
     };
 
     /**
@@ -48,7 +48,7 @@ public:
         // Patch to set the reach object with the default configuration.
         json default_patch = {{
             "objective", {
-                {"type", BaseTest::Objective::Type::TRACK_POINT},
+                {"type", FrankaRidgeback::ObjectiveType::TRACK_POINT},
                 {"track_point", DEFAULT_CONFIGIURATION.objective}
             }
         }};

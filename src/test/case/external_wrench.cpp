@@ -118,7 +118,7 @@ std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Configuration con
     }
 
     logger::PID::Configuration force_pid_configuration {
-        .folder = configuration.folder / "force_pid",
+        .folder = configuration.folder / "pid" / "force",
         .reference_dof = 3,
         .control_dof = 3
     };
@@ -130,7 +130,7 @@ std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Configuration con
     }
 
     logger::PID::Configuration torque_pid_configuration {
-        .folder = configuration.folder / "torque_pid",
+        .folder = configuration.folder / "pid" / "torque",
         .reference_dof = 4,
         .control_dof = 3
     };

@@ -76,7 +76,7 @@ if (UNIX)
         -static
     )
 elseif (WIN32)
-    target_compile_options(test PUBLIC /W3)
+    target_compile_options(test PUBLIC /W3) # /Wall WX
 
     target_link_libraries(
         test PUBLIC 

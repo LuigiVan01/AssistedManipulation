@@ -208,10 +208,21 @@ public:
     void forecast(State state, double time);
 
     /**
+     * @brief Get the time of the last forecast.
+     */
+    inline double get_last_forecast_time() const
+    {
+        return m_last_forecast;
+    }
+
+    /**
      * @brief Get the kinematics of the end effector.
      * @param time The time of the end effector state.
      */
-    const EndEffectorState &get_end_effector_state(double time);
+    inline const EndEffectorState &get_end_effector_state(double time)
+    {
+        return m_end_effector[parameterise(time)];
+    }
 
     /**
      * @brief Get the end effector forecast wrench.
@@ -221,7 +232,10 @@ public:
      * @returns The wrench (fx, fy, fz, tau_x, tau_y, tau_z) expected at the end
      * effector.
      */
-    Vector6d get_end_effector_wrench(double time) const;
+    inline Vector6d get_end_effector_wrench(double time) const
+    {
+        return m_end_effector_wrench_forecast->forecast(time);
+    }
 
     /**
      * @brief Get the wrench dynamics time step in seconds.
@@ -251,9 +265,25 @@ public:
     /**
      * @brief Get the full wrench trajectory over the horison every time step.
      */
-    const std::vector<Vector6d> &get_external_wrench_trajectory() const
+    const std::vector<Vector6d> &get_wrench_trajectory() const
     {
         return m_end_effector_wrench;
+    }
+
+    /**
+     * @brief Get the power trajectory.
+     */
+    const std::vector<double> &get_power_trajectory() const
+    {
+        return m_power;
+    }
+
+    /**
+     * @brief Get the energy trajectory.
+     */
+    const std::vector<double> &get_energy_trajectory() const
+    {
+        return m_energy;
     }
 
 protected:
@@ -274,6 +304,29 @@ protected:
         unsigned int steps
     );
 
+    /**
+     * @brief Parameterises time to forecast index.
+     * 
+     * @param time The time to parameterise.
+     * @returns The index into the forecast buffer at that time.
+     */
+    inline std::int64_t parameterise(double time)
+    {
+        // Extrapolate initial wrench backwards.
+        if (time < m_last_forecast)
+            return 0;
+
+        // Extrapolate last wrench forwards.
+        if (time > m_configuration.horison)
+            return m_steps - 1;
+
+        // Steps into the horison.
+        double t = (time - m_last_forecast) / m_configuration.time_step;
+
+        // The step less than or equal to t.
+        return (std::int64_t)t;
+    }
+
     /// The configuration of the dynamics forecast.
     Configuration m_configuration;
 
@@ -291,6 +344,12 @@ protected:
 
     /// The forecasted end effector trajectory.
     std::vector<EndEffectorState> m_end_effector;
+
+    /// The forecasted power usage.
+    std::vector<double> m_power;
+
+    /// The forecasted energy.
+    std::vector<double> m_energy;
 
     /// The forecasted wrench.
     std::vector<Vector6d> m_end_effector_wrench;

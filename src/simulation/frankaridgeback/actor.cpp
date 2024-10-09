@@ -4,9 +4,7 @@ namespace FrankaRidgeback {
 
 std::shared_ptr<Actor> Actor::create(
     Configuration configuration,
-    Simulator *simulator,
-    std::unique_ptr<mppi::Cost> &&cost,
-    std::unique_ptr<mppi::Filter> &&filter
+    Simulator *simulator
 ) {
     using namespace controller;
 
@@ -16,6 +14,41 @@ std::shared_ptr<Actor> Actor::create(
     auto dynamics = ActorDynamics::create(configuration.dynamics, simulator);
     if (!dynamics) {
         std::cerr << "failed to create simulated actor dynamics" << std::endl;
+        return nullptr;
+    }
+
+    std::unique_ptr<mppi::Cost> objective;
+
+    switch (configuration.objective.type)
+    {
+        case Configuration::Objective::Type::ASSISTED_MANIPULATION: {
+            if (!configuration.objective.assisted_manipulation) {
+                std::cerr << "assisted manipulation objective selected with no configuration" << std::endl;
+                return nullptr;
+            }
+
+            objective = AssistedManipulation::create(
+                *configuration.objective.assisted_manipulation
+            );
+            break;
+        }
+        case Configuration::Objective::Type::TRACK_POINT: {
+            if (!configuration.objective.track_point) {
+                std::cerr << "assisted manipulation objective selected with no configuration" << std::endl;
+                return nullptr;
+            }
+
+            objective = TrackPoint::create(*configuration.objective.track_point);
+            break;
+        }
+        default: {
+            std::cerr << "unknown objective type " << configuration.objective.type << " provided" << std::endl;
+            return nullptr;
+        }
+    }
+
+    if (!objective) {
+        std::cerr << "failed to create mppi cost" << std::endl;
         return nullptr;
     }
 
@@ -63,8 +96,8 @@ std::shared_ptr<Actor> Actor::create(
     auto controller = mppi::Trajectory::create(
         configuration.mppi.configuration,
         std::move(mppi_dynamics),
-        std::move(cost),
-        std::move(filter)
+        std::move(objective),
+        nullptr
     );
     if (!controller) {
         std::cerr << "failed to create Actor mppi" << std::endl;

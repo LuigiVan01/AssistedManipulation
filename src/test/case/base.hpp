@@ -17,32 +17,6 @@ public:
 
     static inline constexpr const char *TEST_NAME = "base";
 
-    /**
-     * @brief Configuration of the objective function.
-     */
-    struct Objective {
-
-        enum Type {
-            ASSISTED_MANIPULATION,
-            TRACK_POINT
-        };
-
-        /// The selected objective.
-        Type type;
-
-        /// Configuration for the assisted manipulation objective.
-        std::optional<AssistedManipulation::Configuration> assisted_manipulation;
-
-        /// Configuration for the reach objective.
-        std::optional<TrackPoint::Configuration> track_point;
-
-        // JSON conversion for base simulation objective.
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(
-            Objective,
-            type, assisted_manipulation, track_point
-        )
-    };
-
     struct Configuration {
 
         /// The output folder for the test.
@@ -57,20 +31,20 @@ public:
         /// The actors configuration including controller update rate.
         FrankaRidgeback::Actor::Configuration actor;
 
-        /// The reach for point objective configuration.
-        Objective objective;
-
         /// MPPI logging configuration.
         logger::MPPI::Configuration mppi_logger;
 
-        /// Franka-ridgeback logging configuration.
+        /// Frankaridgeback logging configuration.
         logger::FrankaRidgebackDynamics::Configuration dynamics_logger;
+
+        /// Dynamics forecast logging configuration.
+        logger::FrankaRidgebackDynamicsForecast::Configuration forecast_logger;
 
         // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, duration, simulator, actor, objective, mppi_logger,
-            dynamics_logger
+            folder, duration, simulator, actor, mppi_logger, dynamics_logger,
+            forecast_logger
         )
     };
 
@@ -144,13 +118,15 @@ private:
      * @param frankaridgeback The frankaridgeback instance being simulated.
      * @param mppi_logger Logger for the mppi.
      * @param dynamics_logger Logger for the simulated actor dynamics.
+     * @param forecast_logger Logger for the forecast dynamics.
      */
     BaseTest(
         double duration,
         std::unique_ptr<Simulator> &&simulator,
         std::shared_ptr<FrankaRidgeback::Actor> &&frankaridgeback,
         std::unique_ptr<logger::MPPI> &&mppi_logger,
-        std::unique_ptr<logger::FrankaRidgebackDynamics> &&dynamics_logger
+        std::unique_ptr<logger::FrankaRidgebackDynamics> &&dynamics_logger,
+        std::unique_ptr<logger::FrankaRidgebackDynamicsForecast> &&forecast_logger
     );
 
     /// Duration of the test when run.
@@ -170,4 +146,7 @@ private:
 
     /// Logger for the frankaridgeback.
     std::unique_ptr<logger::FrankaRidgebackDynamics> m_dynamics_logger;
+
+    /// Logger for the forecast.
+    std::unique_ptr<logger::FrankaRidgebackDynamicsForecast> m_forecast_logger;
 };

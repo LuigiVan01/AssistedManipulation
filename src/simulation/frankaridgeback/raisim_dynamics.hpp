@@ -56,7 +56,7 @@ public:
 
     static inline const Configuration DEFAULT_CONFIGURATION {
         .simulator = Simulator::Configuration {
-            .time_step = 0.005,
+            .time_step = 0.01,
             .gravity = {0.0, 0.0, 9.81}
         },
         .filename = "",

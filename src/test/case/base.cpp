@@ -10,30 +10,6 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
         .gravity = {0.0, 0.0, 9.81}
     },
     .actor = {
-        .dynamics = {
-            .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
-            .raisim = FrankaRidgeback::RaisimDynamics::Configuration {
-                .simulator = Simulator::Configuration {
-                    .time_step = 0.01,
-                    .gravity = {0.0, 0.0, 9.81}
-                },
-                .filename = "",
-                .end_effector_frame = "panda_grasp_joint",
-                .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
-                .proportional_gain = FrankaRidgeback::Control{
-                    0.0, 0.0, 0.0, // base
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
-                    100.0, 100.0
-                },
-                .differential_gain = FrankaRidgeback::Control{
-                    1000.0, 1000.0, 1.0, // base
-                    10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
-                    50.0, 50.0
-                },
-                .energy = 10.0
-            },
-            .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
-        },
         .mppi = {
             .configuration = {
                 .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
@@ -45,7 +21,7 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
                 .cost_scale = 10.0,
                 .cost_discount_factor = 1.0,
                 .covariance = FrankaRidgeback::Control{
-                    0.0, 0.0, 0.0, // base
+                    0.1, 0.1, 0.2, // base
                     7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, // arm
                     0.0, 0.0 // gripper
                 }.asDiagonal(),
@@ -70,60 +46,45 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
             },
             .dynamics = {
                 .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
-                .raisim = FrankaRidgeback::RaisimDynamics::Configuration {
-                    .simulator = Simulator::Configuration {
-                        .time_step = 0.01,
-                        .gravity = {0.0, 0.0, 9.81}
-                    },
-                    .filename = "",
-                    .end_effector_frame = "panda_grasp_joint",
-                    .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
-                    .proportional_gain = FrankaRidgeback::Control{
-                        0.0, 0.0, 0.0, // base
-                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
-                        100.0, 100.0
-                    },
-                    .differential_gain = FrankaRidgeback::Control{
-                        1000.0, 1000.0, 1.0, // base
-                        10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
-                        50.0, 50.0
-                    },
-                    .energy = 10.0
-                },
+                .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
                 .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
             }
         },
-        .forecast = std::nullopt,
-        // FrankaRidgeback::Actor::Configuration::Forecast {
-        //     .configuration = {
-        //         .time_step = 0.01,
-        //         .horison = 1.0,
-        //         .end_effector_wrench_forecast = {
-        //             .type = Forecast::Configuration::Type::LOCF,
-        //             .locf = LOCFForecast::Configuration {
-        //                 .observation = Vector6d::Zero()
-        //             },
-        //             .average = AverageForecast::Configuration {
-        //                 .states = 6,
-        //                 .window = 1.0
-        //             },
-        //             .kalman = std::nullopt
-        //         }
-        //     },
-        //     .dynamics = {
-        //         .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
-        //         .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
-        //         .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
-        //     }
-        // },
+        .dynamics = {
+            .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
+            .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+            .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
+        },
+        .objective = {
+            .type = FrankaRidgeback::Actor::Configuration::Objective::Type::ASSISTED_MANIPULATION,
+            .assisted_manipulation = FrankaRidgeback::AssistedManipulation::DEFAULT_CONFIGURATION,
+            .track_point = FrankaRidgeback::TrackPoint::DEFAULT_CONFIGURATION
+        },
+        .forecast = FrankaRidgeback::Actor::Configuration::Forecast {
+            .configuration = {
+                .time_step = 0.01,
+                .horison = 1.0,
+                .end_effector_wrench_forecast = {
+                    .type = Forecast::Configuration::Type::LOCF,
+                    .locf = LOCFForecast::Configuration {
+                        .observation = Vector6d::Zero()
+                    },
+                    .average = AverageForecast::Configuration {
+                        .states = 6,
+                        .window = 1.0
+                    },
+                    .kalman = std::nullopt
+                }
+            },
+            .dynamics = {
+                .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
+                .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+                .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
+            }
+        },
         .controller_rate = 0.03,
         .controller_substeps = 1,
         .forecast_rate = 0.15
-    },
-    .objective = {
-        .type = BaseTest::Objective::Type::ASSISTED_MANIPULATION,
-        .assisted_manipulation = AssistedManipulation::DEFAULT_CONFIGURATION,
-        .track_point = TrackPoint::DEFAULT_CONFIGURATION
     },
     .mppi_logger = {
         .folder = "",
@@ -138,6 +99,15 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
         .log_end_effector_acceleration = true,
         .log_power = true,
         .log_tank_energy = true,
+    },
+    .forecast_logger = {
+        .folder = "",
+        .log_end_effector_position = true,
+        .log_end_effector_velocity = true,
+        .log_end_effector_acceleration = true,
+        .log_power = true,
+        .log_tank_energy = true,
+        .log_wrench = true
     }
 };
 
@@ -174,46 +144,9 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
         return nullptr;
     }
 
-    std::unique_ptr<mppi::Cost> objective;
-
-    switch (configuration.objective.type)
-    {
-        case Objective::Type::ASSISTED_MANIPULATION: {
-            if (!configuration.objective.assisted_manipulation) {
-                std::cerr << "assisted manipulation objective selected with no configuration" << std::endl;
-                return nullptr;
-            }
-
-            objective = AssistedManipulation::create(
-                *configuration.objective.assisted_manipulation
-            );
-            break;
-        }
-        case Objective::Type::TRACK_POINT: {
-            if (!configuration.objective.track_point) {
-                std::cerr << "assisted manipulation objective selected with no configuration" << std::endl;
-                return nullptr;
-            }
-
-            objective = TrackPoint::create(*configuration.objective.track_point);
-            break;
-        }
-        default: {
-            std::cerr << "unknown objective type " << configuration.objective.type << " provided" << std::endl;
-            return nullptr;
-        }
-    }
-
-    if (!objective) {
-        std::cerr << "failed to create mppi cost" << std::endl;
-        return nullptr;
-    }
-
     auto frankaridgeback = FrankaRidgeback::Actor::create(
         configuration.actor,
-        simulator.get(),
-        std::move(objective),
-        nullptr
+        simulator.get()
     );
 
     if (!frankaridgeback) {
@@ -225,8 +158,13 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
 
     // Override rollout count of logger.
     auto mppi_log_configuration = configuration.mppi_logger;
+    auto dynamics_log_configuration = configuration.dynamics_logger;
+    auto forecast_log_configuration = configuration.forecast_logger;
+
     mppi_log_configuration.rollouts = frankaridgeback->get_controller().get_rollout_count();
     mppi_log_configuration.folder = configuration.folder / "mppi";
+    dynamics_log_configuration.folder = configuration.folder / "dynamics";
+    forecast_log_configuration.folder = configuration.folder / "forecast";
 
     auto mppi_logger = logger::MPPI::create(mppi_log_configuration);
     if (!mppi_logger) {
@@ -234,12 +172,15 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
         return nullptr;
     }
 
-    auto dynamics_log_configuration = configuration.dynamics_logger;
-    dynamics_log_configuration.folder = configuration.folder / "dynamics";
-
     auto dynamics_logger = logger::FrankaRidgebackDynamics::create(dynamics_log_configuration);
     if (!dynamics_logger) {
         std::cerr << "failed to create dynamics logger" << std::endl;
+        return nullptr;
+    }
+
+    auto forecast_logger = logger::FrankaRidgebackDynamicsForecast::create(forecast_log_configuration);
+    if (!forecast_logger) {
+        std::cerr << "failed to create forecast logger" << std::endl;
         return nullptr;
     }
 
@@ -259,7 +200,8 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
             std::move(simulator),
             std::move(frankaridgeback),
             std::move(mppi_logger),
-            std::move(dynamics_logger)
+            std::move(dynamics_logger),
+            std::move(forecast_logger)
         )
     );
 }
@@ -269,17 +211,24 @@ BaseTest::BaseTest(
     std::unique_ptr<Simulator> &&simulator,
     std::shared_ptr<FrankaRidgeback::Actor> &&frankaridgeback,
     std::unique_ptr<logger::MPPI> &&mppi_logger,
-    std::unique_ptr<logger::FrankaRidgebackDynamics> &&dynamics_logger
+    std::unique_ptr<logger::FrankaRidgebackDynamics> &&dynamics_logger,
+    std::unique_ptr<logger::FrankaRidgebackDynamicsForecast> &&forecast_logger
  ) : m_duration(duration)
    , m_simulator(std::move(simulator))
    , m_frankaridgeback(std::move(frankaridgeback))
    , m_mppi_logger(std::move(mppi_logger))
    , m_dynamics_logger(std::move(dynamics_logger))
+   , m_forecast_logger(std::move(forecast_logger))
 {}
 
 void BaseTest::step()
 {
     m_simulator->step();
+
+    auto &forecast = m_frankaridgeback->get_dynamics().get_forecast();
+    if (forecast)
+        m_forecast_logger->log(*forecast.value()->get());
+
     m_mppi_logger->log(m_frankaridgeback->get_controller());
     m_dynamics_logger->log(m_simulator->get_time(), m_frankaridgeback->get_dynamics());
 }

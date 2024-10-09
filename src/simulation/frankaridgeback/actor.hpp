@@ -10,6 +10,8 @@
 #include "controller/forecast.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
+#include "frankaridgeback/objective/track_point.hpp"
+#include "frankaridgeback/objective/assisted_manipulation.hpp"
 
 namespace FrankaRidgeback {
 
@@ -40,9 +42,6 @@ public:
 
     struct Configuration {
 
-        /// Configuration of the actor dynamics.
-        SimulatorDynamics::Configuration dynamics;
-
         /**
          * @brief Configuration structure for the mppi trajectory generator.
          */
@@ -60,6 +59,38 @@ public:
 
         /// Configuration of the trajectory generator.
         MPPI mppi;
+
+        /// Configuration of the actor dynamics.
+        SimulatorDynamics::Configuration dynamics;
+
+        /**
+         * @brief Configuration of the objective function.
+         */
+        struct Objective {
+
+            enum Type {
+                ASSISTED_MANIPULATION,
+                TRACK_POINT
+            };
+
+            /// The selected objective.
+            Type type;
+
+            /// Configuration for the assisted manipulation objective.
+            std::optional<FrankaRidgeback::AssistedManipulation::Configuration> assisted_manipulation;
+
+            /// Configuration for the reach objective.
+            std::optional<FrankaRidgeback::TrackPoint::Configuration> track_point;
+
+            // JSON conversion for base simulation objective.
+            NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+                Objective,
+                type, assisted_manipulation, track_point
+            )
+        };
+
+        /// The objective configuration.
+        Objective objective;
 
         /**
          * @brief Configuration structure for the dynamics forecast.
@@ -91,8 +122,8 @@ public:
         // JSON conversion for franka ridgeback actor configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            dynamics, mppi, forecast, controller_rate, controller_substeps,
-            forecast_rate
+            mppi, dynamics, objective, forecast, controller_rate,
+            controller_substeps, forecast_rate
         )
     };
 
@@ -105,17 +136,12 @@ public:
      * 
      * @param configuration The configuration of the actor.
      * @param simulator Pointer to the owning simulator.
-     * @param dynamics Pointer to the dynamics to use for trajectory generation.
-     * @param cost Pointer to the cost to use for trajectory generation.
-     * @param filter Pointer to the optional safety filter.
      * 
      * @returns A pointer to the actor on success, or nullptr on failure.
      */
     static std::shared_ptr<Actor> create(
         Configuration configuration,
-        Simulator *simulator,
-        std::unique_ptr<mppi::Cost> &&cost,
-        std::unique_ptr<mppi::Filter> &&filter = nullptr
+        Simulator *simulator
     );
 
     /**
@@ -201,5 +227,8 @@ private:
     /// The current control action.
     FrankaRidgeback::Control m_control;
 };
+
+using ObjectiveType = Actor::Configuration::Objective::Type;
+using DynamicsType = Actor::Type;
 
 } // FrankaRidgeback

@@ -43,32 +43,10 @@ DynamicsForecast::DynamicsForecast(
       , m_dynamics(std::move(dynamics))
       , m_end_effector_wrench_forecast(std::move(end_effector_wrench_forecast))
       , m_end_effector(steps, EndEffectorState())
+      , m_power(steps, 0.0)
+      , m_energy(steps, 0.0)
       , m_end_effector_wrench(steps, Vector6d::Zero())
 {}
-
-const EndEffectorState &DynamicsForecast::get_end_effector_state(double time)
-{
-    // Extrapolate initial wrench backwards.
-    if (time < m_last_forecast)
-        return m_end_effector.front();
-
-    // Extrapolate last wrench forwards.
-    if (time > m_configuration.horison)
-        return m_end_effector.back();
-
-    // Steps into the horison.
-    double t = (time - m_last_forecast) / m_configuration.time_step;
-
-    // The step less than or equal to t.
-    int lower = (int)t;
-
-    return m_end_effector[lower];
-}
-
-Vector6d DynamicsForecast::get_end_effector_wrench(double time) const
-{
-    return m_end_effector_wrench_forecast->forecast(time);
-}
 
 void DynamicsForecast::forecast(State state, double time)
 {
