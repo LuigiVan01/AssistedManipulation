@@ -18,10 +18,12 @@ AssistedManipulation::AssistedManipulation(
     const Configuration &configuration
   ) : m_configuration(configuration)
     , m_joint_cost(0.0)
+    , m_minimise_velocity_cost(0.0)
     , m_self_collision_cost(0.0)
     , m_trajectory_cost(0.0)
     , m_reach_cost(0.0)
     , m_power_cost(0.0)
+    , m_energy_tank_cost(0.0)
     , m_manipulability_cost(0.0)
     , m_variable_damping_cost(0.0)
     , m_cost(0.0)
@@ -41,6 +43,9 @@ double AssistedManipulation::get_cost(
     if (m_configuration.enable_joint_limit)
         m_joint_cost = joint_limit_cost(state);
 
+    if (m_configuration.enable_minimise_velocity)
+        m_minimise_velocity_cost = minimise_velocity_cost(state);
+
     if (m_configuration.enable_self_collision)
         m_self_collision_cost = self_collision_cost(dynamics);
 
@@ -53,6 +58,9 @@ double AssistedManipulation::get_cost(
     if (m_configuration.enable_maximum_power)
         m_power_cost = power_cost(dynamics);
 
+    if (m_configuration.enable_energy_tank)
+        m_energy_tank_cost = energy_tank_cost(dynamics);
+
     if (m_configuration.enable_maximise_manipulability)
         m_manipulability_cost = manipulability_cost(dynamics);
 
@@ -61,10 +69,14 @@ double AssistedManipulation::get_cost(
 
     m_cost = (
         m_joint_cost +
+        m_minimise_velocity_cost +
         m_self_collision_cost +
+        m_trajectory_cost +
+        m_reach_cost +
         m_power_cost +
+        m_energy_tank_cost +
         m_manipulability_cost +
-        m_reach_cost
+        m_variable_damping_cost
     );
 
     return m_cost;
@@ -89,9 +101,21 @@ double AssistedManipulation::joint_limit_cost(const State &state)
         else if (position > upper.limit) {
             cost += (
                 upper.constant_cost +
-                lower.quadratic_cost * std::pow(position - upper.limit, 2)
+                upper.quadratic_cost * std::pow(position - upper.limit, 2)
             );
         }
+    }
+
+    return cost;
+}
+
+double AssistedManipulation::minimise_velocity_cost(const State &state)
+{
+    const auto &objective = m_configuration.minimise_velocity;
+    double cost = 0.0;
+
+    for (size_t i = 0; i < DoF::JOINTS; i++) {
+        cost += objective.quadratic_cost * std::fabs(state.velocity()(i));
     }
 
     return cost;
@@ -148,6 +172,28 @@ double AssistedManipulation::power_cost(Dynamics *dynamics)
         maximum.constant_cost +
         std::max(0.0, maximum.quadratic_cost * (power - maximum.limit))
     );
+}
+
+double AssistedManipulation::energy_tank_cost(Dynamics *dynamics)
+{
+    const auto &maximum = m_configuration.maximum_energy;
+    double energy = dynamics->get_tank_energy();
+
+    double cost = 0.0;
+    if (energy < 0.1) {
+        cost += (
+            maximum.constant_cost +
+            maximum.quadratic_cost * std::pow(energy - maximum.limit, 2)
+        );
+    }
+    else if (energy > maximum.limit) {
+        cost += cost += (
+            maximum.constant_cost +
+            maximum.quadratic_cost * std::pow(energy - maximum.limit, 2)
+        );
+    }
+
+    return cost;
 }
 
 double AssistedManipulation::manipulability_cost(Dynamics *dynamics)

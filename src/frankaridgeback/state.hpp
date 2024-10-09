@@ -90,13 +90,13 @@ struct State : public Eigen::Vector<double, DoF::STATE>
      * 
      * @returns The (left, right) gripper positions in metres.
      */
-    // inline auto gripper_position() {
-    //     return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
-    // }
+    inline auto gripper_position() {
+        return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
+    }
 
-    // inline const auto gripper_position() const {
-    //     return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
-    // }
+    inline const auto gripper_position() const {
+        return segment<DoF::GRIPPER>(DoF::BASE + DoF::ARM);
+    }
 
     /**
      * @brief Get all the joint positions of the robot.

@@ -54,11 +54,11 @@ public:
      */
     static inline const Configuration HUMAN_POINT_CONTROL {
         .n = 3,
-        .kp = Vector3d(500.0, 500.0, 500.0),
-        .kd = Vector3d(50.0, 50.0, 50.0),
-        .ki = Vector3d(50.0, 50.0, 50.0),
-        .minimum = Eigen::Vector3d(-10000.0, -10000.0, -10000.0),
-        .maximum = Eigen::Vector3d(10000.0, 10000.0, 10000.0),
+        .kp = Vector3d(100.0, 100.0, 100.0),
+        .kd = Vector3d(10.0, 10.0, 10.0),
+        .ki = Vector3d(0.0, 0.0, 0.0),
+        .minimum = Eigen::Vector3d(-100.0, -100.0, -100.0),
+        .maximum = Eigen::Vector3d(100.0, 100.0, 100.0),
         .reference = Eigen::Vector3d::Zero()
     };
 

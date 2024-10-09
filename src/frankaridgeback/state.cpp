@@ -9,8 +9,8 @@ State make_state(Preset preset)
     switch (preset)
     {
         case Preset::HUDDLED_10J: {
-            state.position()
-                << 0.0, 0.0, 0.0, 0.0, 0.628, 0.0, -0.628, 0.0, 1.88, 0.0, 0.00, 0.00;
+            state.position()          //  1      2    3        4    5  6
+                << 0.20, 0.20, M_PI/4, 0.0, M_PI/5, 0.0, -M_PI/2, 0.0, 5, M_PI/4, 0.025, 0.025;
             state.available_energy().setConstant(10);
             return state;
         }

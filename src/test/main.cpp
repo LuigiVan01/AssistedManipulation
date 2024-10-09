@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include "test/case/angles.hpp"
 #include "test/case/circle.hpp"
 #include "test/case/figure_eight.hpp"
 #include "test/case/lissajous.hpp"

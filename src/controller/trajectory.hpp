@@ -166,7 +166,7 @@ public:
      * @note Inlined since static initialisation order is undefined.
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
-        .origin = Vector3d(1.0, 1.0, 0.5),
+        .origin = Vector3d(1.0, 1.0, 1.0),
         .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
         .radius = 0.25,
         .angular_velocity = 1
@@ -246,7 +246,7 @@ public:
      * @note Inlined since static initialisation order is undefined.
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
-        .origin = Vector3d(1.0, 1.0, 0.5),
+        .origin = Vector3d(1.0, 1.0, 1.0),
         .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
         .angle = 0.0,
         .width = 0.5,

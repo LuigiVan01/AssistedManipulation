@@ -20,31 +20,40 @@ public:
     struct Configuration {
 
         /// If joint limit costs are enabled.
-        bool enable_joint_limit = true;
+        bool enable_joint_limit;
+
+        /// If the joint velocities should be minimised.
+        bool enable_minimise_velocity;
 
         /// If self collision costs are enabled.
-        bool enable_self_collision = true;
+        bool enable_self_collision;
 
         /// If tracking the expected trajectory is enabled.
-        bool enable_trajectory_tracking = true;
+        bool enable_trajectory_tracking;
 
         /// If reach costs are enabled.
-        bool enable_reach_limit = false;
+        bool enable_reach_limit;
 
         /// If end effector manipulability is maximised.
-        bool enable_maximise_manipulability = false;
+        bool enable_maximise_manipulability;
 
         /// If the power used by the trajectory is minimised.
-        bool enable_maximum_power = false;
+        bool enable_maximum_power;
 
         /// If variable damping should be enabled.
-        bool enable_variable_damping = false;
+        bool enable_variable_damping;
+
+        /// If energy tank should be enabled.
+        bool enable_energy_tank;
 
         /// Lower joint limits if enabled.
         std::array<QuadraticCost, DoF::JOINTS> lower_joint_limit;
 
         /// Upper joint limits if enabled.
         std::array<QuadraticCost, DoF::JOINTS> upper_joint_limit;
+
+        /// Velocity minimisation cost.
+        QuadraticCost minimise_velocity;
 
         /// Self collision cost.
         QuadraticCost self_collision;
@@ -55,7 +64,7 @@ public:
         /// Maximum reach if enabled.
         QuadraticCost maximum_reach;
 
-        /// 
+        /// Cost of matching the forecast trajectory.
         QuadraticCost trajectory;
 
         /// Manipulability limits if enabled.
@@ -63,6 +72,9 @@ public:
 
         /// Maximum power (joules per second) usage if enabled. 
         QuadraticCost maximum_power;
+
+        /// Maximum energy tank energy if enabled.
+        QuadraticCost maximum_energy;
 
         /// The maximum damping that occurs when the end effector has zero
         /// velocity. The A in c(v) = Ae^{lambda * v}
@@ -72,13 +84,29 @@ public:
         /// to velocity. The lambda in c(v) = Ae^{lambda * v}
         double variable_damping_dropoff;
 
+        // JSON conversion for assisted manipulation objective configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            enable_joint_limit, enable_reach_limit, 
-            enable_maximise_manipulability, enable_maximum_power,
-            enable_variable_damping, lower_joint_limit, upper_joint_limit,
-            self_collision, maximum_reach, minimum_reach,
-            minimum_manipulability, maximum_power, variable_damping_maximum,
+            enable_minimise_velocity,
+            enable_joint_limit,
+            enable_self_collision,
+            enable_reach_limit,
+            enable_trajectory_tracking,
+            enable_maximise_manipulability,
+            enable_maximum_power,
+            enable_variable_damping,
+            enable_energy_tank,
+            lower_joint_limit,
+            upper_joint_limit,
+            minimise_velocity,
+            self_collision,
+            minimum_reach,
+            maximum_reach,
+            trajectory,
+            minimum_manipulability,
+            maximum_power,
+            maximum_energy,
+            variable_damping_maximum,
             variable_damping_dropoff
         )
     };
@@ -106,40 +134,71 @@ public:
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
+        .enable_minimise_velocity = true,
         .enable_self_collision = false,
-        .enable_trajectory_tracking = true,
-        .enable_reach_limit = false,
+        .enable_trajectory_tracking = false,
+        .enable_reach_limit = true,
         .enable_maximise_manipulability = false,
         .enable_maximum_power = false,
         .enable_variable_damping = false,
+        .enable_energy_tank = false,
         .lower_joint_limit = {{
-            {-2.0,    1'000, 100'00}, // Base rotation
-            {-2.0,    1'000, 100'00}, // Base x
-            {-6.28,   1'000, 100'00}, // Base y
-            {-2.8973, 1'000, 100'00}, // Joint1
-            {-1.7628, 1'000, 100'00}, // Joint2
-            {-2.8973, 1'000, 100'00}, // Joint3
-            {-3.0718, 1'000, 100'00}, // Joint4
-            {-2.8973, 1'000, 100'00}, // Joint5
-            {-0.0175, 1'000, 100'00}, // Joint6
-            {-2.8973, 1'000, 100'00}, // Joint7
-            {0.5,     1'000, 100'00}, // Gripper x
-            {0.5,     1'000, 100'00}  // Gripper y
+            {-2.0,    1'000, 10'000}, // Base rotation
+            {-2.0,    1'000, 10'000}, // Base x
+            {-6.28,   1'000, 10'000}, // Base y
+            {-2.8973, 1'000, 10'000}, // Joint1
+            {-1.7628, 1'000, 10'000}, // Joint2
+            {-2.8973, 1'000, 10'000}, // Joint3
+            {-3.0718, 1'000, 10'000}, // Joint4
+            {-2.8973, 1'000, 10'000}, // Joint5
+            {0.8521,  1'000, 10'000}, // Joint6
+            {-2.8973, 1'000, 10'000}, // Joint7
+            {0.0,     1'000, 10'000}, // Gripper x
+            {0.0,     1'000, 10'000}  // Gripper y
         }},
         .upper_joint_limit = {{
-            {2.0,    1'000, 100'00}, // Base rotation
-            {2.0,    1'000, 100'00}, // Base x
-            {6.28,   1'000, 100'00}, // Base y
-            {2.8973, 1'000, 100'00}, // Joint1
-            {1.7628, 1'000, 100'00}, // Joint2
-            {2.8973, 1'000, 100'00}, // Joint3
-            {3.0718, 1'000, 100'00}, // Joint4
-            {2.8973, 1'000, 100'00}, // Joint5
-            {0.0175, 1'000, 100'00}, // Joint6
-            {2.8973, 1'000, 100'00}, // Joint7
-            {0.5,    1'000, 100'00}, // Gripper x
-            {0.5,    1'000, 100'00}  // Gripper y
-        }}
+            {2.0,    1'000, 10'000.0}, // Base rotation
+            {2.0,    1'000, 10'000.0}, // Base x
+            {6.28,   1'000, 10'000.0}, // Base y
+            {2.8973, 1'000, 10'000.0}, // Joint1
+            {1.7628, 1'000, 10'000.0}, // Joint2
+            {2.8973, 1'000, 10'000.0}, // Joint3
+            {3.0718, 1'000, 10'000.0}, // Joint4
+            {2.8973, 1'000, 10'000.0}, // Joint5
+            {4.2094, 1'000, 10'000.0}, // Joint6
+            {2.8973, 1'000, 10'000.0}, // Joint7
+            {0.5,    1'000, 10'000.0}, // Gripper x
+            {0.5,    1'000, 10'000.0}  // Gripper y
+        }},
+        .minimise_velocity = {
+            .quadratic_cost = 100
+        },
+        .self_collision = {
+            .limit = 0.35,
+            .constant_cost = 0.0,
+            .quadratic_cost = 1000
+        },
+        .minimum_reach = {
+            .limit = 0.5,
+            .constant_cost = 1000,
+            .quadratic_cost = 10'000
+        },
+        .maximum_reach = {
+            .limit = 1.0,
+            .constant_cost = 1000,
+            .quadratic_cost = 10'000
+        },
+        .trajectory = {
+            .quadratic_cost = 100.0
+        },
+        .minimum_manipulability = {},
+        .maximum_power = {
+            .limit = 100.0,
+            .constant_cost = 100,
+            .quadratic_cost = 10'000
+        },
+        .variable_damping_maximum = 0.0,
+        .variable_damping_dropoff = 0.0
     };
 
     /**
@@ -250,6 +309,8 @@ private:
      */
     double joint_limit_cost(const State &state);
 
+    double minimise_velocity_cost(const State &state);
+
     /**
      * @brief Penalise configurations that.
      * 
@@ -297,6 +358,15 @@ private:
     double power_cost(Dynamics *dynamics);
 
     /**
+     * @brief Penalises trajectories that deplete the energy tank and maximum
+     * tank energy.
+     * 
+     * @param dynamics Pointer to the dynamics object.
+     * @returns The cost. 
+     */
+    double energy_tank_cost(Dynamics *dynamics);
+
+    /**
      * @brief Rewards higher manipulability joint configurations.
      * 
      * Manipulability is calculated based on the end effector jacobian and
@@ -321,6 +391,8 @@ private:
 
     double m_joint_cost;
 
+    double m_minimise_velocity_cost;
+
     double m_self_collision_cost;
 
     double m_trajectory_cost;
@@ -328,6 +400,8 @@ private:
     double m_reach_cost;
 
     double m_power_cost;
+
+    double m_energy_tank_cost;
 
     double m_manipulability_cost;
 

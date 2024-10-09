@@ -209,11 +209,12 @@ void RaisimDynamics::act(const Control &control)
 {
     // Gripper positional controls.
     m_position_command.setZero();
-    m_position_command.tail<DoF::GRIPPER>() = control.gripper_position();
+    m_position_command.tail<DoF::GRIPPER>() = m_state.gripper_position();
+    // m_position_command.tail<DoF::GRIPPER>() = m_state.control.gripper_position();
 
     // Rotate the desired base velocity command into the base frame of reference.
     m_velocity_command.setZero();
-    m_velocity_command.head<DoF::BASE_POSITION>() = Eigen::Rotation2Dd(m_state.base_yaw().value()) * control.base_velocity();
+    m_velocity_command.head<DoF::BASE_POSITION>() = /* Eigen::Rotation2Dd(m_state.base_yaw().value()) * */ control.base_velocity();
     m_velocity_command.segment<DoF::BASE_YAW>(DoF::BASE_POSITION) = control.base_angular_velocity();
     // m_velocity_command.segment<DoF::ARM>(DoF::BASE) = control.arm_velocity();
 

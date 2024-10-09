@@ -13,10 +13,10 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
         .mppi = {
             .configuration = {
                 .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
-                .rollouts = 20,
-                .keep_best_rollouts = 15,
+                .rollouts = 200,
+                .keep_best_rollouts = 50,
                 .time_step = 0.01,
-                .horison = 0.25,
+                .horison = 0.1,
                 .gradient_step = 1.0,
                 .cost_scale = 10.0,
                 .cost_discount_factor = 1.0,
@@ -25,23 +25,23 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
                     7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, // arm
                     0.0, 0.0 // gripper
                 }.asDiagonal(),
-                .control_bound = false,
+                .control_bound = true,
                 .control_min = FrankaRidgeback::Control{
-                    -0.2, -0.2, -0.2, // base
-                    -5.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, //arm
+                    -0.2, -0.2, -1.0, // base
+                    -10.0, -10.0, -10.0, -10.0, -10.0, -10.0, -10.0, //arm
                     -0.05, -0.05 // gripper
                 },
                 .control_max = FrankaRidgeback::Control{
-                    0.2, 0.2, 0.2, // base
-                    5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // arm
+                    0.2, 0.2, 1.0, // base
+                    10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
                     0.05, 0.05 // gripper
                 },
                 .control_default = FrankaRidgeback::Control::Zero(),
-                .smoothing = std::nullopt,
-                // .smoothing = mppi::Configuration::Smoothing {
-                //     .window = 10,
-                //     .order = 1
-                // },
+                // .smoothing = std::nullopt,
+                .smoothing = mppi::Configuration::Smoothing {
+                    .window = 10,
+                    .order = 1
+                },
                 .threads = 12
             },
             .dynamics = {
@@ -63,7 +63,7 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
         .forecast = FrankaRidgeback::Actor::Configuration::Forecast {
             .configuration = {
                 .time_step = 0.01,
-                .horison = 1.0,
+                .horison = 0.1,
                 .end_effector_wrench_forecast = {
                     .type = Forecast::Configuration::Type::LOCF,
                     .locf = LOCFForecast::Configuration {
@@ -82,9 +82,9 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
                 .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
             }
         },
-        .controller_rate = 0.03,
+        .controller_rate = 0.05,
         .controller_substeps = 1,
-        .forecast_rate = 0.15
+        .forecast_rate = 0.03
     },
     .mppi_logger = {
         .folder = "",
@@ -230,9 +230,8 @@ void BaseTest::step()
     m_dynamics_logger->log(m_simulator->get_time(), m_frankaridgeback->get_dynamics());
     m_dynamics_logger->log_control(m_simulator->get_time(), m_frankaridgeback->get_control());
 
-    auto &forecast = m_frankaridgeback->get_dynamics().get_forecast();
-    if (forecast)
-        m_forecast_logger->log(*forecast.value()->get());
+    if (m_frankaridgeback->get_forecast())
+        m_forecast_logger->log(*m_frankaridgeback->get_forecast().value());
 }
 
 bool BaseTest::run()

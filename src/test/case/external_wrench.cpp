@@ -235,12 +235,12 @@ bool ExternalWrenchTest::run()
         // }
 
         // Apply the wrench to the end effector.
-        m_base->get_frankaridgeback()->add_end_effector_wrench(wrench, time);
+        // m_base->get_frankaridgeback()->add_end_effector_wrench(wrench, time);
 
         // Update the wrench forecaster with a sample of the applied wrench.
-        if (forecast) {
-            m_base->get_wrench_forecast()->update(wrench, time);
-        }
+        // if (forecast) {
+        //     m_base->get_wrench_forecast()->update(wrench, time);
+        // }
 
         // Step the base simulation.
         m_base->step();

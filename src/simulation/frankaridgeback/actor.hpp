@@ -152,14 +152,6 @@ public:
     void add_end_effector_wrench(Vector6d wrench, double time);
 
     /**
-     * @brief Get a pointer to the simulated articulated system.
-     */
-    inline const FrankaRidgeback::Dynamics &get_dynamics() const
-    {
-        return *m_dynamics->get_dynamics();
-    }
-
-    /**
      * @brief Get the most recent control applied to the actor dynamics.
      */
     inline const FrankaRidgeback::Control &get_control() const
@@ -181,6 +173,24 @@ public:
     inline const mppi::Trajectory &get_controller() const
     {
         return *m_controller;
+    }
+
+    /**
+     * @brief Get a pointer to the simulated articulated system.
+     */
+    inline const FrankaRidgeback::Dynamics &get_dynamics() const
+    {
+        return *m_dynamics->get_dynamics();
+    }
+
+    /**
+     * @brief Get a pointer to the dynamics forecast if it exists.
+     */
+    inline std::optional<DynamicsForecast*> get_forecast()
+    {
+        if (m_forecast)
+            return m_forecast.get();
+        return std::nullopt;
     }
 
 private:

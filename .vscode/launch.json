@@ -66,10 +66,11 @@
                 "lissajous",
                 "pinocchio",
                 "forecast",
-                "trajectory"
+                "trajectory",
+                "angles"
             ],
             "type": "pickString",
-            "default": "circle"
+            "default": "pose"
         },
         {
             "id": "directory",

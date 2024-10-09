@@ -54,6 +54,8 @@ void DynamicsForecast::forecast(State state, double time)
     auto control = Control::Zero();
     m_dynamics->set_state(state, time);
 
+    // std::cout << "wrench:" << std::endl;
+
     for (unsigned int step = 0; step < m_steps; ++step) {
         double t = time + step * m_configuration.time_step;
 
@@ -64,6 +66,7 @@ void DynamicsForecast::forecast(State state, double time)
 
         Vector6d wrench = m_end_effector_wrench_forecast->forecast(t);
         m_end_effector_wrench[step] = wrench;
+        // std::cout << "    " << wrench.head<3>().transpose() << std::endl;
 
         // Simulate the forecast wrench trajectory.
         m_dynamics->add_end_effector_simulated_wrench(wrench);
@@ -71,6 +74,12 @@ void DynamicsForecast::forecast(State state, double time)
         // Step the dynamics simulation.
         m_dynamics->step(control, m_configuration.time_step);
     }
+
+    // std::cout << "forecast:" << std::endl;
+    // for (auto &x : m_joint_position)
+    //     std::cout << "    " << x.head<3>().transpose() << std::endl;
+
+    m_last_forecast = time;
 }
 
 } // namespace FrankaRidgeback
