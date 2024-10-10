@@ -40,6 +40,9 @@ std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
     if (configuration.log_variable_damping)
         logged.push_back("variable_damping");
 
+    if (configuration.log_total)
+        logged.push_back("total");
+
     auto logger = std::unique_ptr<AssistedManipulation>(
         new AssistedManipulation(configuration)
     );
@@ -63,6 +66,9 @@ void AssistedManipulation::log(
     double time,
     const FrankaRidgeback::AssistedManipulation &objective
 ) {
+    if (time == m_last_update)
+        return;
+
     int i = 0;
 
     if (m_configuration.log_joint_limit)
@@ -92,9 +98,12 @@ void AssistedManipulation::log(
     if (m_configuration.log_variable_damping)
         m_costs[i++] = objective.get_variable_damping_cost();
 
-    double total = std::accumulate(m_costs.begin(), m_costs.end(), 0.0);
+    if (m_configuration.log_total)
+        m_costs[i++] = std::accumulate(m_costs.begin(), m_costs.end(), 0.0);
 
-    m_logger->write(time, m_costs, total);
+    m_logger->write(time, m_costs);
+
+    m_last_update = time;
 }
 
 } // namespace logger

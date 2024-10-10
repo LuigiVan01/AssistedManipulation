@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <filesystem>
 
 #include "logging/csv.hpp"
@@ -38,12 +39,14 @@ public:
 
         bool log_variable_damping = true;
 
+        bool log_total = true;
+
         // JSON conversion for mppi logger configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             folder, log_joint_limit, log_minimise_velocity, log_self_collision,
             log_trajectory, log_reach, log_power, log_energy_tank,
-            log_manipulability, log_variable_damping
+            log_manipulability, log_variable_damping, log_total
         )
     };
 
@@ -70,9 +73,13 @@ private:
 
     inline AssistedManipulation(const Configuration &configuration)
         : m_configuration(configuration)
+        , m_last_update(std::numeric_limits<double>::min())
     {}
 
     Configuration m_configuration;
+
+    /// Time since the last objective update.
+    double m_last_update;
 
     /// Calculation of the times of each horison step of the generator.
     std::vector<double> m_costs;

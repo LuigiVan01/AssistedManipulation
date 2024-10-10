@@ -8,15 +8,29 @@ State make_state(Preset preset)
 
     switch (preset)
     {
-        case Preset::HUDDLED_10J: {
+        case Preset::ZERO: {
+            return State::Zero();
+        }
+        case Preset::HUDDLED: {
             state.position()          //  1      2    3        4    5  6
                 << 0.20, 0.20, M_PI/4, 0.0, M_PI/5, 0.0, -M_PI/2, 0.0, 4, M_PI/4, 0.025, 0.025;
             state.available_energy().setConstant(10);
             return state;
         }
+        case Preset::JOINT_LIMIT: {
+            state.position()          //  1      2    3        4    5  6
+                << 0.20, 0.20, M_PI/4, 0.0, M_PI/5, 0.0, -M_PI/2, 0.0, -0.2, M_PI/4, 0.025, 0.025;
+            return state;
+        }
+        case Preset::SELF_COLLISION: {
+            state.position()          //  1      2    3        4    5  6
+                << 0.20, 0.20, M_PI/4, 0.0, M_PI/3, 0.0, -6*M_PI/8, 0.0, 2, M_PI/4, 0.025, 0.025;
+            return state;
+        }
+        default: {
+            return State::Zero();
+        }
     }
-
-    return State::Zero();
 }
 
 State make_state(

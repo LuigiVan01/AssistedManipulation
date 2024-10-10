@@ -76,7 +76,7 @@ std::unique_ptr<MPPI> MPPI::create(const Configuration &configuration)
         return nullptr;
     }
 
-    mppi->m_last_update = -std::numeric_limits<double>::min();
+    mppi->m_last_update = std::numeric_limits<double>::min();
 
     return mppi;
 }
@@ -84,7 +84,6 @@ std::unique_ptr<MPPI> MPPI::create(const Configuration &configuration)
 void MPPI::log(const mppi::Trajectory &trajectory)
 {
     auto time = trajectory.get_update_last();
-
     if (time == m_last_update)
         return;
 

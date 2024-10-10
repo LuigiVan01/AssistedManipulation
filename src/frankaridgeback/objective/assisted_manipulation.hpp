@@ -120,8 +120,8 @@ public:
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
-        .enable_minimise_velocity = true,
-        .enable_self_collision = true,
+        .enable_minimise_velocity = false,
+        .enable_self_collision = false,
         .enable_trajectory_tracking = false,
         .enable_reach_limit = false,
         .enable_maximise_manipulability = false,
@@ -157,17 +157,17 @@ public:
             {0.5,    1'000, 10'000.0}  // Gripper y
         }},
         .minimise_velocity = {
-            .quadratic_cost = 100
+            .quadratic_cost = 10
         },
         .self_collision_limit = {{
-            {0.3, 0.0, 1000}, // Base link
-            {0.1, 0.0, 1000}, // Arm link 1
-            {0.1, 0.0, 1000}, // Arm link 2
-            {0.1, 0.0, 1000}, // Arm link 3
-            {0.1, 0.0, 1000}, // Arm link 4
-            {0.1, 0.0, 1000}, // Arm link 5
-            {0.1, 0.0, 1000}, // Arm link 6
-            {0.1, 0.0, 1000}  // Arm link 7
+            {0.75, 0.0, 10'000}, // Base link
+            {0.1, 0.0, 10'000}, // Arm link 1
+            {0.1, 0.0, 10'000}, // Arm link 2
+            {0.1, 0.0, 10'000}, // Arm link 3
+            {0.1, 0.0, 10'000}, // Arm link 4
+            {0.1, 0.0, 10'000}, // Arm link 5
+            {0.1, 0.0, 10'000}, // Arm link 6
+            {0.1, 0.0, 10'000}  // Arm link 7
         }},
         .minimum_reach = {
             .limit = 0.5,

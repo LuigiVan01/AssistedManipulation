@@ -263,8 +263,10 @@ struct State : public Eigen::Vector<double, DoF::STATE>
  * @brief ALl the selectable robot preset states.
  */
 enum class Preset {
-    ZERO = 0,
-    HUDDLED_10J = 1
+    ZERO,
+    HUDDLED,
+    JOINT_LIMIT,
+    SELF_COLLISION
 };
 
 /**

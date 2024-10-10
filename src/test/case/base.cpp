@@ -140,7 +140,7 @@ void BaseTest::step()
 
     if (m_objective_logger) {
         m_objective_logger->log(
-            m_simulator->get_time(),
+            m_frankaridgeback->get_controller().get_update_last(),
             dynamic_cast<const FrankaRidgeback::AssistedManipulation&>(
                 m_frankaridgeback->get_controller().get_optimal_cost()
             )

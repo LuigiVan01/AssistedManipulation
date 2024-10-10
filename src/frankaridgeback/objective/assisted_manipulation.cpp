@@ -121,15 +121,8 @@ double AssistedManipulation::minimise_velocity_cost(const State &state)
 
 double AssistedManipulation::self_collision_cost(Dynamics *dynamics)
 {
-    static auto link_to_constraint = [this](Link link) -> QuadraticCost& {
-        std::size_t i = (std::size_t)link;
-        if (i > 0)
-            i -= 3;
-        return m_configuration.self_collision_limit[i];
-    };
-
     static std::vector<std::tuple<Link, std::vector<Link>>> CHECK_COLLSION = {{
-        {Link::OMNI_BASE_ROOT_LINK, {
+        {Link::PIVOT, {
             Link::PANDA_LINK3,
             Link::PANDA_LINK4,
             Link::PANDA_LINK5,
@@ -167,28 +160,26 @@ double AssistedManipulation::self_collision_cost(Dynamics *dynamics)
     double cost = 0.0;
 
     for (const auto &[first, against] : CHECK_COLLSION) {
-        auto &first_constraint = link_to_constraint(first);
+        auto &first_constraint = m_configuration.self_collision_limit[(std::size_t)first - 3];
 
         for (auto second : against) {
-            auto &second_constraint = link_to_constraint(second);
+            auto &second_constraint = m_configuration.self_collision_limit[(std::size_t)second - 3];
 
-            auto offset = (
+            // Distance between sphere origins.
+            double distance = (
                 dynamics->get_link_position(second) -
                 dynamics->get_link_position(first)
-            );
+            ).norm();
 
-            double norm = offset.norm();
+            // Sum of sphere radii.
+            double radii = first_constraint.limit + second_constraint.limit;
 
-            if (norm < first_constraint.limit) {
-                cost += first_constraint.quadratic_cost * std::pow(
-                    first_constraint.limit - norm, 2
-                );
-            }
+            // Collision vector. Positive when colliding.
+            double collision = radii - distance;
 
-            if (norm < second_constraint.limit) {
-                cost += second_constraint.quadratic_cost * std::pow(
-                    second_constraint.limit - norm, 2
-                );
+            if (collision > 0) {
+                cost += first_constraint.quadratic_cost * std::pow(collision, 2);
+                cost += second_constraint.quadratic_cost * std::pow(collision, 2);
             }
         }
     }

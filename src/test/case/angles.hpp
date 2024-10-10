@@ -24,6 +24,8 @@ private:
         std::cout << quaternion_to_euler(euler_to_quaternion(x)) << std::endl;
         if (!quaternion_to_euler(euler_to_quaternion(x)).isApprox(x))
             return false;
+        
+        return true;
     }
 
 };

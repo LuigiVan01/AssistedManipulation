@@ -61,7 +61,7 @@ public:
         },
         .filename = "",
         .end_effector_frame = "panda_grasp_joint",
-        .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
+        .initial_state = make_state(FrankaRidgeback::Preset::JOINT_LIMIT),
         .proportional_gain = FrankaRidgeback::Control{
             0.0, 0.0, 0.0, // base
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm

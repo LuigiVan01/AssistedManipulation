@@ -100,7 +100,7 @@ def read_results(result_type: ResultsType, folder: str) -> PidResults | MppiResu
         filename = f'{field.name}.csv'
         path = directory / filename
         if not path.exists():
-            raise RuntimeError(f'file {filename} does not exist')
+            continue
 
         try:
             setattr(results, field.name, pandas.read_csv(path, skipinitialspace = True))
@@ -165,12 +165,12 @@ def plot_end_effector_trajectory(
         pass
 
 def plot_useful(data: PlotData):
-    figure = plt.figure(figsize = (10, 11))
+    figure = plt.figure(figsize = (10, 3))
 
-    plot_optimal_cost(plt.subplot2grid((4, 1), (0, 0)), data.mppi.optimal_cost)
-    plot_tank_energy(plt.subplot2grid((4, 1), (1, 0)), data.dynamics.tank_energy)
-    plot_reference_error(plt.subplot2grid((4, 1), (2, 0)), data.force_pid.error)
-    plot_force_control(plt.subplot2grid((4, 1), (3, 0)), data.force_pid.control)
+    plot_optimal_cost(plt.subplot2grid((1, 1), (0, 0)), data.mppi.optimal_cost)
+    # plot_tank_energy(plt.subplot2grid((4, 1), (1, 0)), data.dynamics.tank_energy)
+    # plot_reference_error(plt.subplot2grid((4, 1), (2, 0)), data.force_pid.error)
+    # plot_force_control(plt.subplot2grid((4, 1), (3, 0)), data.force_pid.control)
 
     figure.tight_layout()
     return figure
@@ -181,8 +181,7 @@ def plot_timeseries(
         title: str,
         /, *,
         dependent = 'time',
-        y_scale = 'min_max',
-        y_log = False
+        y_scale = 'min_max'
     ):
     """Plot a time series graph:
 
@@ -204,12 +203,9 @@ def plot_timeseries(
     all_axes: list[plt.Axes]
     figure, all_axes = plt.subplots(
         len(columns), 1,
-        sharex = True,
-        figsize = (10, len(columns))
-    )
-
-    figure.subplots_adjust(left = 0.2, top = 0.95, bottom = 0.05, hspace = 0.05)
-
+        figsize = (10, len(columns)),
+        layout = 'constrained'
+    ) 
     for column, axes in zip(columns, all_axes):
         axes: plt.Axes
         unit = units[column]
@@ -217,6 +213,8 @@ def plot_timeseries(
         axes.plot(df[dependent], df[column])
         axes.grid(True, color = 'lightgrey')
 
+        x_min = 0.0
+        x_max = max(df[dependent])
         y_min = min(df[column])
         y_max = max(df[column])
         y_ticks = []
@@ -243,25 +241,19 @@ def plot_timeseries(
         axes.set_ylim(ymin = y_min, ymax = y_max)
         axes.yaxis.get_majorticklabels()[0].set_verticalalignment('bottom')
         axes.yaxis.get_majorticklabels()[-1].set_verticalalignment('top')
-        # if y_log:
-        #     try:
-        #         axes.set_yscale('log')
-        #     except Exception:
-        #         pass
 
-        axes.set_xticks([])
-        axes.set_xticklabels([])
-        axes.set_xlim(xmin = 0.0, xmax = max(df[dependent]))
+        axes.set_xlim(xmin = x_min, xmax = x_max)
+        if column != columns[-1]:
+            axes.set_xticklabels([])
 
         axes.text(
-            -0.5, (y_min + y_max) / 2,
+            -x_max * 1/12,
+            (y_min + y_max) / 2,
             f"{column.replace('_', ' ').capitalize()} [${unit}$]",
             ha = 'right',
             va = 'center'
         )
 
-    all_axes[-1].set_xticks(np.arange(0, max(df[dependent]), 1))
-    all_axes[-1].set_xticklabels(np.arange(0, max(df[dependent]), 1))
     all_axes[-1].set_xlabel(f'{dependent.capitalize()} [$s$]')
 
     plt.suptitle(title)
@@ -305,8 +297,7 @@ def plot_assisted_manipulation_objective(data: PlotData):
         data.objective.assisted_manipulation if data.objective is not None else None,
         {key: '\#' for key in objectives},
         'Assisted Manipulation Objective Function Breakdown',
-        y_scale = 'from_zero',
-        y_log = True
+        y_scale = 'from_zero'
     )
 
 if __name__ == '__main__':

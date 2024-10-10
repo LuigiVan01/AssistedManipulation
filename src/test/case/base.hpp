@@ -62,12 +62,12 @@ public:
         .actor = {
             .mppi = {
                 .configuration = {
-                    .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
+                    .initial_state = make_state(FrankaRidgeback::Preset::JOINT_LIMIT),
                     .rollouts = 200,
                     .keep_best_rollouts = 50,
                     .time_step = 0.01,
                     .horison = 0.1,
-                    .gradient_step = 1.0,
+                    .gradient_step = 3.0,
                     .cost_scale = 10.0,
                     .cost_discount_factor = 1.0,
                     .covariance = FrankaRidgeback::Control{
@@ -140,11 +140,20 @@ public:
             .folder = "",
             .state_dof = FrankaRidgeback::DoF::STATE,
             .control_dof = FrankaRidgeback::DoF::CONTROL,
-            .rollouts = 0
+            .rollouts = 0,
+            .log_costs = true,
+            .log_weights = true,
+            .log_gradient = true,
+            .log_optimal_rollout = true,
+            .log_optimal_cost = true,
+            .log_update = true
         },
         .dynamics_logger = {
             .folder = "",
+            .log_joints = true,
+            .log_control = true,
             .log_end_effector_position = true,
+            .log_end_effector_orientation = false,
             .log_end_effector_velocity = true,
             .log_end_effector_acceleration = true,
             .log_power = true,
@@ -153,6 +162,7 @@ public:
         .forecast_logger = {
             .folder = "",
             .log_end_effector_position = true,
+            .log_end_effector_orientation = false,
             .log_end_effector_velocity = true,
             .log_end_effector_acceleration = true,
             .log_power = true,
@@ -162,14 +172,15 @@ public:
         .objective_logger = {
             .folder = "",
             .log_joint_limit = true,
-            .log_minimise_velocity = true,
-            .log_self_collision = true,
-            .log_trajectory = true,
+            .log_minimise_velocity = false,
+            .log_self_collision = false,
+            .log_trajectory = false,
             .log_reach = false,
             .log_power = false,
             .log_energy_tank = false,
             .log_manipulability = false,
-            .log_variable_damping = false
+            .log_variable_damping = false,
+            .log_total = false
         }
     };
 
