@@ -2,31 +2,6 @@
 
 #include "frankaridgeback/dynamics.hpp"
 
-ExternalWrenchTest::Configuration ExternalWrenchTest::DEFAULT_CONFIGURATION {
-    .folder = "external_wrench",
-    .duration = 30,
-    .base = BaseTest::DEFAULT_CONFIGURATION,
-    .trajectory = {
-        // .position = std::nullopt,
-        .position = PositionTrajectory::Configuration {
-            .type = PositionTrajectory::Configuration::CIRCLE,
-            .point = PointTrajectory::DEFAULT_CONFIGURATION,
-            .circle = CircularTrajectory::DEFAULT_CONFIGURATION,
-            .rectangle = RectangularTrajectory::DEFAULT_CONFIGURATION,
-            .lissajous = LissajousTrajectory::DEFAULT_CONFIGURATION,
-            .figure_eight = FigureEightTrajectory::DEFAULT_CONFIGURATION
-        },
-        .orientation = std::nullopt
-        // .orientation = OrientationTrajectory::Configuration {
-        //     .type = OrientationTrajectory::Configuration::AXIS_ANGLE,
-        //     .axis_angle = std::nullopt,
-        //     .slerp = std::nullopt
-        // }
-    },
-    .force_pid = controller::PID::HUMAN_POINT_CONTROL,
-    .torque_pid = controller::QuaternionPID::HUMAN_ORIENTATION_CONTROL
-};
-
 std::unique_ptr<ExternalWrenchTest> ExternalWrenchTest::create(Options &options)
 {
     Configuration configuration = DEFAULT_CONFIGURATION;
@@ -235,12 +210,12 @@ bool ExternalWrenchTest::run()
         // }
 
         // Apply the wrench to the end effector.
-        // m_base->get_frankaridgeback()->add_end_effector_wrench(wrench, time);
+        m_base->get_frankaridgeback()->add_end_effector_wrench(wrench, time);
 
         // Update the wrench forecaster with a sample of the applied wrench.
-        // if (forecast) {
-        //     m_base->get_wrench_forecast()->update(wrench, time);
-        // }
+        if (forecast) {
+            m_base->get_wrench_forecast()->update(wrench, time);
+        }
 
         // Step the base simulation.
         m_base->step();

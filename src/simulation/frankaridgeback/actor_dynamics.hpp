@@ -66,6 +66,17 @@ class RaisimActorDynamics : public ActorDynamics
 {
 public:
 
+    static inline const std::vector<Link> VISUAL_COLLISION_LINKS {{
+        Link::PANDA_LINK1,
+        Link::PANDA_LINK2,
+        Link::PANDA_LINK3,
+        Link::PANDA_LINK4,
+        Link::PANDA_LINK5,
+        Link::PANDA_LINK6,
+        Link::PANDA_LINK7,
+        Link::OMNI_BASE_ROOT_LINK
+    }};
+
     inline static std::unique_ptr<RaisimActorDynamics> create(
         RaisimDynamics::Configuration configuration,
         Simulator *simulator
@@ -96,6 +107,11 @@ public:
     inline void update() override
     {
         m_dynamics->update();
+        for (int i = 0; i < m_collision_spheres.size(); i++) {
+            m_collision_spheres[i]->setPosition(
+                m_dynamics->get_link_position(VISUAL_COLLISION_LINKS[i])
+            );
+        }
     }
 
 private:
@@ -105,7 +121,18 @@ private:
         std::unique_ptr<RaisimDynamics> &&dynamics
       ) : ActorDynamics(simulator)
         , m_dynamics(std::move(dynamics))
-    {}
+    {
+        for (auto link : VISUAL_COLLISION_LINKS) {
+            auto sphere = simulator->get_server().addVisualSphere(
+                LINK_NAMES[(std::size_t)link] + "_collsion_sphere",
+                0.1, 1.0, 0.0, 0.0, 0.3
+            );
+            sphere->setPosition(m_dynamics->get_link_position(link));
+            m_collision_spheres.push_back(sphere);
+        }
+    }
+
+    std::vector<raisim::Visuals*> m_collision_spheres;
 
     std::unique_ptr<RaisimDynamics> m_dynamics;
 };

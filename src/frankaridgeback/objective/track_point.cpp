@@ -92,14 +92,14 @@ double TrackPoint::self_collision_cost(Dynamics *dynamics)
     // sensitivity to self collision.
     const auto &self_collision = m_configuration.self_collision;
 
-    for (const auto &[first, second] : SELF_COLLISION_LINKS) {
-        auto offset = dynamics->get_frame_offset(first, second);
-        if (offset.norm() < self_collision.limit) {
-            cost += self_collision.quadratic_cost * std::pow(
-                self_collision.limit - offset.norm(), 2
-            );
-        }
-    }
+    // for (const auto &[first, second] : SELF_COLLISION_LINKS) {
+    //     auto offset = dynamics->get_frame_offset(first, second);
+    //     if (offset.norm() < self_collision.limit) {
+    //         cost += self_collision.quadratic_cost * std::pow(
+    //             self_collision.limit - offset.norm(), 2
+    //         );
+    //     }
+    // }
 
     return cost;
 }
@@ -116,10 +116,11 @@ double TrackPoint::reach_cost(Dynamics *dynamics)
     const auto &min = m_configuration.minimum_reach;
     const auto &max = m_configuration.maximum_reach;
 
-    double offset = dynamics->get_frame_offset(
-        Frame::BASE_LINK_JOINT,
-        Frame::PANDA_GRASP_JOINT
-    ).norm();
+    double offset = 0.0;
+    // dynamics->get_frame_offset(
+    //     Frame::BASE_LINK_JOINT,
+    //     Frame::PANDA_GRASP_JOINT
+    // ).norm();
 
     if (offset < min.limit) {
         cost += (

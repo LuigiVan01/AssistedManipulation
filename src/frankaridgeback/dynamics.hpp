@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "controller/eigen.hpp"
 #include "controller/mppi.hpp"
 #include "controller/forecast.hpp"
@@ -19,45 +21,73 @@ class Dynamics;
 using Jacobian = Eigen::Matrix<double, 6, DoF::JOINTS>;
 
 /**
- * @brief All the frames of the franka ridgeback model.
+ * @brief Enumeration of all the robot frames.
  */
-namespace Frame {
+enum class Frame {
+    WORLD_JOINT,
+    X_BASE_JOINT,
+    Y_BASE_JOINT,
+    PIVOT_JOINT,
+    PANDA_JOINT1,
+    OMNI_BASE_FLANGE,
+    BASE_LINK_JOINT,
+    MID_MOUNT_JOINT,
+    RIGHT_SIDE_COVER_LINK_JOINT,
+    LEFT_SIDE_COVER_LINK_JOINT,
+    FRONT_COVER_LINK_JOINT,
+    REAR_COVER_LINK_JOINT,
+    FRONT_LIGHTS_LINK_JOINT,
+    REAR_LIGHTS_LINK_JOINT,
+    TOP_LINK_JOINT,
+    AXLE_JOINT,
+    IMU_JOINT,
+    RIDGEBACK_SENSOR_MOUNT_JOINT,
+    REFERENCE_LINK_JOINT,
+    ARM_MOUNT_JOINT,
+    PANDA_JOINT_FRANKA_MOUNT_LINK,
+    PANDA_JOINT2,
+    PANDA_JOINT3,
+    PANDA_JOINT4,
+    PANDA_JOINT5,
+    PANDA_JOINT6,
+    PANDA_JOINT7,
+    PANDA_FINGER_JOINT1,
+    PANDA_FINGER_JOINT2,
+    PANDA_JOINT8,
+    PANDA_HAND_JOINT,
+    PANDA_GRASP_JOINT,
+    _SIZE
+};
 
-static inline const std::string
-    WORLD_JOINT = "world_joint",
-    X_BASE_JOINT = "x_base_joint",
-    Y_BASE_JOINT = "y_base_joint",
-    PIVOT_JOINT = "pivot_joint",
-    PANDA_JOINT1 = "panda_joint1",
-    OMNI_BASE_FLANGE = "omni_base_flange",
-    BASE_LINK_JOINT = "base_link_joint",
-    MID_MOUNT_JOINT = "mid_mount_joint",
-    RIGHT_SIDE_COVER_LINK_JOINT = "right_side_cover_link_joint",
-    LEFT_SIDE_COVER_LINK_JOINT = "left_side_cover_link_joint",
-    FRONT_COVER_LINK_JOINT = "front_cover_link_joint",
-    REAR_COVER_LINK_JOINT = "rear_cover_link_joint",
-    FRONT_LIGHTS_LINK_JOINT = "front_lights_link_joint",
-    REAR_LIGHTS_LINK_JOINT = "rear_lights_link_joint",
-    TOP_LINK_JOINT = "top_link_joint",
-    AXLE_JOINT = "axle_joint",
-    IMU_JOINT = "imu_joint",
-    RIDGEBACK_SENSOR_MOUNT_JOINT = "ridgeback_sensor_mount_joint",
-    REFERENCE_LINK_JOINT = "reference_link_joint",
-    ARM_MOUNT_JOINT = "arm_mount_joint",
-    PANDA_JOINT_FRANKA_MOUNT_LINK = "panda_joint_franka_mount_link",
-    PANDA_JOINT2 = "panda_joint2",
-    PANDA_JOINT3 = "panda_joint3",
-    PANDA_JOINT4 = "panda_joint4",
-    PANDA_JOINT5 = "panda_joint5",
-    PANDA_JOINT6 = "panda_joint6",
-    PANDA_JOINT7 = "panda_joint7",
-    PANDA_FINGER_JOINT1 = "panda_finger_joint1",
-    PANDA_FINGER_JOINT2 = "panda_finger_joint2",
-    PANDA_JOINT8 = "panda_joint8",
-    PANDA_HAND_JOINT = "panda_hand_joint",
-    PANDA_GRASP_JOINT = "panda_grasp_joint";
+/**
+ * @brief Enumeration of all the robot links.
+ */
+enum class Link {
+    OMNI_BASE_ROOT_LINK,
+    X_SLIDER,
+    Y_SLIDER,
+    PIVOT,
+    PANDA_LINK1,
+    PANDA_LINK2,
+    PANDA_LINK3,
+    PANDA_LINK4,
+    PANDA_LINK5,
+    PANDA_LINK6,
+    PANDA_LINK7,
+    PANDA_LEFTFINGER,
+    PANDA_RIGHTFINGER,
+    _SIZE
+};
 
-} // namespace Frame
+/**
+ * @brief Mapping of frames to their named identifiers.
+ */
+extern std::array<std::string, (std::size_t)Frame::_SIZE> FRAME_NAMES;
+
+/**
+ * @brief Mapping of links to their named identifiers.
+ */
+extern std::array<std::string, (std::size_t)Link::_SIZE> LINK_NAMES;
 
 /**
  * @brief Data structure containing frame kinematic information at a given time.
@@ -399,7 +429,7 @@ public:
      * @param frame The frame.
      * @returns The position of the frame.
      */
-    virtual Vector3d get_frame_position(const std::string &frame) = 0;
+    virtual Vector3d get_frame_position(Frame frame) = 0;
 
     /**
      * @brief Get the orientation of a frame.
@@ -409,7 +439,15 @@ public:
      * @param frame The frame.
      * @returns The orientation of the frame.
      */
-    virtual Quaterniond get_frame_orientation(const std::string &frame) = 0;
+    virtual Quaterniond get_frame_orientation(Frame frame) = 0;
+
+    /**
+     * @brief Get the origin of a link in the world frame
+     * 
+     * @param link The link to get the origin of.
+     * @returns The position of the link in the world frame.
+     */
+    virtual Vector3d get_link_position(Link link) = 0;
 
     /**
      * @brief Get the offset between two frames.
@@ -419,10 +457,8 @@ public:
      * 
      * @returns The offset.
      */
-    inline Vector3d get_frame_offset(
-        const std::string &from,
-        const std::string &to
-    ) {
+    inline Vector3d get_frame_offset(Frame from, Frame to)
+    {
         return get_frame_position(to) - get_frame_position(from); 
     }
 

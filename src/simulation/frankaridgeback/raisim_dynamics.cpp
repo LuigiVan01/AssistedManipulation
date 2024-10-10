@@ -38,6 +38,11 @@ std::unique_ptr<RaisimDynamics> RaisimDynamics::create(
     // frankaridgeback->setComputeInverseDynamics(true);
     frankaridgeback->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
 
+    std::cout << "links:" << std::endl;
+    frankaridgeback->printOutBodyNamesInOrder();
+    std::cout << "frames:" << std::endl;
+    frankaridgeback->printOutFrameNamesInOrder();
+
     std::size_t end_effector_frame_index = frankaridgeback->getFrameIdxByName(
         configuration.end_effector_frame
     );

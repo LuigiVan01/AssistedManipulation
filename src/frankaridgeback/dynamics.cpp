@@ -4,6 +4,57 @@
 
 namespace FrankaRidgeback {
 
+std::array<std::string, (std::size_t)Frame::_SIZE> FRAME_NAMES {{
+    "world_joint",
+    "x_base_joint",
+    "y_base_joint",
+    "pivot_joint",
+    "panda_joint1",
+    "omni_base_flange",
+    "base_link_joint",
+    "mid_mount_joint",
+    "right_side_cover_link_joint",
+    "left_side_cover_link_joint",
+    "front_cover_link_joint",
+    "rear_cover_link_joint",
+    "front_lights_link_joint",
+    "rear_lights_link_joint",
+    "top_link_joint",
+    "axle_joint",
+    "imu_joint",
+    "ridgeback_sensor_mount_joint",
+    "reference_link_joint",
+    "arm_mount_joint",
+    "panda_joint_franka_mount_link",
+    "panda_joint2",
+    "panda_joint3",
+    "panda_joint4",
+    "panda_joint5",
+    "panda_joint6",
+    "panda_joint7",
+    "panda_finger_joint1",
+    "panda_finger_joint2",
+    "panda_joint8",
+    "panda_hand_joint",
+    "panda_grasp_joint"
+}};
+
+std::array<std::string, (std::size_t)Link::_SIZE> LINK_NAMES {{
+    "omni_base_root_link",
+    "x_slider",
+    "y_slider",
+    "pivot",
+    "panda_link1",
+    "panda_link2",
+    "panda_link3",
+    "panda_link4",
+    "panda_link5",
+    "panda_link6",
+    "panda_link7",
+    "panda_leftfinger",
+    "panda_rightfinger"
+}};
+
 std::unique_ptr<DynamicsForecast> DynamicsForecast::create(
     const Configuration &configuration,
     std::unique_ptr<Dynamics> &&dynamics

@@ -153,9 +153,11 @@ public:
      * @param frame The frame.
      * @returns The position of the frame.
      */
-    inline Vector3d get_frame_position(const std::string &frame) override
+    inline Vector3d get_frame_position(Frame frame) override
     {
-        return m_data->oMf[m_model->getFrameId(frame)].translation();
+        return m_data->oMf[
+            m_model->getFrameId(FRAME_NAMES[(std::size_t)frame])
+        ].translation();
     }
 
     /**
@@ -166,9 +168,24 @@ public:
      * @param frame The frame.
      * @returns The orientation of the frame.
      */
-    Quaterniond get_frame_orientation(const std::string &frame) override
+    Quaterniond get_frame_orientation(Frame frame) override
     {
-        return Quaterniond(m_data->oMf[m_model->getFrameId(frame)].rotation());
+        return Quaterniond(m_data->oMf[
+            m_model->getFrameId(FRAME_NAMES[(std::size_t)frame])
+        ].rotation());
+    }
+
+    /**
+     * @brief Get the origin of a link in the world frame
+     * 
+     * @todo Needs implementation.
+     * 
+     * @param link The link to get the origin of.
+     * @returns The position of the link in the world frame.
+     */
+    Vector3d get_link_position(Link link) override
+    {
+        return Vector3d::Zero();
     }
 
     /**

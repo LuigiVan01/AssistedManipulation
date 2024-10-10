@@ -24,7 +24,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/install/bin/test",
-            "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results/reach"],
+            "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
@@ -70,7 +70,7 @@
                 "angles"
             ],
             "type": "pickString",
-            "default": "pose"
+            "default": "circle"
         },
         {
             "id": "directory",

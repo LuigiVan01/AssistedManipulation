@@ -326,8 +326,8 @@ if __name__ == '__main__':
         objective = read_results(ResultsType.OBJECTIVE, path / 'objective')
     )
 
-    plot_useful(data).savefig(path / 'overview.png')
-    plot_control(data).savefig(path / 'control.png')
+    plot_useful(data).savefig(path / 'overview.png', dpi = 300)
+    plot_control(data).savefig(path / 'control.png', dpi = 300)
 
     if data.objective.assisted_manipulation is not None:
-        plot_assisted_manipulation_objective(data).savefig(path / 'objective.png')
+        plot_assisted_manipulation_objective(data).savefig(path / 'objective.png', dpi = 300)

@@ -68,7 +68,9 @@ public:
 
 private:
 
-    AssistedManipulation() = default;
+    inline AssistedManipulation(const Configuration &configuration)
+        : m_configuration(configuration)
+    {}
 
     Configuration m_configuration;
 

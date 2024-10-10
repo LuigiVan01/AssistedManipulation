@@ -40,7 +40,10 @@ std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
     if (configuration.log_variable_damping)
         logged.push_back("variable_damping");
 
-    auto logger = std::unique_ptr<AssistedManipulation>(new AssistedManipulation());
+    auto logger = std::unique_ptr<AssistedManipulation>(
+        new AssistedManipulation(configuration)
+    );
+
     logger->m_logger = CSV::create(CSV::Configuration{
         .path = configuration.folder / "assisted_manipulation.csv",
         .header = CSV::make_header("time", logged, "total")

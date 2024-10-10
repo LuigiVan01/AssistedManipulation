@@ -17,17 +17,23 @@ std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
 AssistedManipulation::AssistedManipulation(
     const Configuration &configuration
   ) : m_configuration(configuration)
-    , m_joint_cost(0.0)
-    , m_minimise_velocity_cost(0.0)
-    , m_self_collision_cost(0.0)
-    , m_trajectory_cost(0.0)
-    , m_reach_cost(0.0)
-    , m_power_cost(0.0)
-    , m_energy_tank_cost(0.0)
-    , m_manipulability_cost(0.0)
-    , m_variable_damping_cost(0.0)
-    , m_cost(0.0)
-{}
+{
+    reset();
+}
+
+void AssistedManipulation::reset()
+{
+    m_joint_cost = 0.0;
+    m_minimise_velocity_cost = 0.0;
+    m_self_collision_cost = 0.0;
+    m_trajectory_cost = 0.0;
+    m_reach_cost = 0.0;
+    m_power_cost = 0.0;
+    m_energy_tank_cost = 0.0;
+    m_manipulability_cost = 0.0;
+    m_variable_damping_cost = 0.0;
+    m_cost = 0.0;
+}
 
 double AssistedManipulation::get_cost(
     const Eigen::VectorXd &s,
@@ -40,46 +46,36 @@ double AssistedManipulation::get_cost(
 
     auto dynamics = static_cast<Dynamics*>(d);
 
+    double cost = 0.0;
+
     if (m_configuration.enable_joint_limit)
-        m_joint_cost = joint_limit_cost(state);
+        cost += joint_limit_cost(state);
 
     if (m_configuration.enable_minimise_velocity)
-        m_minimise_velocity_cost = minimise_velocity_cost(state);
+        cost += minimise_velocity_cost(state);
 
     if (m_configuration.enable_self_collision)
-        m_self_collision_cost = self_collision_cost(dynamics);
+        cost += self_collision_cost(dynamics);
 
     if (m_configuration.enable_trajectory_tracking)
-        m_trajectory_cost = trajectory_cost(dynamics, time);
+        cost += trajectory_cost(dynamics, time);
 
     if (m_configuration.enable_reach_limit)
-        m_reach_cost = reach_cost(dynamics);
+        cost += reach_cost(dynamics);
 
     if (m_configuration.enable_maximum_power)
-        m_power_cost = power_cost(dynamics);
+        cost += power_cost(dynamics);
 
     if (m_configuration.enable_energy_tank)
-        m_energy_tank_cost = energy_tank_cost(dynamics);
+        cost += energy_tank_cost(dynamics);
 
     if (m_configuration.enable_maximise_manipulability)
-        m_manipulability_cost = manipulability_cost(dynamics);
+        cost += manipulability_cost(dynamics);
 
     if (m_configuration.enable_variable_damping)
-        m_variable_damping_cost = variable_damping_cost(state);
+        cost += variable_damping_cost(state);
 
-    m_cost = (
-        m_joint_cost +
-        m_minimise_velocity_cost +
-        m_self_collision_cost +
-        m_trajectory_cost +
-        m_reach_cost +
-        m_power_cost +
-        m_energy_tank_cost +
-        m_manipulability_cost +
-        m_variable_damping_cost
-    );
-
-    return m_cost;
+    return cost;
 }
 
 double AssistedManipulation::joint_limit_cost(const State &state)
@@ -106,6 +102,7 @@ double AssistedManipulation::joint_limit_cost(const State &state)
         }
     }
 
+    m_joint_cost += cost;
     return cost;
 }
 
@@ -118,23 +115,85 @@ double AssistedManipulation::minimise_velocity_cost(const State &state)
         cost += objective.quadratic_cost * std::fabs(state.velocity()(i));
     }
 
+    m_minimise_velocity_cost += cost;
     return cost;
 }
 
 double AssistedManipulation::self_collision_cost(Dynamics *dynamics)
 {
-    const auto &self_collision = m_configuration.self_collision;
+    static auto link_to_constraint = [this](Link link) -> QuadraticCost& {
+        std::size_t i = (std::size_t)link;
+        if (i > 0)
+            i -= 3;
+        return m_configuration.self_collision_limit[i];
+    };
+
+    static std::vector<std::tuple<Link, std::vector<Link>>> CHECK_COLLSION = {{
+        {Link::OMNI_BASE_ROOT_LINK, {
+            Link::PANDA_LINK3,
+            Link::PANDA_LINK4,
+            Link::PANDA_LINK5,
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK1, {
+            Link::PANDA_LINK3,
+            Link::PANDA_LINK4,
+            Link::PANDA_LINK5,
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK2, {
+            Link::PANDA_LINK4,
+            Link::PANDA_LINK5,
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK3, {
+            Link::PANDA_LINK5,
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK4, {
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK5, {
+            Link::PANDA_LINK7,
+        }}
+    }};
+
+    const auto &self_collision = m_configuration.self_collision_limit;
     double cost = 0.0;
 
-    for (const auto &[first, second] : SELF_COLLISION_LINKS) {
-        auto offset = dynamics->get_frame_offset(first, second);
-        if (offset.norm() < self_collision.limit) {
-            cost += self_collision.quadratic_cost * std::pow(
-                self_collision.limit - offset.norm(), 2
+    for (const auto &[first, against] : CHECK_COLLSION) {
+        auto &first_constraint = link_to_constraint(first);
+
+        for (auto second : against) {
+            auto &second_constraint = link_to_constraint(second);
+
+            auto offset = (
+                dynamics->get_link_position(second) -
+                dynamics->get_link_position(first)
             );
+
+            double norm = offset.norm();
+
+            if (norm < first_constraint.limit) {
+                cost += first_constraint.quadratic_cost * std::pow(
+                    first_constraint.limit - norm, 2
+                );
+            }
+
+            if (norm < second_constraint.limit) {
+                cost += second_constraint.quadratic_cost * std::pow(
+                    second_constraint.limit - norm, 2
+                );
+            }
         }
     }
 
+    m_self_collision_cost += cost;
     return cost;
 }
 
@@ -157,6 +216,7 @@ double AssistedManipulation::trajectory_cost(
         objective.quadratic_cost * std::pow(velocity_difference, 2)
     );
 
+    m_trajectory_cost += cost;
     return cost;
 }
 
@@ -168,10 +228,13 @@ double AssistedManipulation::power_cost(Dynamics *dynamics)
     if (power < maximum.limit)
         return 0.0;
 
-    return (
+    double cost = (
         maximum.constant_cost +
         std::max(0.0, maximum.quadratic_cost * (power - maximum.limit))
     );
+
+    m_power_cost += cost;
+    return cost;
 }
 
 double AssistedManipulation::energy_tank_cost(Dynamics *dynamics)
@@ -193,6 +256,7 @@ double AssistedManipulation::energy_tank_cost(Dynamics *dynamics)
         );
     }
 
+    m_energy_tank_cost += cost;
     return cost;
 }
 
@@ -210,7 +274,10 @@ double AssistedManipulation::manipulability_cost(Dynamics *dynamics)
     if (ellipsoid_volume < 1e-10)
         ellipsoid_volume = 1e-10;
 
-    return minimum.quadratic_cost * std::pow(1 / ellipsoid_volume, 2);
+    double cost = minimum.quadratic_cost * std::pow(1 / ellipsoid_volume, 2);
+
+    m_manipulability_cost += cost;
+    return cost;
 }
 
 double AssistedManipulation::reach_cost(Dynamics *dynamics)
@@ -219,10 +286,11 @@ double AssistedManipulation::reach_cost(Dynamics *dynamics)
     const auto &min = m_configuration.minimum_reach;
     const auto &max = m_configuration.maximum_reach;
 
-    double offset = dynamics->get_frame_offset(
-        Frame::BASE_LINK_JOINT,
-        Frame::PANDA_GRASP_JOINT
-    ).norm();
+    double offset = 0.0;
+    // dynamics->get_frame_offset(
+    //     Frame::BASE_LINK_JOINT,
+    //     Frame::PANDA_GRASP_JOINT
+    // ).norm();
 
     if (offset < min.limit) {
         cost += (
@@ -237,7 +305,8 @@ double AssistedManipulation::reach_cost(Dynamics *dynamics)
         );
     }
 
-    return 0.0;
+    m_reach_cost += cost;
+    return cost;
 }
 
 double AssistedManipulation::variable_damping_cost(const State &state)

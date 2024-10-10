@@ -48,11 +48,130 @@ public:
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             folder, duration, simulator, actor, mppi_logger, dynamics_logger,
-            forecast_logger
+            forecast_logger, objective_logger
         )
     };
 
-    static const Configuration DEFAULT_CONFIGURATION;
+    static inline const Configuration DEFAULT_CONFIGURATION = {
+        .folder = "default",
+        .duration = 30.0,
+        .simulator = {
+            .time_step = 0.005,
+            .gravity = {0.0, 0.0, 9.81}
+        },
+        .actor = {
+            .mppi = {
+                .configuration = {
+                    .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED_10J),
+                    .rollouts = 200,
+                    .keep_best_rollouts = 50,
+                    .time_step = 0.01,
+                    .horison = 0.1,
+                    .gradient_step = 1.0,
+                    .cost_scale = 10.0,
+                    .cost_discount_factor = 1.0,
+                    .covariance = FrankaRidgeback::Control{
+                        0.1, 0.1, 0.2, // base
+                        7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, // arm
+                        0.0, 0.0 // gripper
+                    }.asDiagonal(),
+                    .control_bound = true,
+                    .control_min = FrankaRidgeback::Control{
+                        -0.2, -0.2, -1.0, // base
+                        -10.0, -10.0, -10.0, -10.0, -10.0, -10.0, -10.0, //arm
+                        -0.05, -0.05 // gripper
+                    },
+                    .control_max = FrankaRidgeback::Control{
+                        0.2, 0.2, 1.0, // base
+                        10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                        0.05, 0.05 // gripper
+                    },
+                    .control_default = FrankaRidgeback::Control::Zero(),
+                    // .smoothing = std::nullopt,
+                    .smoothing = mppi::Configuration::Smoothing {
+                        .window = 10,
+                        .order = 1
+                    },
+                    .threads = 12
+                },
+                .dynamics = {
+                    .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
+                    .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+                    .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
+                }
+            },
+            .dynamics = {
+                .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
+                .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+                .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
+            },
+            .objective = {
+                .type = FrankaRidgeback::Actor::Configuration::Objective::Type::ASSISTED_MANIPULATION,
+                .assisted_manipulation = FrankaRidgeback::AssistedManipulation::DEFAULT_CONFIGURATION,
+                .track_point = FrankaRidgeback::TrackPoint::DEFAULT_CONFIGURATION
+            },
+            .forecast = FrankaRidgeback::Actor::Configuration::Forecast {
+                .configuration = {
+                    .time_step = 0.01,
+                    .horison = 0.1,
+                    .end_effector_wrench_forecast = {
+                        .type = Forecast::Configuration::Type::LOCF,
+                        .locf = LOCFForecast::Configuration {
+                            .observation = Vector6d::Zero()
+                        },
+                        .average = AverageForecast::Configuration {
+                            .states = 6,
+                            .window = 1.0
+                        },
+                        .kalman = std::nullopt
+                    }
+                },
+                .dynamics = {
+                    .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
+                    .raisim = FrankaRidgeback::RaisimDynamics::DEFAULT_CONFIGURATION,
+                    .pinocchio = FrankaRidgeback::PinocchioDynamics::DEFAULT_CONFIGURATION
+                }
+            },
+            .controller_rate = 0.05,
+            .controller_substeps = 1,
+            .forecast_rate = 0.03
+        },
+        .mppi_logger = {
+            .folder = "",
+            .state_dof = FrankaRidgeback::DoF::STATE,
+            .control_dof = FrankaRidgeback::DoF::CONTROL,
+            .rollouts = 0
+        },
+        .dynamics_logger = {
+            .folder = "",
+            .log_end_effector_position = true,
+            .log_end_effector_velocity = true,
+            .log_end_effector_acceleration = true,
+            .log_power = true,
+            .log_tank_energy = true,
+        },
+        .forecast_logger = {
+            .folder = "",
+            .log_end_effector_position = true,
+            .log_end_effector_velocity = true,
+            .log_end_effector_acceleration = true,
+            .log_power = true,
+            .log_tank_energy = true,
+            .log_wrench = true
+        },
+        .objective_logger = {
+            .folder = "",
+            .log_joint_limit = true,
+            .log_minimise_velocity = true,
+            .log_self_collision = true,
+            .log_trajectory = true,
+            .log_reach = false,
+            .log_power = false,
+            .log_energy_tank = false,
+            .log_manipulability = false,
+            .log_variable_damping = false
+        }
+    };
 
     /**
      * @brief Create a test reaching for a point.

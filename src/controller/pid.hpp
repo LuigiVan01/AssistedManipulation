@@ -56,7 +56,7 @@ public:
         .n = 3,
         .kp = Vector3d(100.0, 100.0, 100.0),
         .kd = Vector3d(10.0, 10.0, 10.0),
-        .ki = Vector3d(0.0, 0.0, 0.0),
+        .ki = Vector3d(1.0, 1.0, 1.0),
         .minimum = Eigen::Vector3d(-100.0, -100.0, -100.0),
         .maximum = Eigen::Vector3d(100.0, 100.0, 100.0),
         .reference = Eigen::Vector3d::Zero()

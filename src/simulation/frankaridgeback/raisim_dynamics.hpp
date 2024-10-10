@@ -192,10 +192,10 @@ public:
      * @param frame The frame.
      * @returns The position of the frame.
      */
-    inline Vector3d get_frame_position(const std::string &frame) override
+    inline Vector3d get_frame_position(Frame frame) override
     {
         raisim::Vec<3> position;
-        m_robot->getFramePosition(frame, position);
+        m_robot->getFramePosition(FRAME_NAMES[(std::size_t)frame], position);
         return position.e();
     }
 
@@ -207,11 +207,24 @@ public:
      * @param frame The frame.
      * @returns The orientation of the frame.
      */
-    inline Quaterniond get_frame_orientation(const std::string &frame) override
+    inline Quaterniond get_frame_orientation(Frame frame) override
     {
         raisim::Mat<3, 3> orientation;
-        m_robot->getFrameOrientation(frame, orientation);
+        m_robot->getFrameOrientation(FRAME_NAMES[(std::size_t)frame], orientation);
         return Quaterniond(orientation.e());
+    }
+
+    /**
+     * @brief Get the origin of a link in the world frame
+     * 
+     * @param link The link to get the origin of.
+     * @returns The position of the link in the world frame.
+     */
+    virtual Vector3d get_link_position(Link link) override
+    {
+        return m_robot->getBodyCOM_W()[
+            m_robot->getBodyIdx(LINK_NAMES[(std::size_t)link])
+        ].e();
     }
 
     /**

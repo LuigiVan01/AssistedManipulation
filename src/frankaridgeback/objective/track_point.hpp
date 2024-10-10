@@ -63,16 +63,16 @@ public:
     /**
      * @brief Pairs of links to be checked for self collision.
      */
-    static inline std::vector<std::tuple<std::string, std::string>>
-    SELF_COLLISION_LINKS = {{
-        {Frame::ARM_MOUNT_JOINT, Frame::PANDA_JOINT1},
-        {Frame::PANDA_JOINT1, Frame::PANDA_JOINT2},
-        {Frame::PANDA_JOINT2, Frame::PANDA_JOINT3},
-        {Frame::PANDA_JOINT3, Frame::PANDA_JOINT4},
-        {Frame::PANDA_JOINT4, Frame::PANDA_JOINT5},
-        {Frame::PANDA_JOINT5, Frame::PANDA_JOINT6},
-        {Frame::PANDA_JOINT7, Frame::ARM_MOUNT_JOINT},
-    }};
+    // static inline std::vector<std::tuple<std::string, std::string>>
+    // SELF_COLLISION_LINKS = {{
+    //     {Frame::ARM_MOUNT_JOINT, Frame::PANDA_JOINT1},
+    //     {Frame::PANDA_JOINT1, Frame::PANDA_JOINT2},
+    //     {Frame::PANDA_JOINT2, Frame::PANDA_JOINT3},
+    //     {Frame::PANDA_JOINT3, Frame::PANDA_JOINT4},
+    //     {Frame::PANDA_JOINT4, Frame::PANDA_JOINT5},
+    //     {Frame::PANDA_JOINT5, Frame::PANDA_JOINT6},
+    //     {Frame::PANDA_JOINT7, Frame::ARM_MOUNT_JOINT},
+    // }};
 
     /**
      * @brief The default configuration of the track point objective.

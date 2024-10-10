@@ -56,7 +56,7 @@ public:
         QuadraticCost minimise_velocity;
 
         /// Self collision cost.
-        QuadraticCost self_collision;
+        std::array<QuadraticCost, 8> self_collision_limit;
 
         /// Minimum reach if enabled.
         QuadraticCost minimum_reach;
@@ -99,7 +99,7 @@ public:
             lower_joint_limit,
             upper_joint_limit,
             minimise_velocity,
-            self_collision,
+            self_collision_limit,
             minimum_reach,
             maximum_reach,
             trajectory,
@@ -112,20 +112,6 @@ public:
     };
 
     /**
-     * @brief Pairs of links to be checked for self collision.
-     */
-    static inline std::vector<std::tuple<std::string, std::string>>
-    SELF_COLLISION_LINKS = {{
-        {Frame::PANDA_JOINT_FRANKA_MOUNT_LINK, Frame::PANDA_JOINT1},
-        {Frame::PANDA_JOINT1, Frame::PANDA_JOINT2},
-        {Frame::PANDA_JOINT2, Frame::PANDA_JOINT3},
-        {Frame::PANDA_JOINT3, Frame::PANDA_JOINT4},
-        {Frame::PANDA_JOINT4, Frame::PANDA_JOINT5},
-        {Frame::PANDA_JOINT5, Frame::PANDA_JOINT6},
-        {Frame::PANDA_JOINT7, Frame::PANDA_JOINT_FRANKA_MOUNT_LINK},
-    }};
-
-    /**
      * @brief The default configuration of the assisted manipulation objective
      * 
      * The fidelity of the joint limits probably doesn't need to be this high.
@@ -135,9 +121,9 @@ public:
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
         .enable_minimise_velocity = true,
-        .enable_self_collision = false,
+        .enable_self_collision = true,
         .enable_trajectory_tracking = false,
-        .enable_reach_limit = true,
+        .enable_reach_limit = false,
         .enable_maximise_manipulability = false,
         .enable_maximum_power = false,
         .enable_variable_damping = false,
@@ -173,11 +159,16 @@ public:
         .minimise_velocity = {
             .quadratic_cost = 100
         },
-        .self_collision = {
-            .limit = 0.35,
-            .constant_cost = 0.0,
-            .quadratic_cost = 1000
-        },
+        .self_collision_limit = {{
+            {0.3, 0.0, 1000}, // Base link
+            {0.1, 0.0, 1000}, // Arm link 1
+            {0.1, 0.0, 1000}, // Arm link 2
+            {0.1, 0.0, 1000}, // Arm link 3
+            {0.1, 0.0, 1000}, // Arm link 4
+            {0.1, 0.0, 1000}, // Arm link 5
+            {0.1, 0.0, 1000}, // Arm link 6
+            {0.1, 0.0, 1000}  // Arm link 7
+        }},
         .minimum_reach = {
             .limit = 0.5,
             .constant_cost = 1000,
@@ -189,7 +180,7 @@ public:
             .quadratic_cost = 10'000
         },
         .trajectory = {
-            .quadratic_cost = 100.0
+            .quadratic_cost = 10'000.0
         },
         .minimum_manipulability = {},
         .maximum_power = {
@@ -262,6 +253,11 @@ public:
     }
 
     /**
+     * @brief Reset the objective function cost.
+     */
+    void reset() override;
+
+    /**
      * @brief Get the cost of a state and control input over dt.
      * 
      * @param state The state of the system.
@@ -277,11 +273,6 @@ public:
         mppi::Dynamics *dynamics,
         double time
     ) override;
-
-    /**
-     * @brief Reset the objective function cost.
-     */
-    void reset() override {};
 
     /**
      * @brief Make a copy of the objective function.

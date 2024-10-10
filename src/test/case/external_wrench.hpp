@@ -58,7 +58,30 @@ public:
         )
     };
 
-    static Configuration DEFAULT_CONFIGURATION;
+    static inline Configuration DEFAULT_CONFIGURATION = {
+        .folder = "external_wrench",
+        .duration = 30,
+        .base = BaseTest::DEFAULT_CONFIGURATION,
+        .trajectory = {
+            // .position = std::nullopt,
+            .position = PositionTrajectory::Configuration {
+                .type = PositionTrajectory::Configuration::CIRCLE,
+                .point = PointTrajectory::DEFAULT_CONFIGURATION,
+                .circle = CircularTrajectory::DEFAULT_CONFIGURATION,
+                .rectangle = RectangularTrajectory::DEFAULT_CONFIGURATION,
+                .lissajous = LissajousTrajectory::DEFAULT_CONFIGURATION,
+                .figure_eight = FigureEightTrajectory::DEFAULT_CONFIGURATION
+            },
+            .orientation = std::nullopt
+            // .orientation = OrientationTrajectory::Configuration {
+            //     .type = OrientationTrajectory::Configuration::AXIS_ANGLE,
+            //     .axis_angle = std::nullopt,
+            //     .slerp = std::nullopt
+            // }
+        },
+        .force_pid = controller::PID::HUMAN_POINT_CONTROL,
+        .torque_pid = controller::QuaternionPID::HUMAN_ORIENTATION_CONTROL
+    };
 
     /**
      * @brief Create an external wrench simulation.
