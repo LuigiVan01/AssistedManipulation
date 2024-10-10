@@ -225,38 +225,39 @@ public:
         const Configuration &configuration
     );
 
-    /**
-     * @brief Get the cumulative power cost.
-     */
-    inline double get_power_cost() {
-        return m_power_cost;
-    }
-
-    /**
-     * 
-    */
-    inline double get_manipulability_cost() {
-        return m_manipulability_cost;
-    }
-
-    /**
-     * 
-    */
-    inline double get_joint_cost() {
+    inline double get_joint_limit_cost() const {
         return m_joint_cost;
     }
 
-    /**
-     * 
-    */
-    inline double get_reach_cost() {
+    inline double get_joint_velocity_cost() const {
+        return m_minimise_velocity_cost;
+    }
+
+    inline double get_self_collision_cost() const {
+        return m_self_collision_cost;
+    }
+
+    inline double get_trajectory_cost() const {
+        return m_trajectory_cost;
+    }
+
+    inline double get_reach_cost() const {
         return m_reach_cost;
     }
 
-    /**
-     * 
-     */
-    inline double get_variable_damping_cost() {
+    inline double get_power_cost() const {
+        return m_power_cost;
+    }
+
+    inline double get_energy_tank_cost() const {
+        return m_energy_tank_cost;
+    }
+
+    inline double get_manipulability_cost() const {
+        return m_manipulability_cost;
+    }
+
+    inline double get_variable_damping_cost() const {
         return m_variable_damping_cost;
     }
 

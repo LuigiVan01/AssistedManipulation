@@ -37,8 +37,6 @@ add_executable(
     test/case/external_wrench.cpp
     test/case/forecast.cpp
     test/case/trajectory.cpp
-    # test/case/power_minimisation.cpp
-    # test/case/manipulability.cpp
     # test/case/pinocchio.cpp
 
     simulation/frankaridgeback/raisim_dynamics.cpp
@@ -53,7 +51,7 @@ add_executable(
     frankaridgeback/pinocchio_dynamics.cpp
     frankaridgeback/dynamics.cpp
 
-    # logging/assisted_manipulation.cpp
+    logging/assisted_manipulation.cpp
     logging/frankaridgeback.cpp
     logging/mppi.cpp
     logging/pid.cpp

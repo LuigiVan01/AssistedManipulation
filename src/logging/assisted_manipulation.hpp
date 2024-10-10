@@ -20,26 +20,30 @@ public:
         /// Path to the folder to log into.
         std::filesystem::path folder;
 
-        /// Log the rollout costs.
-        bool log_joint_cost = true;
+        bool log_joint_limit = true;
 
-        /// Log the rollout weights.
-        bool log_reach_cost = true;
+        bool log_minimise_velocity = true;
 
-        /// Log the optimal control gradient.
-        bool log_manipulability_cost = true;
+        bool log_self_collision = true;
 
-        /// Log the optimal rollout.
-        bool log_power_cost = true;
+        bool log_trajectory = true;
 
-        /// Log the optimal rollout cost.
-        bool log_variable_damping_cost = true;
+        bool log_reach = true;
+
+        bool log_power = true;
+
+        bool log_energy_tank = true;
+
+        bool log_manipulability = true;
+
+        bool log_variable_damping = true;
 
         // JSON conversion for mppi logger configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, log_joint_cost, log_reach_cost, log_manipulability_cost,
-            log_power_cost, log_variable_damping_cost
+            folder, log_joint_limit, log_minimise_velocity, log_self_collision,
+            log_trajectory, log_reach, log_power, log_energy_tank,
+            log_manipulability, log_variable_damping
         )
     };
 
@@ -49,17 +53,17 @@ public:
      * @param configuration The logger configuration.
      * @returns A pointer to the AssistedManipulation logger on success or nullptr on failure.
      */
-    static std::unique_ptr<AssistedManipulation> create(Configuration &&configuration);
+    static std::unique_ptr<AssistedManipulation> create(Configuration configuration);
 
     /**
      * @brief Log the objective function.
      * 
-     * @param trajectory The trajectory that owns the objective.
+     * @param time The time of the objective.
      * @param objective The assisted manipulation objective.
      */
     void log(
-        const mppi::Trajectory &trajectory,
-        const ::AssistedManipulation &objective
+        double time,
+        const FrankaRidgeback::AssistedManipulation &objective
     );
 
 private:

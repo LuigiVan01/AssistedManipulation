@@ -108,6 +108,18 @@ const BaseTest::Configuration BaseTest::DEFAULT_CONFIGURATION {
         .log_power = true,
         .log_tank_energy = true,
         .log_wrench = true
+    },
+    .objective_logger = {
+        .folder = "",
+        .log_joint_limit = true,
+        .log_minimise_velocity = true,
+        .log_self_collision = true,
+        .log_trajectory = true,
+        .log_reach = true,
+        .log_power = true,
+        .log_energy_tank = true,
+        .log_manipulability = true,
+        .log_variable_damping = true
     }
 };
 
@@ -160,11 +172,13 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
     auto mppi_log_configuration = configuration.mppi_logger;
     auto dynamics_log_configuration = configuration.dynamics_logger;
     auto forecast_log_configuration = configuration.forecast_logger;
+    auto objective_log_configuration = configuration.objective_logger;
 
     mppi_log_configuration.rollouts = frankaridgeback->get_controller().get_rollout_count();
     mppi_log_configuration.folder = configuration.folder / "mppi";
     dynamics_log_configuration.folder = configuration.folder / "dynamics";
     forecast_log_configuration.folder = configuration.folder / "forecast";
+    objective_log_configuration.folder = configuration.folder / "objective";
 
     auto mppi_logger = logger::MPPI::create(mppi_log_configuration);
     if (!mppi_logger) {
@@ -184,6 +198,15 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
         return nullptr;
     }
 
+    std::unique_ptr<logger::AssistedManipulation> objective_logger;
+    if (configuration.actor.objective.type == FrankaRidgeback::ObjectiveType::ASSISTED_MANIPULATION) {
+        objective_logger = logger::AssistedManipulation::create(objective_log_configuration);
+        if (!objective_logger) {
+            std::cerr << "failed to create objective logger" << std::endl;
+            return nullptr;
+        }
+    }
+
     // Log the configuration used in the test.
     {
         auto file = logger::File::create(configuration.folder / "configuration.json");
@@ -201,7 +224,8 @@ std::unique_ptr<BaseTest> BaseTest::create(const Configuration &configuration)
             std::move(frankaridgeback),
             std::move(mppi_logger),
             std::move(dynamics_logger),
-            std::move(forecast_logger)
+            std::move(forecast_logger),
+            std::move(objective_logger)
         )
     );
 }
@@ -212,13 +236,15 @@ BaseTest::BaseTest(
     std::shared_ptr<FrankaRidgeback::Actor> &&frankaridgeback,
     std::unique_ptr<logger::MPPI> &&mppi_logger,
     std::unique_ptr<logger::FrankaRidgebackDynamics> &&dynamics_logger,
-    std::unique_ptr<logger::FrankaRidgebackDynamicsForecast> &&forecast_logger
+    std::unique_ptr<logger::FrankaRidgebackDynamicsForecast> &&forecast_logger,
+    std::unique_ptr<logger::AssistedManipulation> &&objective_logger
  ) : m_duration(duration)
    , m_simulator(std::move(simulator))
    , m_frankaridgeback(std::move(frankaridgeback))
    , m_mppi_logger(std::move(mppi_logger))
    , m_dynamics_logger(std::move(dynamics_logger))
    , m_forecast_logger(std::move(forecast_logger))
+   , m_objective_logger(std::move(objective_logger))
 {}
 
 void BaseTest::step()
@@ -232,6 +258,15 @@ void BaseTest::step()
 
     if (m_frankaridgeback->get_forecast())
         m_forecast_logger->log(*m_frankaridgeback->get_forecast().value());
+
+    if (m_objective_logger) {
+        m_objective_logger->log(
+            m_simulator->get_time(),
+            dynamic_cast<const FrankaRidgeback::AssistedManipulation&>(
+                m_frankaridgeback->get_controller().get_optimal_cost()
+            )
+        );
+    }
 }
 
 bool BaseTest::run()

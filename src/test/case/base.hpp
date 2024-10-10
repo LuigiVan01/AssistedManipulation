@@ -9,6 +9,7 @@
 #include "frankaridgeback/objective/track_point.hpp"
 #include "logging/mppi.hpp"
 #include "logging/frankaridgeback.hpp"
+#include "logging/assisted_manipulation.hpp"
 #include "test/test.hpp"
 
 class BaseTest : public RegisteredTest<BaseTest>
@@ -39,6 +40,9 @@ public:
 
         /// Dynamics forecast logging configuration.
         logger::FrankaRidgebackDynamicsForecast::Configuration forecast_logger;
+
+        /// Objective function logging configuration.
+        logger::AssistedManipulation::Configuration objective_logger;
 
         // JSON conversion for reach for point test configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
@@ -126,7 +130,8 @@ private:
         std::shared_ptr<FrankaRidgeback::Actor> &&frankaridgeback,
         std::unique_ptr<logger::MPPI> &&mppi_logger,
         std::unique_ptr<logger::FrankaRidgebackDynamics> &&dynamics_logger,
-        std::unique_ptr<logger::FrankaRidgebackDynamicsForecast> &&forecast_logger
+        std::unique_ptr<logger::FrankaRidgebackDynamicsForecast> &&forecast_logger,
+        std::unique_ptr<logger::AssistedManipulation> &&objective_logger
     );
 
     /// Duration of the test when run.
@@ -149,4 +154,7 @@ private:
 
     /// Logger for the forecast.
     std::unique_ptr<logger::FrankaRidgebackDynamicsForecast> m_forecast_logger;
+
+    /// Logger for the objective.
+    std::unique_ptr<logger::AssistedManipulation> m_objective_logger;
 };
