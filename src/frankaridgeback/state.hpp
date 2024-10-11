@@ -265,6 +265,8 @@ struct State : public Eigen::Vector<double, DoF::STATE>
 enum class Preset {
     ZERO,
     HUDDLED,
+    BEHIND,
+    BELOW,
     JOINT_LIMIT,
     SELF_COLLISION
 };

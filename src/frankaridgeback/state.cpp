@@ -14,7 +14,16 @@ State make_state(Preset preset)
         case Preset::HUDDLED: {
             state.position()          //  1      2    3        4    5  6
                 << 0.20, 0.20, M_PI/4, 0.0, M_PI/5, 0.0, -M_PI/2, 0.0, 4, M_PI/4, 0.025, 0.025;
-            state.available_energy().setConstant(10);
+            return state;
+        }
+        case Preset::BEHIND: {
+            state.position()    //  1   2        3        4    5  6
+                << 0.20, 0.20, M_PI/4, M_PI, 1.2, 0.0, -2, 0, M_PI/2, M_PI/4, 0.025, 0.025;
+            return state;
+        }
+        case Preset::BELOW: {
+            state.position()         //  1    2    3   4  5  6
+                << 0.20, 0.20, M_PI/4, 0.0, 1.2, 0.0, -2, 0, M_PI, M_PI/4, 0.025, 0.025;
             return state;
         }
         case Preset::JOINT_LIMIT: {

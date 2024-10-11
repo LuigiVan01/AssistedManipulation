@@ -1,6 +1,7 @@
 #include "controller/pid.hpp"
 
 #include <iostream>
+#include <limits>
 
 namespace controller {
 
@@ -43,6 +44,7 @@ PID::PID(const Configuration &configuration)
     , m_saturation(Eigen::VectorXd::Zero(configuration.n))
     , m_control(Eigen::VectorXd::Zero(configuration.n))
     , m_last_time(configuration.initial_time)
+    , m_derivative_invalid(true)
 {}
 
 void PID::update(const Eigen::Ref<const Eigen::VectorXd> state, double time)
@@ -54,6 +56,14 @@ void PID::update(const Eigen::Ref<const Eigen::VectorXd> state, double time)
 
     double dt = time - m_last_time;
     VectorXd error = m_reference - state;
+
+    // Ensure enough data to calculate derivative.
+    if (m_derivative_invalid) {
+        m_last_error = error;
+        m_last_time = time;
+        m_derivative_invalid = false;
+        return;
+    }
 
     // Runge kutta? Inaccuracy of small number division?
 

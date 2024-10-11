@@ -185,12 +185,16 @@ public:
 
     /**
      * @brief Get a pointer to the dynamics forecast if it exists.
+     * 
+     * @warning May be nullptr.
+     * @returns A pointer to the dynamics forecast on success or nullptr if
+     * there is no dynamics forecast handle.
      */
-    inline std::optional<DynamicsForecast*> get_forecast()
+    inline DynamicsForecast *get_forecast()
     {
         if (m_forecast)
             return m_forecast.get();
-        return std::nullopt;
+        return nullptr;
     }
 
 private:

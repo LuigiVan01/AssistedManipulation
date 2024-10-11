@@ -62,12 +62,12 @@ public:
         .actor = {
             .mppi = {
                 .configuration = {
-                    .initial_state = make_state(FrankaRidgeback::Preset::JOINT_LIMIT),
-                    .rollouts = 200,
-                    .keep_best_rollouts = 50,
+                    .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED),
+                    .rollouts = 40,
+                    .keep_best_rollouts = 20,
                     .time_step = 0.01,
-                    .horison = 0.1,
-                    .gradient_step = 3.0,
+                    .horison = 0.2,
+                    .gradient_step = 1.0,
                     .cost_scale = 10.0,
                     .cost_discount_factor = 1.0,
                     .covariance = FrankaRidgeback::Control{
@@ -77,13 +77,13 @@ public:
                     }.asDiagonal(),
                     .control_bound = true,
                     .control_min = FrankaRidgeback::Control{
-                        -0.2, -0.2, -1.0, // base
-                        -10.0, -10.0, -10.0, -10.0, -10.0, -10.0, -10.0, //arm
+                        -0.5, -0.5, -1.0, // base
+                        -100.0, -100.0, -100.0, -100.0, -100.0, -100.0, -100.0, //arm
                         -0.05, -0.05 // gripper
                     },
                     .control_max = FrankaRidgeback::Control{
-                        0.2, 0.2, 1.0, // base
-                        10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
+                        0.5, 0.5, 1.0, // base
+                        100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, // arm
                         0.05, 0.05 // gripper
                     },
                     .control_default = FrankaRidgeback::Control::Zero(),
@@ -134,7 +134,7 @@ public:
             },
             .controller_rate = 0.05,
             .controller_substeps = 1,
-            .forecast_rate = 0.03
+            .forecast_rate = 0.05
         },
         .mppi_logger = {
             .folder = "",
@@ -173,14 +173,14 @@ public:
             .folder = "",
             .log_joint_limit = true,
             .log_minimise_velocity = false,
-            .log_self_collision = false,
-            .log_trajectory = false,
-            .log_reach = false,
+            .log_self_collision = true,
+            .log_trajectory = true,
+            .log_workspace = true,
             .log_power = false,
             .log_energy_tank = false,
             .log_manipulability = false,
             .log_variable_damping = false,
-            .log_total = false
+            .log_total = true
         }
     };
 
@@ -216,16 +216,6 @@ public:
     inline FrankaRidgeback::Actor *get_frankaridgeback()
     {
         return m_frankaridgeback.get();
-    }
-
-    /**
-     * @brief Get the wrench forecast.
-     * 
-     * @note May be nullptr.
-     */
-    inline Forecast *get_wrench_forecast()
-    {
-        return m_wrench_forecast.get();
     }
 
     /**
@@ -272,9 +262,6 @@ private:
 
     /// Pointer to the franka ridgeback being simulated.
     std::shared_ptr<FrankaRidgeback::Actor> m_frankaridgeback;
-
-    /// Forecast to update wrench with.
-    std::unique_ptr<Forecast> m_wrench_forecast;
 
     /// Logger for the frankaridgeback mppi trajectory generator.
     std::unique_ptr<logger::MPPI> m_mppi_logger;

@@ -27,7 +27,7 @@ void AssistedManipulation::reset()
     m_minimise_velocity_cost = 0.0;
     m_self_collision_cost = 0.0;
     m_trajectory_cost = 0.0;
-    m_reach_cost = 0.0;
+    m_workspace_cost = 0.0;
     m_power_cost = 0.0;
     m_energy_tank_cost = 0.0;
     m_manipulability_cost = 0.0;
@@ -60,8 +60,8 @@ double AssistedManipulation::get_cost(
     if (m_configuration.enable_trajectory_tracking)
         cost += trajectory_cost(dynamics, time);
 
-    if (m_configuration.enable_reach_limit)
-        cost += reach_cost(dynamics);
+    if (m_configuration.enable_workspace)
+        cost += workspace_cost(dynamics);
 
     if (m_configuration.enable_maximum_power)
         cost += power_cost(dynamics);
@@ -188,23 +188,23 @@ double AssistedManipulation::self_collision_cost(Dynamics *dynamics)
     return cost;
 }
 
-double AssistedManipulation::trajectory_cost(
-    Dynamics *dynamics,
-    double time
-) {
-    if (!dynamics->get_forecast().has_value())
+double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double time)
+{
+    if (!dynamics->get_forecast())
         return 0.0;
 
-    const auto &state = dynamics->get_end_effector_state();
-    const auto &forecast_state = dynamics->get_forecast().value()->get()->get_end_effector_state(time);
-
-    double position_difference = (state.position - forecast_state.position).norm();
-    double velocity_difference = (state.linear_velocity - forecast_state.linear_velocity).norm();
-
     const auto &objective = m_configuration.trajectory;
+    const auto &state = dynamics->get_end_effector_state();
+    const auto forecast = dynamics->get_forecast()->get();
+
+    // Vector3d force = forecast->get_end_effector_wrench(time).head<3>();
+    // Vector3d initial_position = forecast->get_end_effector_trajectory()[0].position;
+    // Vector3d target = initial_position + force / 100;
+    // double cost = objective.quadratic_cost * std::pow((state.position - target).norm(), 2);
+
+    const auto &forecast_state = forecast->get_end_effector_state(time);
     double cost = (
-        objective.quadratic_cost * std::pow(position_difference, 2) +
-        objective.quadratic_cost * std::pow(velocity_difference, 2)
+        objective.quadratic_cost * std::pow((state.position - forecast_state.position).norm(), 2)
     );
 
     m_trajectory_cost += cost;
@@ -271,32 +271,53 @@ double AssistedManipulation::manipulability_cost(Dynamics *dynamics)
     return cost;
 }
 
-double AssistedManipulation::reach_cost(Dynamics *dynamics)
+double AssistedManipulation::workspace_cost(Dynamics *dynamics)
 {
+    const auto &objective = m_configuration.workspace;
     double cost = 0.0;
-    const auto &min = m_configuration.minimum_reach;
-    const auto &max = m_configuration.maximum_reach;
 
-    double offset = 0.0;
-    // dynamics->get_frame_offset(
-    //     Frame::BASE_LINK_JOINT,
-    //     Frame::PANDA_GRASP_JOINT
-    // ).norm();
+    // Position of the end effector.
+    Vector3d end_effector = dynamics->get_end_effector_state().position;
 
-    if (offset < min.limit) {
+    // Rotation from world frame to infront of the robot.
+    AngleAxisd rotate_forward = AngleAxisd(dynamics->get_state()[2], Vector3d::UnitZ());
+
+    // Unit vector in the forward direction of the robot, normal to the
+    // infront / behind plane.
+    Vector3d forward = rotate_forward * Vector3d::UnitX();
+
+    // Position of the plane in front of the robot.
+    Vector3d robot = (
+        dynamics->get_frame_position(Frame::ARM_MOUNT_JOINT) +
+        rotate_forward * Vector3d(0.3, 0, 0.15) // offset from base link'
+    );
+
+    // Vector from plane origin to end effector.
+    Vector3d to_end_effector = end_effector - robot;
+
+    // Distance from the infront/behind plane to the end effector.
+    double projection = (
+        to_end_effector.dot(forward) / forward.dot(forward)
+    );
+
+    // Keep end effector in front of the robot.
+    if (projection < 0) {
         cost += (
-            min.constant_cost +
-            min.quadratic_cost * std::pow(offset - min.limit, 2)
+            objective.constant_cost +
+            objective.quadratic_cost * std::pow(projection, 2)
         );
     }
-    else if (offset > max.limit) {
+
+    // Keep the end effector above the robot.
+    double height = end_effector[2] - robot[2];
+    if (height < 0) {
         cost += (
-            max.constant_cost +
-            max.quadratic_cost * std::pow(offset - max.limit, 2)
+            objective.constant_cost +
+            objective.quadratic_cost * std::pow(height, 2)
         );
     }
 
-    m_reach_cost += cost;
+    m_workspace_cost += cost;
     return cost;
 }
 

@@ -28,11 +28,10 @@ public:
         /// If self collision costs are enabled.
         bool enable_self_collision;
 
+        bool enable_workspace;
+
         /// If tracking the expected trajectory is enabled.
         bool enable_trajectory_tracking;
-
-        /// If reach costs are enabled.
-        bool enable_reach_limit;
 
         /// If end effector manipulability is maximised.
         bool enable_maximise_manipulability;
@@ -58,11 +57,8 @@ public:
         /// Self collision cost.
         std::array<QuadraticCost, 8> self_collision_limit;
 
-        /// Minimum reach if enabled.
-        QuadraticCost minimum_reach;
-
-        /// Maximum reach if enabled.
-        QuadraticCost maximum_reach;
+        /// Trajectory not infront cost.
+        QuadraticCost workspace;
 
         /// Cost of matching the forecast trajectory.
         QuadraticCost trajectory;
@@ -90,7 +86,7 @@ public:
             enable_minimise_velocity,
             enable_joint_limit,
             enable_self_collision,
-            enable_reach_limit,
+            enable_workspace,
             enable_trajectory_tracking,
             enable_maximise_manipulability,
             enable_maximum_power,
@@ -100,8 +96,7 @@ public:
             upper_joint_limit,
             minimise_velocity,
             self_collision_limit,
-            minimum_reach,
-            maximum_reach,
+            workspace,
             trajectory,
             minimum_manipulability,
             maximum_power,
@@ -121,17 +116,17 @@ public:
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
         .enable_minimise_velocity = false,
-        .enable_self_collision = false,
+        .enable_self_collision = true,
+        .enable_workspace = true,
         .enable_trajectory_tracking = false,
-        .enable_reach_limit = false,
         .enable_maximise_manipulability = false,
         .enable_maximum_power = false,
         .enable_variable_damping = false,
         .enable_energy_tank = false,
         .lower_joint_limit = {{
-            {-2.0,    1'000, 10'000}, // Base rotation
             {-2.0,    1'000, 10'000}, // Base x
-            {-6.28,   1'000, 10'000}, // Base y
+            {-2.0,    1'000, 10'000}, // Base y
+            {-6.28,   1'000, 10'000}, // Base yaw
             {-2.8973, 1'000, 10'000}, // Joint1
             {-1.7628, 1'000, 10'000}, // Joint2
             {-2.8973, 1'000, 10'000}, // Joint3
@@ -143,9 +138,9 @@ public:
             {0.0,     1'000, 10'000}  // Gripper y
         }},
         .upper_joint_limit = {{
-            {2.0,    1'000, 10'000.0}, // Base rotation
             {2.0,    1'000, 10'000.0}, // Base x
-            {6.28,   1'000, 10'000.0}, // Base y
+            {2.0,    1'000, 10'000.0}, // Base y
+            {6.28,   1'000, 10'000.0}, // Base yaw
             {2.8973, 1'000, 10'000.0}, // Joint1
             {1.7628, 1'000, 10'000.0}, // Joint2
             {2.8973, 1'000, 10'000.0}, // Joint3
@@ -169,18 +164,13 @@ public:
             {0.1, 0.0, 10'000}, // Arm link 6
             {0.1, 0.0, 10'000}  // Arm link 7
         }},
-        .minimum_reach = {
-            .limit = 0.5,
-            .constant_cost = 1000,
-            .quadratic_cost = 10'000
-        },
-        .maximum_reach = {
-            .limit = 1.0,
+        .workspace = {
+            .limit = 0.0,
             .constant_cost = 1000,
             .quadratic_cost = 10'000
         },
         .trajectory = {
-            .quadratic_cost = 10'000.0
+            .quadratic_cost = 1'000.0
         },
         .minimum_manipulability = {},
         .maximum_power = {
@@ -232,8 +222,8 @@ public:
         return m_trajectory_cost;
     }
 
-    inline double get_reach_cost() const {
-        return m_reach_cost;
+    inline double get_workspace_cost() const {
+        return m_workspace_cost;
     }
 
     inline double get_power_cost() const {
@@ -326,7 +316,7 @@ private:
      * @param time The time of the dynamics.
      * @returns A cost rewarding trajectories towards.
      */
-    double trajectory_cost(Dynamics *dynamics, double time);
+    double trajectory_cost(const Dynamics *dynamics, double time);
 
     /**
      * @brief Penalises end effector positions that are too close or too far
@@ -339,7 +329,7 @@ private:
      * @returns A cost penalising end effector positions too close or too far
      * from the base.
      */
-    double reach_cost(Dynamics *dynamics);
+    double workspace_cost(Dynamics *dynamics);
 
     /**
      * @brief Penalises dynamics states that exceed the power limit.
@@ -389,7 +379,7 @@ private:
 
     double m_trajectory_cost;
 
-    double m_reach_cost;
+    double m_workspace_cost;
 
     double m_power_cost;
 

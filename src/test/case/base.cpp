@@ -1,5 +1,4 @@
 #include "test/case/base.hpp"
-
 #include "logging/file.hpp"
 
 std::unique_ptr<BaseTest> BaseTest::create(Options &options)
@@ -136,7 +135,7 @@ void BaseTest::step()
     m_dynamics_logger->log_control(m_simulator->get_time(), m_frankaridgeback->get_control());
 
     if (m_frankaridgeback->get_forecast())
-        m_forecast_logger->log(*m_frankaridgeback->get_forecast().value());
+        m_forecast_logger->log(*m_frankaridgeback->get_forecast());
 
     if (m_objective_logger) {
         m_objective_logger->log(

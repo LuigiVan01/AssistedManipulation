@@ -54,9 +54,9 @@ public:
      */
     static inline const Configuration HUMAN_POINT_CONTROL {
         .n = 3,
-        .kp = Vector3d(100.0, 100.0, 100.0),
+        .kp = Vector3d(300.0, 300.0, 300.0),
         .kd = Vector3d(10.0, 10.0, 10.0),
-        .ki = Vector3d(1.0, 1.0, 1.0),
+        .ki = Vector3d(5.0, 5.0, 5.0),
         .minimum = Eigen::Vector3d(-100.0, -100.0, -100.0),
         .maximum = Eigen::Vector3d(100.0, 100.0, 100.0),
         .reference = Eigen::Vector3d::Zero()
@@ -191,6 +191,9 @@ protected:
 
     /// The time of the last update.
     double m_last_time;
+
+    /// If there has been enough data to calculate a valid derivative.
+    bool m_derivative_invalid;
 };
 
 /**

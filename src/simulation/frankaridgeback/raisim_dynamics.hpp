@@ -61,7 +61,7 @@ public:
         },
         .filename = "",
         .end_effector_frame = "panda_grasp_joint",
-        .initial_state = make_state(FrankaRidgeback::Preset::JOINT_LIMIT),
+        .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED),
         .proportional_gain = FrankaRidgeback::Control{
             0.0, 0.0, 0.0, // base
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
@@ -260,14 +260,15 @@ public:
     /**
      * @brief Get a pointer to the dynamics forecast if it exists.
      * 
-     * @returns A pointer to the dynamics forecast on success or std::nullopt if
+     * @warning May be nullptr.
+     * @returns A pointer to the dynamics forecast on success or nullptr if
      * there is no dynamics forecast handle.
      */
-    const std::optional<DynamicsForecast::Handle*> get_forecast() const override
+    const DynamicsForecast::Handle *get_forecast() const override
     {
         if (m_forecast)
             return m_forecast.get();
-        return std::nullopt;
+        return nullptr;
     }
 
     /**

@@ -143,6 +143,11 @@ public:
             return m_parent;
         };
 
+        inline const DynamicsForecast *get() const
+        {
+            return m_parent;
+        };
+
         /**
          * @brief Make a copy of the handle.
          */
@@ -254,7 +259,7 @@ public:
      * @brief Get the kinematics of the end effector.
      * @param time The time of the end effector state.
      */
-    inline const EndEffectorState &get_end_effector_state(double time)
+    inline const EndEffectorState &get_end_effector_state(double time) const
     {
         return m_end_effector[parameterise(time)];
     }
@@ -345,14 +350,14 @@ protected:
      * @param time The time to parameterise.
      * @returns The index into the forecast buffer at that time.
      */
-    inline std::int64_t parameterise(double time)
+    inline std::int64_t parameterise(double time) const
     {
         // Extrapolate initial wrench backwards.
         if (time < m_last_forecast)
             return 0;
 
         // Extrapolate last wrench forwards.
-        if (time > m_configuration.horison)
+        if (time >= m_configuration.horison)
             return m_steps - 1;
 
         // Steps into the horison.
@@ -486,10 +491,11 @@ public:
     /**
      * @brief Get a pointer to the dynamics forecast if it exists.
      * 
+     * @warning May be nullptr.
      * @returns A pointer to the dynamics forecast on success or std::nullopt if
      * there is no dynamics forecast handle.
      */
-    virtual const std::optional<DynamicsForecast::Handle*> get_forecast() const = 0;
+    virtual const DynamicsForecast::Handle *get_forecast() const = 0;
 
     /**
      * @brief Get the actual wrench applied of the end effector by calls to

@@ -70,7 +70,7 @@
                 "angles"
             ],
             "type": "pickString",
-            "default": "base"
+            "default": "circle"
         },
         {
             "id": "directory",

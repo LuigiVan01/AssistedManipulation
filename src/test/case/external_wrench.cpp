@@ -168,7 +168,6 @@ ExternalWrenchTest::ExternalWrenchTest(
 bool ExternalWrenchTest::run()
 {
     // Optional forecast
-    auto forecast = m_base->get_wrench_forecast();
     Vector6d wrench = Vector6d::Zero();
 
     for (;;) {
@@ -212,10 +211,10 @@ bool ExternalWrenchTest::run()
         // Apply the wrench to the end effector.
         m_base->get_frankaridgeback()->add_end_effector_wrench(wrench, time);
 
-        // Update the wrench forecaster with a sample of the applied wrench.
-        if (forecast) {
-            m_base->get_wrench_forecast()->update(wrench, time);
-        }
+        // if (m_base->get_frankaridgeback()->get_forecast()) {
+        //     Vector6d multiplied = 10 * wrench;
+        //     m_base->get_frankaridgeback()->get_forecast()->observe_wrench(multiplied, time);
+        // }
 
         // Step the base simulation.
         m_base->step();

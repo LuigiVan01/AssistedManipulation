@@ -221,14 +221,15 @@ public:
     /**
      * @brief Get a pointer to the dynamics forecast if it exists.
      * 
+     * @warning May be nullptr.
      * @returns A pointer to the dynamics forecast on success or std::nullopt if
      * there is no dynamics forecast handle.
      */
-    const std::optional<DynamicsForecast::Handle*> get_forecast() const override
+    const DynamicsForecast::Handle *get_forecast() const override
     {
         if (m_forecast)
             return m_forecast.get();
-        return std::nullopt;
+        return nullptr;
     }
 
     /**

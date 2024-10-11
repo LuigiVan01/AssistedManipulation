@@ -25,8 +25,8 @@ std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
     if (configuration.log_trajectory)
         logged.push_back("trajectory");
 
-    if (configuration.log_reach)
-        logged.push_back("reach");
+    if (configuration.log_workspace)
+        logged.push_back("workspace");
 
     if (configuration.log_power)
         logged.push_back("power");
@@ -49,7 +49,7 @@ std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
 
     logger->m_logger = CSV::create(CSV::Configuration{
         .path = configuration.folder / "assisted_manipulation.csv",
-        .header = CSV::make_header("time", logged, "total")
+        .header = CSV::make_header("time", logged)
     });
 
     if (!logger->m_logger) {
@@ -80,11 +80,14 @@ void AssistedManipulation::log(
     if (m_configuration.log_self_collision)
         m_costs[i++] = objective.get_self_collision_cost();
 
-    if (m_configuration.log_trajectory)
-        m_costs[i++] = objective.get_trajectory_cost();
+    if (m_configuration.log_trajectory) {
+        double c = objective.get_trajectory_cost();
+        std::cout << c << std::endl;
+        m_costs[i++] = c;
+    }
 
-    if (m_configuration.log_reach)
-        m_costs[i++] = objective.get_reach_cost();
+    if (m_configuration.log_workspace)
+        m_costs[i++] = objective.get_workspace_cost();
 
     if (m_configuration.log_power)
         m_costs[i++] = objective.get_power_cost();
@@ -98,8 +101,10 @@ void AssistedManipulation::log(
     if (m_configuration.log_variable_damping)
         m_costs[i++] = objective.get_variable_damping_cost();
 
-    if (m_configuration.log_total)
+    if (m_configuration.log_total) {
+        m_costs[i] = 0.0;
         m_costs[i++] = std::accumulate(m_costs.begin(), m_costs.end(), 0.0);
+    }
 
     m_logger->write(time, m_costs);
 

@@ -171,10 +171,8 @@ void Actor::act(Simulator *simulator)
         m_trajectory_countdown = m_trajectory_countdown_max;
 
         if (m_forecast) {
-            FrankaRidgeback::State state = m_dynamics->get_dynamics()->get_state();
-            state.velocity().setZero();
             m_forecast->forecast(
-                state,
+                m_dynamics->get_dynamics()->get_state(),
                 simulator->get_time()
             );
         }

@@ -29,7 +29,7 @@ public:
 
         bool log_trajectory = true;
 
-        bool log_reach = true;
+        bool log_workspace = true;
 
         bool log_power = true;
 
@@ -45,7 +45,7 @@ public:
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             folder, log_joint_limit, log_minimise_velocity, log_self_collision,
-            log_trajectory, log_reach, log_power, log_energy_tank,
+            log_trajectory, log_workspace, log_power, log_energy_tank,
             log_manipulability, log_variable_damping, log_total
         )
     };

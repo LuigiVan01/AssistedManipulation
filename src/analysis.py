@@ -167,10 +167,10 @@ def plot_end_effector_trajectory(
 def plot_useful(data: PlotData):
     figure = plt.figure(figsize = (10, 3))
 
-    plot_optimal_cost(plt.subplot2grid((1, 1), (0, 0)), data.mppi.optimal_cost)
+    plot_optimal_cost(plt.subplot2grid((2, 1), (0, 0)), data.mppi.optimal_cost)
+    plot_force_control(plt.subplot2grid((2, 1), (1, 0)), data.force_pid.control)
     # plot_tank_energy(plt.subplot2grid((4, 1), (1, 0)), data.dynamics.tank_energy)
     # plot_reference_error(plt.subplot2grid((4, 1), (2, 0)), data.force_pid.error)
-    # plot_force_control(plt.subplot2grid((4, 1), (3, 0)), data.force_pid.control)
 
     figure.tight_layout()
     return figure
@@ -286,7 +286,7 @@ def plot_assisted_manipulation_objective(data: PlotData):
         'minimise_velocity',
         'self_collision',
         'trajectory',
-        'reach',
+        'workspace',
         'power',
         'energy_tank',
         'manipulability',
@@ -296,7 +296,7 @@ def plot_assisted_manipulation_objective(data: PlotData):
     return plot_timeseries(
         data.objective.assisted_manipulation if data.objective is not None else None,
         {key: '\#' for key in objectives},
-        'Assisted Manipulation Objective Function Breakdown',
+        'Objective Function Cost Composition Over Time',
         y_scale = 'from_zero'
     )
 
