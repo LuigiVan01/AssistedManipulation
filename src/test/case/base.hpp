@@ -63,10 +63,10 @@ public:
             .mppi = {
                 .configuration = {
                     .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED),
-                    .rollouts = 40,
+                    .rollouts = 50,
                     .keep_best_rollouts = 20,
                     .time_step = 0.01,
-                    .horison = 0.2,
+                    .horison = 0.3,
                     .gradient_step = 1.0,
                     .cost_scale = 10.0,
                     .cost_discount_factor = 1.0,
@@ -113,7 +113,7 @@ public:
             .forecast = FrankaRidgeback::Actor::Configuration::Forecast {
                 .configuration = {
                     .time_step = 0.01,
-                    .horison = 0.1,
+                    .horison = 0.3,
                     .end_effector_wrench_forecast = {
                         .type = Forecast::Configuration::Type::LOCF,
                         .locf = LOCFForecast::Configuration {
@@ -172,7 +172,7 @@ public:
         .objective_logger = {
             .folder = "",
             .log_joint_limit = true,
-            .log_minimise_velocity = false,
+            .log_minimise_velocity = true,
             .log_self_collision = true,
             .log_trajectory = true,
             .log_workspace = true,

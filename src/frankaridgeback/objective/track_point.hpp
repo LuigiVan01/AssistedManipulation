@@ -181,7 +181,7 @@ public:
     /**
      * @brief Unused.
      */
-    void reset() override {};
+    void reset(double) override {};
 
     /**
      * @brief Make a copy of the objective function.

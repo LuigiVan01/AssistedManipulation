@@ -28,6 +28,7 @@ public:
         /// If self collision costs are enabled.
         bool enable_self_collision;
 
+        /// If workspace costs are enabled.
         bool enable_workspace;
 
         /// If tracking the expected trajectory is enabled.
@@ -52,7 +53,7 @@ public:
         std::array<QuadraticCost, DoF::JOINTS> upper_joint_limit;
 
         /// Velocity minimisation cost.
-        QuadraticCost minimise_velocity;
+        std::array<QuadraticCost, DoF::JOINTS> minimise_velocity;
 
         /// Self collision cost.
         std::array<QuadraticCost, 8> self_collision_limit;
@@ -80,6 +81,9 @@ public:
         /// to velocity. The lambda in c(v) = Ae^{lambda * v}
         double variable_damping_dropoff;
 
+        /// Constant multiplier of time.
+        double trajectory_time_factor;
+
         // JSON conversion for assisted manipulation objective configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
@@ -102,7 +106,8 @@ public:
             maximum_power,
             maximum_energy,
             variable_damping_maximum,
-            variable_damping_dropoff
+            variable_damping_dropoff,
+            trajectory_time_factor
         )
     };
 
@@ -115,71 +120,90 @@ public:
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
-        .enable_minimise_velocity = false,
+        .enable_minimise_velocity = true,
         .enable_self_collision = true,
         .enable_workspace = true,
-        .enable_trajectory_tracking = false,
+        .enable_trajectory_tracking = true,
         .enable_maximise_manipulability = false,
         .enable_maximum_power = false,
         .enable_variable_damping = false,
         .enable_energy_tank = false,
         .lower_joint_limit = {{
-            {-2.0,    1'000, 10'000}, // Base x
-            {-2.0,    1'000, 10'000}, // Base y
-            {-6.28,   1'000, 10'000}, // Base yaw
-            {-2.8973, 1'000, 10'000}, // Joint1
-            {-1.7628, 1'000, 10'000}, // Joint2
-            {-2.8973, 1'000, 10'000}, // Joint3
-            {-3.0718, 1'000, 10'000}, // Joint4
-            {-2.8973, 1'000, 10'000}, // Joint5
-            {0.8521,  1'000, 10'000}, // Joint6
-            {-2.8973, 1'000, 10'000}, // Joint7
-            {0.0,     1'000, 10'000}, // Gripper x
-            {0.0,     1'000, 10'000}  // Gripper y
+            {-2.0,    1'000, 0.0,  100'000}, // Base x
+            {-2.0,    1'000, 0.0,  100'000}, // Base y
+            {-6.28,   1'000, 0.0,  100'000}, // Base yaw
+            {-2.8,    1'000, 10.0, 100'000}, // Joint1
+            {-1.745,  1'000, 50.0, 100'000}, // Joint2
+            {-2.8,    1'000, 10.0, 100'000}, // Joint3
+            {-3.0718, 1'000, 10.0, 100'000}, // Joint4
+            {-2.7925, 1'000, 10.0, 100'000}, // Joint5
+            {0.349,   1'000, 10.0, 100'000}, // Joint6
+            {-2.967,  1'000, 10.0, 100'000}, // Joint7
+            {0.0,     1'000, 10.0, 100'000}, // Gripper x
+            {0.0,     1'000, 10.0, 100'000}  // Gripper y
         }},
         .upper_joint_limit = {{
-            {2.0,    1'000, 10'000.0}, // Base x
-            {2.0,    1'000, 10'000.0}, // Base y
-            {6.28,   1'000, 10'000.0}, // Base yaw
-            {2.8973, 1'000, 10'000.0}, // Joint1
-            {1.7628, 1'000, 10'000.0}, // Joint2
-            {2.8973, 1'000, 10'000.0}, // Joint3
-            {3.0718, 1'000, 10'000.0}, // Joint4
-            {2.8973, 1'000, 10'000.0}, // Joint5
-            {4.2094, 1'000, 10'000.0}, // Joint6
-            {2.8973, 1'000, 10'000.0}, // Joint7
-            {0.5,    1'000, 10'000.0}, // Gripper x
-            {0.5,    1'000, 10'000.0}  // Gripper y
+            {2.0,     1'000, 0.0, 100'000.0}, // Base x
+            {2.0,     1'000, 0.0, 100'000.0}, // Base y
+            {6.28,    1'000, 0.0, 100'000.0}, // Base yaw
+            {2.8,     1'000, 10.0, 100'000.0}, // Joint1
+            {1.745,   1'000, 50.0, 100'000.0}, // Joint2
+            {2.8,     1'000, 10.0, 100'000.0}, // Joint3
+            {0.0,     1'000, 10.0, 100'000.0}, // Joint4
+            {2.7925,  1'000, 10.0, 100'000.0}, // Joint5
+            {4.53785, 1'000, 10.0, 100'000.0}, // Joint6
+            {2.967,   1'000, 10.0, 100'000.0}, // Joint7
+            {0.5,     1'000, 10.0, 100'000.0}, // Gripper x
+            {0.5,     1'000, 10.0, 100'000.0}  // Gripper y
         }},
-        .minimise_velocity = {
-            .quadratic_cost = 10
-        },
+        .minimise_velocity = {{
+            {0.0, 0.0, 0.0, 10000.0},   // Base x
+            {0.0, 0.0, 0.0, 10000.0},   // Base y
+            {0.0, 0.0, 0.0, 100.0},   // Base yaw
+            {0.0, 0.0, 0.0, 10.0},    // Joint1
+            {0.0, 0.0, 0.0, 10.0},    // Joint2
+            {0.0, 0.0, 0.0, 10.0},    // Joint3
+            {0.0, 0.0, 0.0, 10.0},    // Joint4
+            {0.0, 0.0, 0.0, 10.0},    // Joint5
+            {0.0, 0.0, 0.0, 10.0},    // Joint6
+            {0.0, 0.0, 0.0, 10.0},    // Joint7
+            {0.0, 0.0, 0.0, 1000.0}, // Gripper x
+            {0.0, 0.0, 0.0, 1000.0}  // Gripper y
+        }},
         .self_collision_limit = {{
-            {0.75, 0.0, 10'000}, // Base link
-            {0.1, 0.0, 10'000}, // Arm link 1
-            {0.1, 0.0, 10'000}, // Arm link 2
-            {0.1, 0.0, 10'000}, // Arm link 3
-            {0.1, 0.0, 10'000}, // Arm link 4
-            {0.1, 0.0, 10'000}, // Arm link 5
-            {0.1, 0.0, 10'000}, // Arm link 6
-            {0.1, 0.0, 10'000}  // Arm link 7
+            {0.75, 1000.0, 0.0, 100'000}, // Base link
+            {0.1,  1000.0, 0.0, 100'000}, // Arm link 1
+            {0.1,  1000.0, 0.0, 100'000}, // Arm link 2
+            {0.1,  1000.0, 0.0, 100'000}, // Arm link 3
+            {0.1,  1000.0, 0.0, 100'000}, // Arm link 4
+            {0.1,  1000.0, 0.0, 100'000}, // Arm link 5
+            {0.1,  1000.0, 0.0, 100'000}, // Arm link 6
+            {0.1,  1000.0, 0.0, 100'000}  // Arm link 7
         }},
         .workspace = {
             .limit = 0.0,
-            .constant_cost = 1000,
-            .quadratic_cost = 10'000
+            .constant_cost = 100,
+            .linear_cost = 500,
+            .quadratic_cost = 100'000
         },
         .trajectory = {
-            .quadratic_cost = 1'000.0
+            .limit = 0.01, // Within 1cm of target.
+            .constant_cost = 100, // Prevents constant error around target.
+            .quadratic_cost = 200'000.0 // Double limiting constraints.
         },
-        .minimum_manipulability = {},
+        .minimum_manipulability = {
+            .limit = 1.0,
+            .quadratic_cost = 100
+        },
         .maximum_power = {
             .limit = 100.0,
             .constant_cost = 100,
             .quadratic_cost = 10'000
         },
+        .maximum_energy = {},
         .variable_damping_maximum = 0.0,
-        .variable_damping_dropoff = 0.0
+        .variable_damping_dropoff = 0.0,
+        .trajectory_time_factor = 0
     };
 
     /**
@@ -244,8 +268,9 @@ public:
 
     /**
      * @brief Reset the objective function cost.
+     * @param time The initial objective time.
      */
-    void reset() override;
+    void reset(double time) override;
 
     /**
      * @brief Get the cost of a state and control input over dt.
@@ -369,7 +394,9 @@ private:
     Configuration m_configuration;
 
     /// Spatial jacobian.
-    Eigen::Matrix<double, 6, 6> m_space_jacobian;
+    Eigen::Matrix<double, 3, 3> m_space_jacobian;
+
+    double m_initial_time;
 
     double m_joint_cost;
 

@@ -105,6 +105,7 @@ void DynamicsForecast::forecast(State state, double time)
     auto control = Control::Zero();
     m_dynamics->set_state(state, time);
 
+    // std::cout << "state: " << state.position().transpose() << std::endl;
     // std::cout << "wrench:" << std::endl;
 
     for (unsigned int step = 0; step < m_steps; ++step) {

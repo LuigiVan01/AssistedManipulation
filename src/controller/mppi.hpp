@@ -112,7 +112,7 @@ public:
     /**
      * @brief Reset the cost.
      */
-    virtual void reset() = 0;
+    virtual void reset(double time) = 0;
 
     /**
      * @brief Get the cost of a dynamics state with control input over dt.

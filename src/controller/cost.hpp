@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 #include "controller/json.hpp"
 
 /**
@@ -14,22 +16,32 @@
  */
 struct QuadraticCost {
 
-    /// The limits to apply.
-    double limit;
+    /// The limit.
+    double limit = 0.0;
 
     /// Constant cost incurred when limit is breached.
-    double constant_cost = 1'000;
+    double constant_cost = 0.0;
 
-    /// Cost incurred proportional to the square of how much limit is
-    /// breached.
-    // double linear_cost = 10'000;
+    /// Cost incurred proportional to the limit.
+    double linear_cost = 0.0;
 
-    /// Cost incurred proportional to the square of how much limit is
-    /// breached.
-    double quadratic_cost = 100'000;
+    /// Cost incurred proportional to the square of the limit.
+    double quadratic_cost = 0.0;
+
+    /**
+     * @brief Evaluate the quadratic cost.
+     * @returns The cost.
+     */
+    inline double operator()(double value) const {
+        return (
+            constant_cost +
+            linear_cost * std::fabs(value) +
+            quadratic_cost * value * value
+        );
+    }
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(
         QuadraticCost,
-        limit, constant_cost, quadratic_cost
+        limit, linear_cost, constant_cost, quadratic_cost
     )
 };
