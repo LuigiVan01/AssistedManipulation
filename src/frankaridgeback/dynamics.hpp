@@ -313,9 +313,17 @@ public:
     /**
      * @brief Get the power trajectory.
      */
-    const std::vector<double> &get_power_trajectory() const
+    const std::vector<double> &get_joint_power_trajectory() const
     {
-        return m_power;
+        return m_joint_power;
+    }
+
+    /**
+     * @brief Get the power trajectory.
+     */
+    const std::vector<double> &get_external_power_trajectory() const
+    {
+        return m_external_power;
     }
 
     /**
@@ -388,8 +396,9 @@ protected:
     /// The forecasted end effector trajectory.
     std::vector<EndEffectorState> m_end_effector;
 
-    /// The forecasted power usage.
-    std::vector<double> m_power;
+    std::vector<double> m_joint_power;
+
+    std::vector<double> m_external_power;
 
     /// The forecasted energy.
     std::vector<double> m_energy;
@@ -473,7 +482,7 @@ public:
     virtual const EndEffectorState &get_end_effector_state() const = 0;
 
     /**
-     * @brief Get the current dynamics power usage.
+     * @brief Get the current power from applied joint controls.
      * 
      * This is given by the sum of generalised joint force multiplied by their
      * generalised velocities. This is torque * angular velocity for revolute
@@ -481,7 +490,13 @@ public:
      * 
      * @return The current power usage in joules/s.
      */
-    virtual double get_power() const = 0;
+    virtual double get_joint_power() const = 0;
+
+    /**
+     * @brief Get the current power from external forces.
+     * @return The current power usage in joules/s.
+     */
+    virtual double get_external_power() const = 0;
 
     /**
      * @brief Get the current energy left in the energy tank.

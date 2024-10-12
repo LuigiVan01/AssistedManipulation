@@ -28,8 +28,10 @@ std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
     if (configuration.log_workspace)
         logged.push_back("workspace");
 
-    if (configuration.log_power)
-        logged.push_back("power");
+    if (configuration.log_power) {
+        logged.push_back("joint_power");
+        logged.push_back("external_power");
+    }
 
     if (configuration.log_energy_tank)
         logged.push_back("energy_tank");
@@ -89,8 +91,10 @@ void AssistedManipulation::log(
     if (m_configuration.log_workspace)
         m_costs[i++] = objective.get_workspace_cost();
 
-    if (m_configuration.log_power)
-        m_costs[i++] = objective.get_power_cost();
+    if (m_configuration.log_power) {
+        m_costs[i++] = objective.get_joint_power_cost();
+        m_costs[i++] = objective.get_joint_power_cost();
+    }
 
     if (m_configuration.log_energy_tank)
         m_costs[i++] = objective.get_energy_tank_cost();

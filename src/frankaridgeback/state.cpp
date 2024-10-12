@@ -26,6 +26,11 @@ State make_state(Preset preset)
                 << 0.20, 0.20, M_PI/4, 0.0, 1.2, 0.0, -2, 0, M_PI, M_PI/4, 0.025, 0.025;
             return state;
         }
+        case Preset::REACH: {
+            state.position()         //  1    2    3   4  5  6
+                << 0.20, 0.20, M_PI/4, 0.0, 1.5, 0.0, 0, 0, M_PI, M_PI/4, 0.025, 0.025;
+            return state;
+        }
         case Preset::JOINT_LIMIT: {
             state.position()          //  1      2    3        4    5  6
                 << 0.20, 0.20, M_PI/4, 0.0, M_PI/5, 0.0, -M_PI/2, 0.0, -0.2, M_PI/4, 0.025, 0.025;

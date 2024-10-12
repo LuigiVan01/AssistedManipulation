@@ -197,7 +197,7 @@ public:
     }
 
     /**
-     * @brief Get the current dynamics power usage.
+     * @brief Get the current power from applied joint controls.
      * 
      * This is given by the sum of generalised joint force multiplied by their
      * generalised velocities. This is torque * angular velocity for revolute
@@ -205,9 +205,18 @@ public:
      * 
      * @return The current power usage in joules/s.
      */
-    double get_power() const override
+    virtual double get_joint_power() const override
     {
-        return m_power;
+        return 0.0;
+    }
+
+    /**
+     * @brief Get the current power from external forces.
+     * @return The current power usage in joules/s.
+     */
+    virtual double get_external_power() const override
+    {
+        return 0.0;
     }
 
     /**

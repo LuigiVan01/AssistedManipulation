@@ -169,7 +169,7 @@ def plot_useful(data: PlotData):
 
     plot_optimal_cost(plt.subplot2grid((2, 1), (0, 0)), data.mppi.optimal_cost)
     plot_force_control(plt.subplot2grid((2, 1), (1, 0)), data.force_pid.control)
-    # plot_tank_energy(plt.subplot2grid((4, 1), (1, 0)), data.dynamics.tank_energy)
+    plot_tank_energy(plt.subplot2grid((4, 1), (1, 0)), data.dynamics.tank_energy)
     # plot_reference_error(plt.subplot2grid((4, 1), (2, 0)), data.force_pid.error)
 
     figure.tight_layout()
@@ -300,6 +300,31 @@ def plot_assisted_manipulation_objective(data: PlotData):
         y_scale = 'from_zero'
     )
 
+def plot_error(data: PlotData):
+    figure = plt.figure(figsize = (8, 4), layout = 'tight')
+
+    if data.force_pid is None:
+        return figure
+
+    df = data.force_pid.error
+    if df is None:
+        return figure
+
+    axis = plt.gca()
+
+    to_norm = df.columns[df.columns != 'time']
+    error = np.sqrt(np.square(df[to_norm]).sum(axis = 1))
+    time = df['time']
+
+    axis.plot(time, error)
+    axis.set_xlim(xmin = 0.0, xmax = max(time))
+    axis.set_ylim(ymin = 0.0)
+    axis.set_title('Reference Error of User Model over Time')
+    axis.set_xlabel('Time [$s$]')
+    axis.set_ylabel('Error [$m$]')
+
+    return figure
+
 if __name__ == '__main__':
     if not sys.argv[1:]:
         raise RuntimeError('No result directory provided.')
@@ -316,6 +341,8 @@ if __name__ == '__main__':
         forecast = read_results(ResultsType.FORECAST, path / 'forecast'),
         objective = read_results(ResultsType.OBJECTIVE, path / 'objective')
     )
+
+    fig = plot_error(data).savefig(path / 'error.png', dpi = 300)
 
     plot_useful(data).savefig(path / 'overview.png', dpi = 300)
     plot_control(data).savefig(path / 'control.png', dpi = 300)

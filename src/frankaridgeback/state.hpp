@@ -267,6 +267,7 @@ enum class Preset {
     HUDDLED,
     BEHIND,
     BELOW,
+    REACH,
     JOINT_LIMIT,
     SELF_COLLISION
 };

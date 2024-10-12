@@ -38,7 +38,7 @@ public:
         bool enable_maximise_manipulability;
 
         /// If the power used by the trajectory is minimised.
-        bool enable_maximum_power;
+        bool enable_minimise_joint_power;
 
         /// If variable damping should be enabled.
         bool enable_variable_damping;
@@ -61,6 +61,9 @@ public:
         /// Trajectory not infront cost.
         QuadraticCost workspace;
 
+        /// The maximum reach of the end effector.
+        double maximum_reach;
+
         /// Cost of matching the forecast trajectory.
         QuadraticCost trajectory;
 
@@ -68,7 +71,7 @@ public:
         QuadraticCost minimum_manipulability;
 
         /// Maximum power (joules per second) usage if enabled. 
-        QuadraticCost maximum_power;
+        QuadraticCost minimise_joint_power;
 
         /// Maximum energy tank energy if enabled.
         QuadraticCost maximum_energy;
@@ -93,7 +96,7 @@ public:
             enable_workspace,
             enable_trajectory_tracking,
             enable_maximise_manipulability,
-            enable_maximum_power,
+            enable_minimise_joint_power,
             enable_variable_damping,
             enable_energy_tank,
             lower_joint_limit,
@@ -101,9 +104,10 @@ public:
             minimise_velocity,
             self_collision_limit,
             workspace,
+            maximum_reach,
             trajectory,
             minimum_manipulability,
-            maximum_power,
+            minimise_joint_power,
             maximum_energy,
             variable_damping_maximum,
             variable_damping_dropoff,
@@ -120,12 +124,12 @@ public:
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
-        .enable_minimise_velocity = true,
-        .enable_self_collision = true,
+        .enable_minimise_velocity = false,
+        .enable_self_collision = false,
         .enable_workspace = true,
-        .enable_trajectory_tracking = true,
+        .enable_trajectory_tracking = false,
         .enable_maximise_manipulability = false,
-        .enable_maximum_power = false,
+        .enable_minimise_joint_power = false,
         .enable_variable_damping = false,
         .enable_energy_tank = false,
         .lower_joint_limit = {{
@@ -157,9 +161,9 @@ public:
             {0.5,     1'000, 10.0, 100'000.0}  // Gripper y
         }},
         .minimise_velocity = {{
-            {0.0, 0.0, 0.0, 10000.0},   // Base x
-            {0.0, 0.0, 0.0, 10000.0},   // Base y
-            {0.0, 0.0, 0.0, 100.0},   // Base yaw
+            {0.0, 0.0, 0.0, 10000.0}, // Base x
+            {0.0, 0.0, 0.0, 10000.0}, // Base y
+            {0.0, 0.0, 0.0, 1000.0},  // Base yaw
             {0.0, 0.0, 0.0, 10.0},    // Joint1
             {0.0, 0.0, 0.0, 10.0},    // Joint2
             {0.0, 0.0, 0.0, 10.0},    // Joint3
@@ -186,6 +190,7 @@ public:
             .linear_cost = 500,
             .quadratic_cost = 100'000
         },
+        .maximum_reach = 0.4,
         .trajectory = {
             .limit = 0.01, // Within 1cm of target.
             .constant_cost = 100, // Prevents constant error around target.
@@ -195,10 +200,8 @@ public:
             .limit = 1.0,
             .quadratic_cost = 100
         },
-        .maximum_power = {
-            .limit = 100.0,
-            .constant_cost = 100,
-            .quadratic_cost = 10'000
+        .minimise_joint_power = {
+            .quadratic_cost = 1
         },
         .maximum_energy = {},
         .variable_damping_maximum = 0.0,
@@ -250,8 +253,8 @@ public:
         return m_workspace_cost;
     }
 
-    inline double get_power_cost() const {
-        return m_power_cost;
+    inline double get_joint_power_cost() const {
+        return m_joint_power_cost;
     }
 
     inline double get_energy_tank_cost() const {
@@ -408,7 +411,7 @@ private:
 
     double m_workspace_cost;
 
-    double m_power_cost;
+    double m_joint_power_cost;
 
     double m_energy_tank_cost;
 

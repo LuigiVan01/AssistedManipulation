@@ -209,7 +209,7 @@ bool ExternalWrenchTest::run()
         // }
 
         // Apply the wrench to the end effector.
-        // m_base->get_frankaridgeback()->add_end_effector_wrench(wrench, time);
+        m_base->get_frankaridgeback()->add_end_effector_wrench(wrench, time);
 
         if (m_base->get_frankaridgeback()->get_forecast()) {
             // Vector6d multiplied = 10 * wrench;

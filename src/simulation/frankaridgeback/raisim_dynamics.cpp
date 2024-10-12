@@ -93,12 +93,19 @@ RaisimDynamics::RaisimDynamics(
    , m_end_effector_state()
    , m_end_effector_linear_jacobian(3, FrankaRidgeback::DoF::JOINTS)
    , m_end_effector_angular_jacobian(3, FrankaRidgeback::DoF::JOINTS)
-   , m_power(0.0)
-   , m_energy_tank(configuration.energy)
+   , m_joint_power(0.0)
+   , m_external_power(0.0)
+   , m_energy_tank(m_configuration.initial_state.available_energy().value())
    , m_state(configuration.initial_state)
    , m_forecast(std::move(dynamics_forecast_handle))
    , m_end_effector_simulated_wrench(Vector6d::Zero())
 {
+    State initial = configuration.initial_state;
+    if (configuration.energy) {
+        initial.available_energy().setConstant(configuration.energy.value());
+        m_energy_tank.set_energy(configuration.energy.value());
+    }
+
     m_position_command.setZero();
     m_velocity_command.setZero();
     m_position.setZero();
@@ -106,7 +113,7 @@ RaisimDynamics::RaisimDynamics(
     m_end_effector_linear_jacobian.setZero();
     m_end_effector_angular_jacobian.setZero();
 
-    set_state(configuration.initial_state, m_world->getWorldTime());
+    set_state(initial, m_world->getWorldTime());
 }
 
 void RaisimDynamics::set_state(const VectorXd &state, double time)
@@ -116,6 +123,7 @@ void RaisimDynamics::set_state(const VectorXd &state, double time)
     m_state = state;
     m_energy_tank.set_energy(m_state.available_energy().value());
     m_robot->setState(m_state.position(), m_state.velocity());
+    m_external_power = 0.0;
 
     calculate();
 }
@@ -166,7 +174,7 @@ void RaisimDynamics::calculate()
            0, 0, 1;
 
     /// TODO: Incorrect, power port is from the external wrench only.
-    m_power = (
+    m_joint_power = (
         m_robot->getGeneralizedForce().e().transpose() *
         m_robot->getGeneralizedVelocity().e()
     ).value();
@@ -225,6 +233,11 @@ void RaisimDynamics::act(const Control &control)
     m_robot->setPdTarget(m_position_command, m_velocity_command);
     m_robot->setGeneralizedForce(forces);
 
+    m_external_power = (
+        control.transpose() *
+        (m_end_effector_state.jacobian.transpose() * m_end_effector_simulated_wrench)
+    );
+
     // We could simulate the forecasted end effector wrench, but this would make
     // the calculation of the user observed end effector force incorrect.
 }
@@ -240,7 +253,7 @@ void RaisimDynamics::update()
     m_state.velocity() = m_velocity;
 
     // Update the energy tank.
-    m_energy_tank.step(m_power, m_world->getTimeStep());
+    m_energy_tank.step(-m_external_power, m_world->getTimeStep());
     m_state.available_energy().setConstant(m_energy_tank.get_energy());
 }
 

@@ -129,8 +129,10 @@ void FrankaRidgebackDynamics::log(
     if (m_angular_acceleration_logger)
         m_angular_acceleration_logger->write(time, end_effector.angular_acceleration);
 
-    if (m_power_logger)
-        m_power_logger->write(time, dynamics.get_power());
+    if (m_power_logger) {
+        m_power_logger->write(time, dynamics.get_joint_power());
+        m_power_logger->write(time, dynamics.get_external_power());
+    }
 
     if (m_energy_logger)
         m_energy_logger->write(time, dynamics.get_tank_energy());
@@ -274,8 +276,10 @@ void FrankaRidgebackDynamicsForecast::log(
         if (m_angular_acceleration_logger)
             m_angular_acceleration_logger->write(time, t, state.angular_acceleration);
 
-        if (m_power_logger)
-            m_power_logger->write(time, t, forecast_dynamics.get_power_trajectory()[i]);
+        if (m_power_logger) {
+            m_power_logger->write(time, t, forecast_dynamics.get_joint_power_trajectory()[i]);
+            m_power_logger->write(time, t, forecast_dynamics.get_external_power_trajectory()[i]);
+        }
 
         if (m_energy_logger)
             m_energy_logger->write(time, t, forecast_dynamics.get_energy_trajectory()[i]);

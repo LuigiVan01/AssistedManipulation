@@ -62,7 +62,7 @@ public:
         .actor = {
             .mppi = {
                 .configuration = {
-                    .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED),
+                    .initial_state = make_state(FrankaRidgeback::Preset::REACH),
                     .rollouts = 50,
                     .keep_best_rollouts = 20,
                     .time_step = 0.01,

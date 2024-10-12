@@ -107,7 +107,7 @@ double TrackPoint::self_collision_cost(Dynamics *dynamics)
 double TrackPoint::power_cost(Dynamics *dynamics)
 {
     const auto &power = m_configuration.maximum_power;
-    return power.constant_cost * std::max(0.0, dynamics->get_power() - power.limit);
+    return power.constant_cost * std::max(0.0, dynamics->get_joint_power() - power.limit);
 }
 
 double TrackPoint::reach_cost(Dynamics *dynamics)

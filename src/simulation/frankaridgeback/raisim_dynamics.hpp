@@ -43,8 +43,8 @@ public:
         /// The differential gain of the joint PD controller.
         FrankaRidgeback::Control differential_gain;
 
-        /// The initial available energy for the robot.
-        double energy;
+        /// Override of the initial available energy for the robot.
+        std::optional<double> energy;
 
         // JSON conversion for franka-ridgeback raisim dynamics configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
@@ -61,7 +61,7 @@ public:
         },
         .filename = "",
         .end_effector_frame = "panda_grasp_joint",
-        .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED),
+        .initial_state = make_state(FrankaRidgeback::Preset::REACH),
         .proportional_gain = FrankaRidgeback::Control{
             0.0, 0.0, 0.0, // base
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
@@ -236,7 +236,7 @@ public:
     }
 
     /**
-     * @brief Get the current dynamics power usage.
+     * @brief Get the current power from applied joint controls.
      * 
      * This is given by the sum of generalised joint force multiplied by their
      * generalised velocities. This is torque * angular velocity for revolute
@@ -244,9 +244,18 @@ public:
      * 
      * @return The current power usage in joules/s.
      */
-    inline double get_power() const override
+    virtual double get_joint_power() const override
     {
-        return m_power;
+        return m_joint_power;
+    }
+
+    /**
+     * @brief Get the current power from external forces.
+     * @return The current power usage in joules/s.
+     */
+    virtual double get_external_power() const override
+    {
+        return m_external_power;
     }
 
     /**
@@ -357,8 +366,11 @@ private:
     /// Angular part of the jacobian, returned by raisim.
     MatrixXd m_end_effector_angular_jacobian;
 
-    /// The most recently calculated power consumption.
-    double m_power;
+    /// The most recently calculated internal joint power.
+    double m_joint_power;
+
+    /// The most recently calculated external power.
+    double m_external_power;
 
     /// The available energy.
     EnergyTank m_energy_tank;

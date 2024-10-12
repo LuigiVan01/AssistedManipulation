@@ -29,7 +29,7 @@ void AssistedManipulation::reset(double time)
     m_self_collision_cost = 0.0;
     m_trajectory_cost = 0.0;
     m_workspace_cost = 0.0;
-    m_power_cost = 0.0;
+    m_joint_power_cost = 0.0;
     m_energy_tank_cost = 0.0;
     m_manipulability_cost = 0.0;
     m_variable_damping_cost = 0.0;
@@ -64,7 +64,7 @@ double AssistedManipulation::get_cost(
     if (m_configuration.enable_workspace)
         cost += workspace_cost(dynamics);
 
-    if (m_configuration.enable_maximum_power)
+    if (m_configuration.enable_minimise_joint_power)
         cost += power_cost(dynamics);
 
     if (m_configuration.enable_energy_tank)
@@ -199,13 +199,13 @@ double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double ti
     const auto &state = dynamics->get_end_effector_state();
     const auto forecast = dynamics->get_forecast()->get();
 
-    Vector3d force = forecast->get_end_effector_wrench(time).head<3>();
-    Vector3d initial_position = forecast->get_end_effector_trajectory()[0].position;
-    Vector3d target = initial_position + (force / 100).cwiseMin(0.5).cwiseMax(-0.5);
-    double distance = (state.position - target).norm();
+    // Vector3d force = forecast->get_end_effector_wrench(time).head<3>();
+    // Vector3d initial_position = forecast->get_end_effector_trajectory()[0].position;
+    // Vector3d target = initial_position + (force / 100).cwiseMin(0.5).cwiseMax(-0.5);
+    // double distance = (state.position - target).norm();
 
-    // const auto &forecast_state = forecast->get_end_effector_state(time);
-    // double distance = (state.position - forecast_state.position).norm();
+    const auto &forecast_state = forecast->get_end_effector_state(time);
+    double distance = (state.position - forecast_state.position).norm();
 
     double cost = 0.0;
     if (distance > objective.limit) {
@@ -227,18 +227,14 @@ double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double ti
 
 double AssistedManipulation::power_cost(Dynamics *dynamics)
 {
-    const auto &maximum = m_configuration.maximum_power;
+    double cost = 0.0;
+    double power = dynamics->get_joint_power();
 
-    double power = dynamics->get_power();
-    if (power < maximum.limit)
-        return 0.0;
+    if (power > 0) {
+        double cost = m_configuration.minimise_joint_power(std::fabs(power));
+        m_joint_power_cost += cost;
+    }
 
-    double cost = (
-        maximum.constant_cost +
-        std::max(0.0, maximum.quadratic_cost * (power - maximum.limit))
-    );
-
-    m_power_cost += cost;
     return cost;
 }
 
@@ -308,7 +304,7 @@ double AssistedManipulation::workspace_cost(Dynamics *dynamics)
     // Position of the plane in front of the robot.
     Vector3d robot = (
         dynamics->get_frame_position(Frame::ARM_MOUNT_JOINT) +
-        rotate_forward * Vector3d(0.3, 0, 0.15) // offset from base link'
+        rotate_forward * Vector3d(0.3, 0, 0.15) // offset from base link
     );
 
     // Vector from plane origin to end effector.
@@ -320,26 +316,20 @@ double AssistedManipulation::workspace_cost(Dynamics *dynamics)
     );
 
     // Keep end effector in front of the robot.
-    if (projection < 0) {
+    if (projection < 0)
         cost += objective(projection);
-    }
-    else {
-        // cost += std::max(objective.constant_cost - objective.linear_cost * projection, 0.0);
-    }
+
+    // Limit reach.
+    double reach = to_end_effector.norm();
+    if (reach > m_configuration.maximum_reach)
+        cost += objective(reach - m_configuration.maximum_reach);
 
     // Calculate yaw between body and end effector.
-    Vector2d v1 = to_end_effector.head<2>();
-    Vector2d v2 = forward.head<2>();
-    double yaw = std::acos(v1.dot(v2) / v1.norm() / v2.norm());
-    if (!std::isnan(yaw))
-        cost += objective.quadratic_cost * std::fabs(yaw);
-
-    /// @todo: Project to vertical plane ahead, not line.
-    // Keep end effector inline with the front of the robot.
-    // Vector3d projection_vector = projection * forward;
-    // Vector3d offset_vector = end_effector - projection_vector;
-    // double offset = offset_vector.norm();
-    // cost += objective.quadratic_cost * offset * offset;
+    // Vector2d v1 = to_end_effector.head<2>();
+    // Vector2d v2 = forward.head<2>();
+    // double yaw = std::acos(v1.dot(v2) / v1.norm() / v2.norm());
+    // if (!std::isnan(yaw))
+    //     cost += objective.quadratic_cost * std::fabs(yaw);
 
     // Keep the end effector above the robot.
     double height = end_effector[2] - robot[2];
