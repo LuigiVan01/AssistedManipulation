@@ -131,10 +131,10 @@ public:
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
-        .enable_minimise_velocity = false,
-        .enable_self_collision = false,
-        .enable_workspace = false,
-        .enable_trajectory_tracking = false,
+        .enable_minimise_velocity = true,
+        .enable_self_collision = true,
+        .enable_workspace = true,
+        .enable_trajectory_tracking = true,
         .enable_maximise_manipulability = false,
         .enable_minimise_joint_power = false,
         .enable_variable_damping = false,
