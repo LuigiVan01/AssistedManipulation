@@ -30,7 +30,7 @@ std::unique_ptr<AssistedManipulation> AssistedManipulation::create(
 
     if (configuration.log_power) {
         logged.push_back("joint_power");
-        logged.push_back("external_power");
+        // logged.push_back("external_power");
     }
 
     if (configuration.log_energy_tank)
@@ -93,7 +93,7 @@ void AssistedManipulation::log(
 
     if (m_configuration.log_power) {
         m_costs[i++] = objective.get_joint_power_cost();
-        m_costs[i++] = objective.get_joint_power_cost();
+        // m_costs[i++] = objective.get_external_power_cost();
     }
 
     if (m_configuration.log_energy_tank)
@@ -107,10 +107,13 @@ void AssistedManipulation::log(
 
     if (m_configuration.log_total) {
         m_costs[i] = 0.0;
-        m_costs[i++] = std::accumulate(m_costs.begin(), m_costs.end(), 0.0);
+        double cost = std::accumulate(m_costs.begin(), m_costs.end(), 0.0);
+        std::cout << cost << std::endl;
+        m_costs[i++] = cost;
     }
 
     m_logger->write(time, m_costs);
+    m_logger->flush();
 
     m_last_update = time;
 }

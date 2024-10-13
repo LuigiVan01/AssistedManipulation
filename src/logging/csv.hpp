@@ -111,6 +111,13 @@ public:
         *m_file << '\n';
     }
 
+    /**
+     * @brief Flush to disk.
+     */
+    inline void flush() {
+        m_file->get_stream().flush();
+    }
+
 private:
 
     CSV() = default;

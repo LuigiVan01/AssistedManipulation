@@ -61,14 +61,14 @@ public:
         },
         .filename = "",
         .end_effector_frame = "panda_grasp_joint",
-        .initial_state = make_state(FrankaRidgeback::Preset::REACH),
+        .initial_state = make_state(FrankaRidgeback::Preset::JOINT_LIMIT),
         .proportional_gain = FrankaRidgeback::Control{
             0.0, 0.0, 0.0, // base
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // arm
             100.0, 100.0
         },
         .differential_gain = FrankaRidgeback::Control{
-            1000.0, 1000.0, 1.0, // base
+            1000.0, 1000.0, 1000.0, // base
             10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, // arm
             50.0, 50.0
         },

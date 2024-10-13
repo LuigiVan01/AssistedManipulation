@@ -45,3 +45,27 @@ struct QuadraticCost {
         limit, linear_cost, constant_cost, quadratic_cost
     )
 };
+
+struct InverseBarrierFunction {
+
+    double limit;
+
+    double scale;
+
+    inline double operator()(double value) const {
+        return scale / (-value + limit);
+    }
+};
+
+struct LogarithmicBarrierCost {
+
+    double limit;
+
+    double scale;
+
+    double constant;
+
+    inline double operator()(double value) const {
+        return std::max(-scale * std::log10(-value + 1) + constant, 0.0);
+    }
+};

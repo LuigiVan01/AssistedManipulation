@@ -62,9 +62,9 @@ public:
         .actor = {
             .mppi = {
                 .configuration = {
-                    .initial_state = make_state(FrankaRidgeback::Preset::REACH),
-                    .rollouts = 50,
-                    .keep_best_rollouts = 20,
+                    .initial_state = make_state(FrankaRidgeback::Preset::JOINT_LIMIT),
+                    .rollouts = 40,
+                    .keep_best_rollouts = 30,
                     .time_step = 0.01,
                     .horison = 0.3,
                     .gradient_step = 1.0,
@@ -176,7 +176,7 @@ public:
             .log_self_collision = true,
             .log_trajectory = true,
             .log_workspace = true,
-            .log_power = false,
+            .log_power = true,
             .log_energy_tank = false,
             .log_manipulability = false,
             .log_variable_damping = false,

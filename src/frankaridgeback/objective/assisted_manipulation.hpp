@@ -61,11 +61,16 @@ public:
         /// Trajectory not infront cost.
         QuadraticCost workspace;
 
+        /// 
+        QuadraticCost workspace_yaw;
+
         /// The maximum reach of the end effector.
-        double maximum_reach;
+        double workspace_maximum_reach;
 
         /// Cost of matching the forecast trajectory.
-        QuadraticCost trajectory;
+        QuadraticCost trajectory_position;
+
+        QuadraticCost trajectory_velocity;
 
         /// Manipulability limits if enabled.
         QuadraticCost minimum_manipulability;
@@ -104,8 +109,10 @@ public:
             minimise_velocity,
             self_collision_limit,
             workspace,
-            maximum_reach,
-            trajectory,
+            workspace_yaw,
+            workspace_maximum_reach,
+            trajectory_position,
+            trajectory_velocity,
             minimum_manipulability,
             minimise_joint_power,
             maximum_energy,
@@ -126,7 +133,7 @@ public:
         .enable_joint_limit = true,
         .enable_minimise_velocity = false,
         .enable_self_collision = false,
-        .enable_workspace = true,
+        .enable_workspace = false,
         .enable_trajectory_tracking = false,
         .enable_maximise_manipulability = false,
         .enable_minimise_joint_power = false,
@@ -163,7 +170,7 @@ public:
         .minimise_velocity = {{
             {0.0, 0.0, 0.0, 10000.0}, // Base x
             {0.0, 0.0, 0.0, 10000.0}, // Base y
-            {0.0, 0.0, 0.0, 1000.0},  // Base yaw
+            {0.0, 0.0, 0.0, 100.0},  // Base yaw
             {0.0, 0.0, 0.0, 10.0},    // Joint1
             {0.0, 0.0, 0.0, 10.0},    // Joint2
             {0.0, 0.0, 0.0, 10.0},    // Joint3
@@ -190,23 +197,30 @@ public:
             .linear_cost = 500,
             .quadratic_cost = 100'000
         },
-        .maximum_reach = 0.4,
-        .trajectory = {
+        .workspace_yaw = {
+            .quadratic_cost = 5'000
+        },
+        .workspace_maximum_reach = 0.8,
+        .trajectory_position = {
             .limit = 0.01, // Within 1cm of target.
             .constant_cost = 100, // Prevents constant error around target.
-            .quadratic_cost = 200'000.0 // Double limiting constraints.
+            .quadratic_cost = 500.0
+        },
+        .trajectory_velocity = { // Only enabled if position limit breached.
+            .limit = 1.0, // Maximum velocity towards target.
+            .constant_cost = 0,
+            .quadratic_cost = 500.0
         },
         .minimum_manipulability = {
             .limit = 1.0,
-            .quadratic_cost = 100
+            .quadratic_cost = 1000
         },
         .minimise_joint_power = {
             .quadratic_cost = 1
         },
         .maximum_energy = {},
         .variable_damping_maximum = 0.0,
-        .variable_damping_dropoff = 0.0,
-        .trajectory_time_factor = 0
+        .variable_damping_dropoff = 0.0
     };
 
     /**
@@ -354,6 +368,7 @@ private:
      * arm and the end effector frame.
      * 
      * @param dynamics The current dynamics state.
+     * @param target The target position.
      * @returns A cost penalising end effector positions too close or too far
      * from the base.
      */

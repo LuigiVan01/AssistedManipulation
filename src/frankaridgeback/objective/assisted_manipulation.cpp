@@ -195,31 +195,35 @@ double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double ti
     if (!dynamics->get_forecast())
         return 0.0;
 
-    const auto &objective = m_configuration.trajectory;
     const auto &state = dynamics->get_end_effector_state();
     const auto forecast = dynamics->get_forecast()->get();
 
-    // Vector3d force = forecast->get_end_effector_wrench(time).head<3>();
-    // Vector3d initial_position = forecast->get_end_effector_trajectory()[0].position;
-    // Vector3d target = initial_position + (force / 100).cwiseMin(0.5).cwiseMax(-0.5);
-    // double distance = (state.position - target).norm();
+    Vector3d force = forecast->get_end_effector_wrench(time).head<3>();
+    Vector3d initial_position = forecast->get_end_effector_trajectory()[0].position;
+    Vector3d target = initial_position + (force / 100).cwiseMin(0.5).cwiseMax(-0.5);
+    Vector3d target_vector = target - state.position;
+    double distance = target_vector.norm();
 
-    const auto &forecast_state = forecast->get_end_effector_state(time);
-    double distance = (state.position - forecast_state.position).norm();
+    // const auto &forecast_state = forecast->get_end_effector_state(time);
+    // double distance = (state.position - forecast_state.position).norm();
 
     double cost = 0.0;
-    if (distance > objective.limit) {
-        cost += (
-            objective.constant_cost +
-            objective.quadratic_cost * std::pow(distance, 2)
+    if (distance > m_configuration.trajectory_position.limit) {
+        cost += m_configuration.trajectory_position(distance);
+
+        // Project linear velocity onto the force vector.
+        double projection = (
+            state.linear_velocity.dot(target_vector) /
+            target_vector.dot(target_vector)
         );
+
+        double projected = std::copysign(1.0, projection) * (target_vector * projection).norm();
+
+        // Make relative to the trajectory limit.
+        projection = std::max(m_configuration.trajectory_velocity.limit - projected, 0.0);
+        projection = std::exp(projection);
+        cost += m_configuration.trajectory_velocity(projection) / 2;
     }
-
-    double time_cost_scaling = (
-        m_configuration.trajectory_time_factor * (time - m_initial_time) + 1
-    );
-
-    cost *= time_cost_scaling;
 
     m_trajectory_cost += cost;
     return cost;
@@ -316,20 +320,25 @@ double AssistedManipulation::workspace_cost(Dynamics *dynamics)
     );
 
     // Keep end effector in front of the robot.
-    if (projection < 0)
+    if (projection < 0) {
         cost += objective(projection);
+    }
 
     // Limit reach.
     double reach = to_end_effector.norm();
-    if (reach > m_configuration.maximum_reach)
-        cost += objective(reach - m_configuration.maximum_reach);
+    if (reach > m_configuration.workspace_maximum_reach) {
+        cost += objective(
+            reach - m_configuration.workspace_maximum_reach
+        );
+    }
 
     // Calculate yaw between body and end effector.
-    // Vector2d v1 = to_end_effector.head<2>();
-    // Vector2d v2 = forward.head<2>();
-    // double yaw = std::acos(v1.dot(v2) / v1.norm() / v2.norm());
-    // if (!std::isnan(yaw))
-    //     cost += objective.quadratic_cost * std::fabs(yaw);
+    Vector2d v1 = to_end_effector.head<2>();
+    Vector2d v2 = forward.head<2>();
+    double yaw = std::acos(v1.dot(v2) / v1.norm() / v2.norm());
+    if (!std::isnan(yaw)) {
+        cost += m_configuration.workspace_yaw(std::fabs(yaw));
+    }
 
     // Keep the end effector above the robot.
     double height = end_effector[2] - robot[2];

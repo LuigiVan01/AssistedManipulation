@@ -173,20 +173,10 @@ void RaisimDynamics::calculate()
            std::sin(yaw), std::cos(yaw), 0,
            0, 0, 1;
 
-    /// TODO: Incorrect, power port is from the external wrench only.
     m_joint_power = (
         m_robot->getGeneralizedForce().e().transpose() *
         m_robot->getGeneralizedVelocity().e()
     ).value();
-
-    // Update the power usage from the end effector torque.
-    // if (!m_end_effector_wrench.isZero()) {
-    //     m_external_torque = m_end_effector_jacobian.transpose() * get_end_effector_wrench();
-    //     m_power = (m_state.velocity().transpose() * m_external_torque).value();
-    // }
-    // else {
-    //     m_external_torque.setZero();
-    // }
 
     // Update end effector position and orientation.
     raisim::Vec<3> position;
@@ -233,10 +223,15 @@ void RaisimDynamics::act(const Control &control)
     m_robot->setPdTarget(m_position_command, m_velocity_command);
     m_robot->setGeneralizedForce(forces);
 
-    m_external_power = (
-        control.transpose() *
-        (m_end_effector_state.jacobian.transpose() * m_end_effector_simulated_wrench)
-    );
+    if (!m_end_effector_simulated_wrench.isZero()) {
+        m_external_power = (
+            control.transpose() *
+            (m_end_effector_state.jacobian.transpose() * m_end_effector_simulated_wrench)
+        );
+    }
+    else {
+        m_external_power = 0.0;
+    }
 
     // We could simulate the forecasted end effector wrench, but this would make
     // the calculation of the user observed end effector force incorrect.
