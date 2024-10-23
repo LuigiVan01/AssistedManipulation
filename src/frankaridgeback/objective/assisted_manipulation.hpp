@@ -70,6 +70,15 @@ public:
         /// Cost of matching the forecast trajectory.
         QuadraticCost trajectory_position;
 
+        /// The minimum velocity for trajectory tracking.
+        double trajectory_velocity_minimum;
+
+        /// The maximum velocity for trajectory tracking.
+        double trajectory_velocity_maximum;
+
+        /// Rate of dropoff between maximum and zero velocity.
+        double trajectory_velocity_dropoff;
+
         QuadraticCost trajectory_velocity;
 
         /// Manipulability limits if enabled.
@@ -112,6 +121,9 @@ public:
             workspace_yaw,
             workspace_maximum_reach,
             trajectory_position,
+            trajectory_velocity_minimum,
+            trajectory_velocity_maximum,
+            trajectory_velocity_dropoff,
             trajectory_velocity,
             minimum_manipulability,
             minimise_joint_power,
@@ -194,7 +206,7 @@ public:
         .workspace = {
             .limit = 0.0,
             .constant_cost = 100,
-            .linear_cost = 500,
+            // .linear_cost = 500,
             .quadratic_cost = 100'000
         },
         .workspace_yaw = {
@@ -202,12 +214,14 @@ public:
         },
         .workspace_maximum_reach = 0.8,
         .trajectory_position = {
-            .limit = 0.01, // Within 1cm of target.
+            .limit = 0.01, // Within 1c m of target.
             .constant_cost = 100, // Prevents constant error around target.
             .quadratic_cost = 500.0
         },
+        .trajectory_velocity_minimum = 0.2,
+        .trajectory_velocity_maximum = 5.0,
+        .trajectory_velocity_dropoff = 1.0,
         .trajectory_velocity = { // Only enabled if position limit breached.
-            .limit = 1.0, // Maximum velocity towards target.
             .constant_cost = 0,
             .quadratic_cost = 500.0
         },

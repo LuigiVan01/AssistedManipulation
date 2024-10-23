@@ -317,8 +317,7 @@ private:
      * @brief Initialise the kalman forecaster.
      */
     KalmanForecast(
-        double horison,
-        double time_step,
+        const Configuration &configuration,
         unsigned int steps,
         double last_update,
         std::unique_ptr<KalmanFilter> &&filter,
@@ -330,6 +329,9 @@ private:
      * @brief Simple recursive factorial function.
      */
     static unsigned int factorial(unsigned int n);
+
+    /// The order of forecast.
+    unsigned int m_order;
 
     /// The number of observed states in the forecaster.
     unsigned int m_observed_states;

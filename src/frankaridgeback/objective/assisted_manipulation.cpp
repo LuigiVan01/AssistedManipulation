@@ -211,18 +211,26 @@ double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double ti
     if (distance > m_configuration.trajectory_position.limit) {
         cost += m_configuration.trajectory_position(distance);
 
-        // Project linear velocity onto the force vector.
+        // Project linear velocity onto the target vector.
         double projection = (
             state.linear_velocity.dot(target_vector) /
             target_vector.dot(target_vector)
         );
 
-        double projected = std::copysign(1.0, projection) * (target_vector * projection).norm();
+        // Projected component onto the target vector.
+        projection = std::copysign(1.0, projection) * (target_vector * projection).norm();
 
-        // Make relative to the trajectory limit.
-        projection = std::max(m_configuration.trajectory_velocity.limit - projected, 0.0);
-        projection = std::exp(projection);
-        cost += m_configuration.trajectory_velocity(projection) / 2;
+        // Calculate ideal velocity field.
+        double velocity_target = std::clamp(
+            std::exp(m_configuration.trajectory_velocity_dropoff * distance),
+            m_configuration.trajectory_velocity_minimum,
+            m_configuration.trajectory_velocity_maximum
+        );
+
+        double velocity_error = std::fabs(velocity_target - projection);
+
+        // Make relative to the velocity limit.
+        cost += m_configuration.trajectory_velocity(velocity_error);
     }
 
     m_trajectory_cost += cost;
@@ -327,9 +335,7 @@ double AssistedManipulation::workspace_cost(Dynamics *dynamics)
     // Limit reach.
     double reach = to_end_effector.norm();
     if (reach > m_configuration.workspace_maximum_reach) {
-        cost += objective(
-            reach - m_configuration.workspace_maximum_reach
-        );
+        cost += objective(std::fabs(reach - m_configuration.workspace_maximum_reach));
     }
 
     // Calculate yaw between body and end effector.

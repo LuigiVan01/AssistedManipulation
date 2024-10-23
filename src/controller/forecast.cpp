@@ -183,8 +183,7 @@ std::unique_ptr<KalmanForecast> KalmanForecast::create(
 
     return std::unique_ptr<KalmanForecast>(
         new KalmanForecast(
-            configuration.horison,
-            configuration.time_step,
+            configuration,
             steps,
             0.0,
             std::move(filter),
@@ -195,8 +194,7 @@ std::unique_ptr<KalmanForecast> KalmanForecast::create(
 }
 
 KalmanForecast::KalmanForecast(
-    double horison,
-    double time_step,
+    const Configuration &configuration,
     unsigned int steps,
     double last_update,
     std::unique_ptr<KalmanFilter> &&filter,
@@ -204,8 +202,9 @@ KalmanForecast::KalmanForecast(
     VectorXd initial_state
   ) : m_observed_states(filter->get_observed_state_size())
     , m_estaimted_states(filter->get_estimated_state_size())
-    , m_horison(horison)
-    , m_time_step(time_step)
+    , m_order(configuration.order)
+    , m_horison(configuration.horison)
+    , m_time_step(configuration.time_step)
     , m_steps(steps)
     , m_last_update(last_update)
     , m_mutex()
@@ -304,8 +303,16 @@ void KalmanForecast::update(VectorXd measurement, double time)
 {
     std::unique_lock lock(m_mutex);
 
+    // Calculate measurement derivatives.
+    for (unsigned int i = 1; i < m_order; i++) {
+        m_measurement.segment(3 * i, 3) = (
+            m_measurement.segment(3 * (i - 1), 3) -
+            measurement.segment(3 * (i - 1), 3)
+        ) / (time - m_last_update);
+    }
+
     m_last_update = time;
-    m_filter->update(measurement);
+    m_filter->update(m_measurement);
 
     m_predictor->set_estimation(m_filter->get_estimation());
     m_predictor->set_covariance(m_filter->get_covariance());
