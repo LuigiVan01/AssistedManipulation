@@ -22,29 +22,23 @@ public:
         /// If joint limit costs are enabled.
         bool enable_joint_limit;
 
-        /// If the joint velocities should be minimised.
-        bool enable_minimise_velocity;
-
         /// If self collision costs are enabled.
-        bool enable_self_collision;
+        bool enable_self_collision_limit;
 
         /// If workspace costs are enabled.
-        bool enable_workspace;
-
-        /// If tracking the expected trajectory is enabled.
-        bool enable_trajectory_tracking;
-
-        /// If end effector manipulability is maximised.
-        bool enable_maximise_manipulability;
-
-        /// If the power used by the trajectory is minimised.
-        bool enable_minimise_joint_power;
-
-        /// If variable damping should be enabled.
-        bool enable_variable_damping;
+        bool enable_workspace_limit;
 
         /// If energy tank should be enabled.
-        bool enable_energy_tank;
+        bool enable_energy_limit;
+
+        /// If tracking the expected trajectory is enabled.
+        bool enable_trajectory_cost;
+
+        /// If the joint velocities should be minimised.
+        bool enable_velocity_cost;
+
+        /// If end effector manipulability is maximised.
+        bool enable_manipulability_cost;
 
         /// Lower joint limits if enabled.
         std::array<QuadraticCost, DoF::JOINTS> lower_joint_limit;
@@ -84,35 +78,19 @@ public:
         /// Manipulability limits if enabled.
         QuadraticCost minimum_manipulability;
 
-        /// Maximum power (joules per second) usage if enabled. 
-        QuadraticCost minimise_joint_power;
-
         /// Maximum energy tank energy if enabled.
         QuadraticCost maximum_energy;
-
-        /// The maximum damping that occurs when the end effector has zero
-        /// velocity. The A in c(v) = Ae^{lambda * v}
-        double variable_damping_maximum;
-
-        /// The exponential drop-off from variable_damping_maximum with respect
-        /// to velocity. The lambda in c(v) = Ae^{lambda * v}
-        double variable_damping_dropoff;
-
-        /// Constant multiplier of time.
-        double trajectory_time_factor;
 
         // JSON conversion for assisted manipulation objective configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            enable_minimise_velocity,
             enable_joint_limit,
-            enable_self_collision,
-            enable_workspace,
-            enable_trajectory_tracking,
-            enable_maximise_manipulability,
-            enable_minimise_joint_power,
-            enable_variable_damping,
-            enable_energy_tank,
+            enable_self_collision_limit,
+            enable_workspace_limit,
+            enable_energy_limit,
+            enable_trajectory_cost,
+            enable_velocity_cost,
+            enable_manipulability_cost,
             lower_joint_limit,
             upper_joint_limit,
             minimise_velocity,
@@ -126,11 +104,7 @@ public:
             trajectory_velocity_dropoff,
             trajectory_velocity,
             minimum_manipulability,
-            minimise_joint_power,
-            maximum_energy,
-            variable_damping_maximum,
-            variable_damping_dropoff,
-            trajectory_time_factor
+            maximum_energy
         )
     };
 
@@ -143,14 +117,12 @@ public:
      */
     static inline const Configuration DEFAULT_CONFIGURATION {
         .enable_joint_limit = true,
-        .enable_minimise_velocity = true,
-        .enable_self_collision = true,
-        .enable_workspace = true,
-        .enable_trajectory_tracking = true,
-        .enable_maximise_manipulability = false,
-        .enable_minimise_joint_power = false,
-        .enable_variable_damping = false,
-        .enable_energy_tank = false,
+        .enable_self_collision_limit = true,
+        .enable_workspace_limit = true,
+        .enable_energy_limit = false,
+        .enable_trajectory_cost = true,
+        .enable_velocity_cost = true,
+        .enable_manipulability_cost = false,
         .lower_joint_limit = {{
             {-2.0,    1'000, 0.0,  100'000}, // Base x
             {-2.0,    1'000, 0.0,  100'000}, // Base y
@@ -228,13 +200,7 @@ public:
         .minimum_manipulability = {
             .limit = 1.0,
             .quadratic_cost = 1000
-        },
-        .minimise_joint_power = {
-            .quadratic_cost = 1
-        },
-        .maximum_energy = {},
-        .variable_damping_maximum = 0.0,
-        .variable_damping_dropoff = 0.0
+        }
     };
 
     /**

@@ -52,29 +52,23 @@ double AssistedManipulation::get_cost(
     if (m_configuration.enable_joint_limit)
         cost += joint_limit_cost(state);
 
-    if (m_configuration.enable_minimise_velocity)
-        cost += minimise_velocity_cost(state);
-
-    if (m_configuration.enable_self_collision)
+    if (m_configuration.enable_self_collision_limit)
         cost += self_collision_cost(dynamics);
 
-    if (m_configuration.enable_trajectory_tracking)
-        cost += trajectory_cost(dynamics, time);
-
-    if (m_configuration.enable_workspace)
+    if (m_configuration.enable_workspace_limit)
         cost += workspace_cost(dynamics);
 
-    if (m_configuration.enable_minimise_joint_power)
-        cost += power_cost(dynamics);
-
-    if (m_configuration.enable_energy_tank)
+    if (m_configuration.enable_energy_limit)
         cost += energy_tank_cost(dynamics);
 
-    if (m_configuration.enable_maximise_manipulability)
-        cost += manipulability_cost(dynamics);
+    if (m_configuration.enable_trajectory_cost)
+        cost += trajectory_cost(dynamics, time);
 
-    if (m_configuration.enable_variable_damping)
-        cost += variable_damping_cost(state);
+    if (m_configuration.enable_velocity_cost)
+        cost += minimise_velocity_cost(state);
+
+    if (m_configuration.enable_manipulability_cost)
+        cost += manipulability_cost(dynamics);
 
     return cost;
 }
@@ -89,18 +83,11 @@ double AssistedManipulation::joint_limit_cost(const State &state)
 
         double position = state.position()(i);
 
-        // Agressively penalise if joint limits breached.
         if (position < lower.limit) {
             cost += lower(std::fabs(lower.limit - position));
         }
         else if (position > upper.limit) {
             cost += upper(std::fabs(position - upper.limit));
-        }
-        else {
-            // This tends to the middle of the joint limits, not really useful.
-            // Rely on maximising manipulability instead.
-            // cost += lower.linear_cost * std::pow(lower.limit - position, 2);
-            // cost += upper.linear_cost * std::pow(upper.limit - position, 2);
         }
     }
 
@@ -237,19 +224,6 @@ double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double ti
     return cost;
 }
 
-double AssistedManipulation::power_cost(Dynamics *dynamics)
-{
-    double cost = 0.0;
-    double power = dynamics->get_joint_power();
-
-    if (power > 0) {
-        double cost = m_configuration.minimise_joint_power(std::fabs(power));
-        m_joint_power_cost += cost;
-    }
-
-    return cost;
-}
-
 double AssistedManipulation::energy_tank_cost(Dynamics *dynamics)
 {
     const auto &maximum = m_configuration.maximum_energy;
@@ -354,32 +328,6 @@ double AssistedManipulation::workspace_cost(Dynamics *dynamics)
 
     m_workspace_cost += cost;
     return cost;
-}
-
-double AssistedManipulation::variable_damping_cost(const State &state)
-{
-    // double velocity = m_model->end_effector_velocity().norm();
-
-    // double expected_damping = (
-    //     m_configuration.variable_damping_maximum *
-    //     std::exp(-m_configuration.variable_damping_dropoff * velocity)
-    // );
-
-    // // The expected resistive force against the external force.
-    // double expected_inertia = expected_damping * velocity;
-
-    // double inertia = m_model->get_data().Jm_model->get_data()->M
-    // // Subtract the 
-    // double residual_force = (
-    //     state.end_effector_force().norm() - expected_damping * velocity
-    // );
-
-    // // // F = c * x_dot therefore c = F \ x_dot
-    // double damping = state.end_effector_torque().norm() / velocity;
-
-    // m_variable_damping_cost.quadratic * ;
-
-    return 0.0;
 }
 
 } // namespace FrankaRidgeback

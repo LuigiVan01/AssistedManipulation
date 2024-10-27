@@ -6,13 +6,6 @@
 
 /**
  * @brief A generic objective function for evaluating a single variable.
- * 
- * The quadratic cost performs the role of a quadratic gradient function
- * during optimisation.
- * 
- * TODO: Could add an inline function calculating the cost as
- * c(x) = constant_cost + linear_cost * x + quadratic_cost * x^2
- * to simplify writing it out in every part of the objective function.
  */
 struct QuadraticCost {
 
@@ -46,26 +39,132 @@ struct QuadraticCost {
     )
 };
 
-struct InverseBarrierFunction {
+/**
+ * @brief An inverse barrier function which increases with cost until an upper
+ * bound, clamped to a maximum cost. No lower bound.
+ */
+struct RightInverseBarrierFunction {
 
-    double limit;
+    /// The upper value of the barrier.
+    double upper_bound;
 
+    /// The scaling factor.
     double scale;
 
-    inline double operator()(double value) const {
-        return scale / (-value + limit);
+    /// The maximum value to clamp the barrier function to.
+    double maximum_cost = 1e10;
+
+    /**
+     * @brief Calculate the cost of the barrier function.
+     */
+    inline double operator()(double value) const
+    {
+        if (value >= upper_bound)
+            return NAN;
+        return std::min(scale / (upper_bound - value), maximum_cost);
     }
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        RightInverseBarrierFunction,
+        upper_bound, scale, maximum_cost
+    )
 };
 
-struct LogarithmicBarrierCost {
+/**
+ * @brief An inverse barrier function which increases with cost until a lower
+ * bound, clamped to a maximum cost. No upper bound.
+ */
+struct LeftInverseBarrierFunction {
 
-    double limit;
+    /// The barrier.
+    double lower_bound;
 
+    /// Scaling factor of the 
     double scale;
 
-    double constant;
+    /// The maximum value to clamp the barrier function to.
+    double maximum_cost = 1e10;
 
-    inline double operator()(double value) const {
-        return std::max(-scale * std::log10(-value + 1) + constant, 0.0);
+    /**
+     * @brief Calculate the cost of the barrier function.
+     */
+    inline double operator()(double value) const
+    {
+        if (value <= lower_bound)
+            return NAN;
+        return std::min(scale / (value - lower_bound), maximum_cost);
     }
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        LeftInverseBarrierFunction,
+        lower_bound, scale, maximum_cost
+    )
+};
+
+/**
+ * @brief An logarithmic barrier function which increases with cost until an
+ * upper bound, clamped to a maximum cost. No lower bound.
+ */
+struct UpperLogarithmicBarrierFunction {
+
+    /// The barrier.
+    double upper_bound;
+
+    /// The scaling factor of the function.
+    double scale;
+
+    /// The value offset.
+    double offset;
+
+    /// The maximum value to clamp the barrier function to.
+    double maximum_cost = 1e10;
+
+    /**
+     * @brief Calculate the cost of the barrier function.
+     */
+    inline double operator()(double value) const
+    {
+        if (value >= upper_bound)
+            return maximum_cost;
+        return std::min(scale * (-std::log10(-value + upper_bound) + offset), 0.0);
+    }
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        UpperLogarithmicBarrierFunction,
+        upper_bound, scale, offset, maximum_cost
+    )
+};
+
+/**
+ * @brief An logarithmic barrier function which increases with cost until a
+ * lower bound, clamped to a maximum cost. No upper bound.
+ */
+struct LowerLogarithmicBarrierFunction {
+
+    /// The barrier.
+    double lower_bound;
+
+    /// The scaling factor of the function.
+    double scale;
+
+    /// The value offset.
+    double offset;
+
+    /// The maximum value to clamp the barrier function to.
+    double maximum_cost = 1e10;
+
+    /**
+     * @brief Calculate the cost of the barrier function.
+     */
+    inline double operator()(double value) const
+    {
+        if (value <= lower_bound)
+            return maximum_cost;
+        return std::min(scale * (-std::log10(value - lower_bound) + offset), 0.0);
+    }
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        LowerLogarithmicBarrierFunction,
+        lower_bound, scale, offset, maximum_cost
+    )
 };
