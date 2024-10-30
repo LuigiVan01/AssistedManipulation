@@ -100,9 +100,8 @@ KalmanFilter::KalmanFilter(const Configuration &config)
     , m_next_state(m_state_transition_matrix * config.initial_state)
 {}
 
-void KalmanFilter::update(
-    Eigen::Ref<VectorXd> observation
-) {
+void KalmanFilter::update(VectorXd &observation)
+{
     // Calculate the optimal kalman gain.
     MatrixXd optimal_kalman_gain = (
         m_covariance * m_observation_matrix.transpose() * (

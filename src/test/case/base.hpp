@@ -54,7 +54,7 @@ public:
 
     static inline const Configuration DEFAULT_CONFIGURATION = {
         .folder = "default",
-        .duration = 30.0,
+        .duration = 15.0,
         .simulator = {
             .time_step = 0.005,
             .gravity = {0.0, 0.0, 9.81}
@@ -63,8 +63,8 @@ public:
             .mppi = {
                 .configuration = {
                     .initial_state = make_state(FrankaRidgeback::Preset::HUDDLED),
-                    .rollouts = 40,
-                    .keep_best_rollouts = 30,
+                    .rollouts = 50,
+                    .keep_best_rollouts = 20,
                     .time_step = 0.01,
                     .horison = 0.3,
                     .gradient_step = 1.0,
@@ -87,7 +87,6 @@ public:
                         0.05, 0.05 // gripper
                     },
                     .control_default = FrankaRidgeback::Control::Zero(),
-                    // .smoothing = std::nullopt,
                     .smoothing = mppi::Configuration::Smoothing {
                         .window = 10,
                         .order = 1
@@ -115,15 +114,23 @@ public:
                     .time_step = 0.01,
                     .horison = 0.3,
                     .end_effector_wrench_forecast = {
-                        .type = Forecast::Configuration::Type::LOCF,
+                        .type = Forecast::Configuration::Type::KALMAN,
                         .locf = LOCFForecast::Configuration {
-                            .observation = Vector6d::Zero()
+                            .observation = Vector6d::Zero(),
+                            .horison = 0.3
                         },
                         .average = AverageForecast::Configuration {
                             .states = 6,
-                            .window = 1.0
+                            .window = 0.3
                         },
-                        .kalman = std::nullopt
+                        .kalman = KalmanForecast::Configuration {
+                            .observed_states = 6,
+                            .time_step = 0.01,
+                            .horison = 0.3,
+                            .order = 2,
+                            .variance = Vector6d::Ones() * 0.2,
+                            .initial_state = Vector6d::Zero()
+                        }
                     }
                 },
                 .dynamics = {
@@ -134,7 +141,7 @@ public:
             },
             .controller_rate = 0.05,
             .controller_substeps = 1,
-            .forecast_rate = 0.05
+            .forecast_rate = 0.00
         },
         .mppi_logger = {
             .folder = "",
@@ -172,14 +179,12 @@ public:
         .objective_logger = {
             .folder = "",
             .log_joint_limit = true,
-            .log_minimise_velocity = true,
-            .log_self_collision = true,
-            .log_trajectory = true,
-            .log_workspace = true,
-            .log_power = true,
-            .log_energy_tank = false,
-            .log_manipulability = false,
-            .log_variable_damping = false,
+            .log_self_collision_limit = true,
+            .log_workspace_limit = true,
+            .log_energy_limit = true,
+            .log_velocity_cost = true,
+            .log_trajectory_cost = true,
+            .log_manipulability_cost = true,
             .log_total = true
         }
     };

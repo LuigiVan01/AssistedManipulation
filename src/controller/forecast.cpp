@@ -59,16 +59,14 @@ AverageForecast::AverageForecast(double window, unsigned int states)
     , m_window(window)
     , m_buffer()
     , m_average(VectorXd::Zero(states))
-{
-    // The initial default force is zero. Will be erased on first update.
-    m_buffer.emplace_back(
-        std::numeric_limits<double>::min(),
-        VectorXd::Zero(states)
-    );
-}
+    , m_last(0.0)
+{}
 
 void AverageForecast::clear_old_measurements(double time)
 {
+    if (m_buffer.empty())
+        return;
+
     // Find the element that is older than the time window.
     auto it = std::upper_bound(
         m_buffer.begin(),
@@ -79,11 +77,6 @@ void AverageForecast::clear_old_measurements(double time)
         }
     );
 
-    // Remove old elements from the buffer.
-    // Always keep the most recent measurement.
-    if (it == m_buffer.end())
-        --it;
-
     // Erase all elements on range [begin, it) where it points to the first
     // element with time greater than (time - window), excluding the most recent
     // measurement.
@@ -92,6 +85,11 @@ void AverageForecast::clear_old_measurements(double time)
 
 void AverageForecast::update_average()
 {
+    if (m_buffer.empty()) {
+        m_average.setZero();
+        return;
+    }
+
     // Update the average.
     VectorXd total = m_buffer[0].second;
     for (int i = 1; i < m_buffer.size(); i++) {
@@ -113,15 +111,17 @@ void AverageForecast::update(VectorXd measurement, double time)
     std::unique_lock lock(m_mutex);
 
     // Ignore measurements in the past.
-    if (time < m_buffer.back().first)
+    if (time < m_last)
         return;
+    else
+        m_last = time;
 
     m_buffer.emplace_back(time, measurement);
     clear_old_measurements(time);
     update_average();
 }
 
-VectorXd AverageForecast::forecast(double /* time */)
+VectorXd AverageForecast::forecast(double time)
 {
     std::shared_lock lock(m_mutex);
     return m_average;
@@ -135,25 +135,11 @@ std::unique_ptr<KalmanForecast> KalmanForecast::create(
     // acceleration) has 6 states being x, y, dx, dy, ddx, ddy
     unsigned int states = configuration.observed_states * (configuration.order + 1);
 
-    // Observation matrix maps the system state to an observed state. Since
-    // only measurements of zero order (e.g. x, y, z and not higher derivatives)
-    // are taken, the observation matrix extracts these from the actual state.
-    // In the above example, [x, y, 0, 0, 0, 0]
-    MatrixXd observation_matrix = MatrixXd::Zero(configuration.observed_states, states);
-    observation_matrix.topLeftCorner(
-        configuration.observed_states, configuration.observed_states
-    ).setIdentity();
-
-    auto observation_covariance_matrix = MatrixXd::Identity(
-        configuration.observed_states,
-        configuration.observed_states
-    ) * 1e-8;
-
-    VectorXd initial_state = VectorXd::Zero(configuration.observed_states * (configuration.order + 1));
+    VectorXd initial_state = VectorXd::Zero(states);
     initial_state.head(configuration.observed_states) = configuration.initial_state;
 
     KalmanFilter::Configuration kalman_configuration {
-        .observed_states = configuration.observed_states,
+        .observed_states = states,
         .states = states,
         .state_transition_matrix = create_euler_state_transition_matrix(
             configuration.time_step,
@@ -161,12 +147,12 @@ std::unique_ptr<KalmanForecast> KalmanForecast::create(
             configuration.order
         ),
         .transition_covariance = create_euler_state_transition_covariance_matrix(
-            configuration.time_step,
+            configuration.variance,
             configuration.observed_states,
             configuration.order
         ),
-        .observation_matrix = observation_matrix,
-        .observation_covariance = observation_covariance_matrix,
+        .observation_matrix = MatrixXd::Identity(states, states),
+        .observation_covariance = MatrixXd::Identity(states, states) * 1e-8,
         .initial_state = initial_state,
         .initial_covariance = MatrixXd::Identity(states, states) * 1e-8
     };
@@ -206,7 +192,7 @@ KalmanForecast::KalmanForecast(
     , m_horison(configuration.horison)
     , m_time_step(configuration.time_step)
     , m_steps(steps)
-    , m_last_update(last_update)
+    , m_last_update(-configuration.time_step)
     , m_mutex()
     , m_measurement(filter->get_estimated_state_size(), 1) // rows, cols
     , m_filter(std::move(filter))
@@ -274,13 +260,13 @@ MatrixXd KalmanForecast::create_euler_state_transition_matrix(
 
         // For each state in the set of rows.
         for (unsigned int state = 0; state < observed_states; state++) {
-            unsigned int row = derivative * order + state;
+            unsigned int row = derivative * observed_states + state;
 
             // For each column in that row
             for (unsigned int i = 0; i <= order - derivative; i++) {
                 unsigned int col = derivative * observed_states + i * observed_states + state;
 
-                matrix(row, col) = 1 / factorial(i) * std::pow(time_step, i);
+                matrix(row, col) = 1.0 / (double)factorial(i) * std::pow(time_step, i);
             }
         }
     }
@@ -289,11 +275,11 @@ MatrixXd KalmanForecast::create_euler_state_transition_matrix(
 }
 
 MatrixXd KalmanForecast::create_euler_state_transition_covariance_matrix(
-    double time_step,
+    const VectorXd &variance,
     unsigned int observed_states,
     unsigned int order
 ) {
-    /// TODO: Calculate the transition covariance matrix properly.
+    // The number of states includes the derivatives of each observed state.
     unsigned int states = observed_states * (order + 1);
     MatrixXd matrix = MatrixXd::Identity(states, states) * 1e-8;
     return matrix;
@@ -303,13 +289,17 @@ void KalmanForecast::update(VectorXd measurement, double time)
 {
     std::unique_lock lock(m_mutex);
 
+    double dt = time - m_last_update;
+    Vector6d delta = (measurement - m_measurement.segment(0, 6)) / dt;
+
     // Calculate measurement derivatives.
-    for (unsigned int i = 1; i < m_order; i++) {
-        m_measurement.segment(3 * i, 3) = (
-            m_measurement.segment(3 * (i - 1), 3) -
-            measurement.segment(3 * (i - 1), 3)
-        ) / (time - m_last_update);
+    for (unsigned int i = 1; i <= m_order; i++) {
+        Vector6d next_delta = (delta - m_measurement.segment(6 * i, 6)) / dt;
+        m_measurement.segment(6 * i, 6) = delta;
+        delta = next_delta;
     }
+
+    m_measurement.segment(0, 6) = measurement;
 
     m_last_update = time;
     m_filter->update(m_measurement);
@@ -323,13 +313,17 @@ void KalmanForecast::update(VectorXd measurement, double time)
     // Generate the predicted measurement at each future time step over the
     // horison.
     for (unsigned int i = 0; i < m_steps; i++) {
-        m_predictor->predict();
+        m_predictor->predict(false);
+        std::cout << m_predictor->get_estimation().head(m_observed_states).transpose().head(3) << std::endl;
         m_prediction.col(i + 1) = m_predictor->get_estimation().head(m_observed_states);
     }
 }
 
 void KalmanForecast::update(double time)
 {
+    if (time <= m_last_update)
+        return;
+
     // Update the kalman filter using prediction only, and propagate process
     // covariance.
     m_filter->predict();
@@ -342,8 +336,8 @@ VectorXd KalmanForecast::forecast(double time)
     assert(time >= m_last_update);
 
     // If predicting past the horison, return the last predicted force.
-    if (time > m_horison)
-        return m_prediction.rightCols(1);
+    if (time > m_last_update + m_horison)
+        return Vector6d::Zero();
 
     // Steps into the current horison.
     double t = (time - m_last_update) / m_time_step;
@@ -356,5 +350,8 @@ VectorXd KalmanForecast::forecast(double time)
     t -= lower;
 
     // Linear interpolation between closest predictions.
-    return (1.0 - t) * m_prediction.col(lower) + t * m_prediction.col(upper);
+    return (
+        (1.0 - t) * m_prediction.col(lower).topRows(6) +
+        t * m_prediction.col(upper).topRows(6)
+    );
 }

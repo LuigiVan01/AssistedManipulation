@@ -135,7 +135,7 @@ public:
         std::string name,
         json patch = nullptr,
         std::filesystem::path output_folder = "",
-        double test_duration = 30.0
+        double test_duration = 15.0
     ) {
         using namespace std::string_literals;
         using namespace std::chrono_literals;

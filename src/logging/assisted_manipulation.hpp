@@ -23,30 +23,26 @@ public:
 
         bool log_joint_limit = true;
 
-        bool log_minimise_velocity = true;
+        bool log_self_collision_limit = true;
 
-        bool log_self_collision = true;
+        bool log_workspace_limit = true;
 
-        bool log_trajectory = true;
+        bool log_energy_limit = true;
 
-        bool log_workspace = true;
+        bool log_velocity_cost = true;
 
-        bool log_power = true;
+        bool log_trajectory_cost = true;
 
-        bool log_energy_tank = true;
-
-        bool log_manipulability = true;
-
-        bool log_variable_damping = true;
+        bool log_manipulability_cost = true;
 
         bool log_total = true;
 
         // JSON conversion for mppi logger configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            folder, log_joint_limit, log_minimise_velocity, log_self_collision,
-            log_trajectory, log_workspace, log_power, log_energy_tank,
-            log_manipulability, log_variable_damping, log_total
+            folder, log_joint_limit, log_self_collision_limit,
+            log_workspace_limit, log_energy_limit, log_velocity_cost,
+            log_trajectory_cost, log_manipulability_cost, log_total
         )
     };
 

@@ -1,5 +1,6 @@
 #include "mppi.hpp"
 
+#include <ranges>
 #include <cmath>
 #include <numeric>
 #include <span>
@@ -339,20 +340,28 @@ void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
 
 void Trajectory::optimise()
 {
+    auto rollouts = std::views::filter(
+        m_rollouts,
+        [](const Rollout &rollout){ return !std::isnan(rollout.cost); }
+    );
+
     double maximum = std::numeric_limits<double>::max();
     double minimum = std::numeric_limits<double>::min();
 
-    // Get the minimum and maximum rollout cost.
     auto [it1, it2] = std::minmax_element(
-        m_rollouts.begin(),
-        m_rollouts.end(),
+        rollouts.begin(),
+        rollouts.end(),
         [](auto &left, auto &right) {
-            return left.cost < right.cost ? true : std::isnan(right.cost);
+            return left.cost < right.cost;
         }
     );
 
     minimum = it1->cost;
     maximum = it2->cost;
+
+    // No non-nan rollouts, this is an error.
+    if (it1 == it2)
+        throw std::runtime_error("all nan rollouts");
 
     // For parameterisation of each cost.
     double difference = maximum - minimum;
@@ -446,8 +455,6 @@ void Trajectory::filter()
             std::pow(m_cost_discount_factor, step) *
             cost->get_cost(state, control, dynamics, m_rollout_time + step * m_time_step)
         );
-
-        assert(!std::isnan(step_cost));
 
         // Cumulative running cost.
         m_optimal_rollout.cost += step_cost;

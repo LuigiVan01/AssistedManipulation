@@ -31,38 +31,53 @@ public:
         /// If energy tank should be enabled.
         bool enable_energy_limit;
 
-        /// If tracking the expected trajectory is enabled.
-        bool enable_trajectory_cost;
-
         /// If the joint velocities should be minimised.
         bool enable_velocity_cost;
+
+        /// If tracking the expected trajectory is enabled.
+        bool enable_trajectory_cost;
 
         /// If end effector manipulability is maximised.
         bool enable_manipulability_cost;
 
         /// Lower joint limits if enabled.
-        std::array<QuadraticCost, DoF::JOINTS> lower_joint_limit;
+        std::array<LeftInverseBarrierFunction, DoF::JOINTS> lower_joint_limit;
 
         /// Upper joint limits if enabled.
-        std::array<QuadraticCost, DoF::JOINTS> upper_joint_limit;
-
-        /// Velocity minimisation cost.
-        std::array<QuadraticCost, DoF::JOINTS> minimise_velocity;
+        std::array<RightInverseBarrierFunction, DoF::JOINTS> upper_joint_limit;
 
         /// Self collision cost.
-        std::array<QuadraticCost, 8> self_collision_limit;
+        LeftInverseBarrierFunction self_collision_limit;
+
+        std::array<double, 8> self_collision_radii;
 
         /// Trajectory not infront cost.
-        QuadraticCost workspace;
+        LeftInverseBarrierFunction workspace_limit_above;
 
-        /// 
-        QuadraticCost workspace_yaw;
+        LeftInverseBarrierFunction workspace_limit_infront;
 
-        /// The maximum reach of the end effector.
-        double workspace_maximum_reach;
+        RightInverseBarrierFunction workspace_limit_reach;
+
+        QuadraticCost workspace_cost_yaw;
+
+        /// Maximum energy tank energy if enabled.
+        LeftInverseBarrierFunction energy_limit_below;
+
+        RightInverseBarrierFunction energy_limit_above;
+
+        /// Velocity minimisation cost.
+        std::array<QuadraticCost, DoF::JOINTS> velocity_cost;
+
+        double trajectory_target_scale;
+
+        double trajectory_target_maximum;
 
         /// Cost of matching the forecast trajectory.
-        QuadraticCost trajectory_position;
+        QuadraticCost trajectory_position_cost;
+
+        double trajectory_position_threshold;
+
+        QuadraticCost trajectory_velocity_cost;
 
         /// The minimum velocity for trajectory tracking.
         double trajectory_velocity_minimum;
@@ -73,13 +88,10 @@ public:
         /// Rate of dropoff between maximum and zero velocity.
         double trajectory_velocity_dropoff;
 
-        QuadraticCost trajectory_velocity;
-
         /// Manipulability limits if enabled.
-        QuadraticCost minimum_manipulability;
+        QuadraticCost manipulability_cost;
 
-        /// Maximum energy tank energy if enabled.
-        QuadraticCost maximum_energy;
+        double manipulability_minimum;
 
         // JSON conversion for assisted manipulation objective configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
@@ -88,23 +100,29 @@ public:
             enable_self_collision_limit,
             enable_workspace_limit,
             enable_energy_limit,
-            enable_trajectory_cost,
             enable_velocity_cost,
+            enable_trajectory_cost,
             enable_manipulability_cost,
             lower_joint_limit,
             upper_joint_limit,
-            minimise_velocity,
             self_collision_limit,
-            workspace,
-            workspace_yaw,
-            workspace_maximum_reach,
-            trajectory_position,
+            workspace_limit_above,
+            workspace_limit_infront,
+            workspace_limit_reach,
+            workspace_cost_yaw,
+            energy_limit_below,
+            energy_limit_above,
+            velocity_cost,
+            trajectory_target_scale,
+            trajectory_target_maximum,
+            trajectory_position_cost,
+            trajectory_position_threshold,
+            trajectory_velocity_cost,
             trajectory_velocity_minimum,
             trajectory_velocity_maximum,
             trajectory_velocity_dropoff,
-            trajectory_velocity,
-            minimum_manipulability,
-            maximum_energy
+            manipulability_cost,
+            manipulability_minimum
         )
     };
 
@@ -120,87 +138,75 @@ public:
         .enable_self_collision_limit = true,
         .enable_workspace_limit = true,
         .enable_energy_limit = false,
-        .enable_trajectory_cost = true,
         .enable_velocity_cost = true,
-        .enable_manipulability_cost = false,
+        .enable_trajectory_cost = true,
+        .enable_manipulability_cost = true,
         .lower_joint_limit = {{
-            {-2.0,    1'000, 0.0,  100'000}, // Base x
-            {-2.0,    1'000, 0.0,  100'000}, // Base y
-            {-6.28,   1'000, 0.0,  100'000}, // Base yaw
-            {-2.8,    1'000, 10.0, 100'000}, // Joint1
-            {-1.745,  1'000, 50.0, 100'000}, // Joint2
-            {-2.8,    1'000, 10.0, 100'000}, // Joint3
-            {-3.0718, 1'000, 10.0, 100'000}, // Joint4
-            {-2.7925, 1'000, 10.0, 100'000}, // Joint5
-            {0.349,   1'000, 10.0, 100'000}, // Joint6
-            {-2.967,  1'000, 10.0, 100'000}, // Joint7
-            {0.0,     1'000, 10.0, 100'000}, // Gripper x
-            {0.0,     1'000, 10.0, 100'000}  // Gripper y
+            {-2.0,    0.0}, // Base x
+            {-2.0,    0.0}, // Base y
+            {-6.28,   0.0}, // Base yaw
+            {-2.8,    1.0}, // Joint1
+            {-1.745,  1.0}, // Joint2
+            {-2.8,    1.0}, // Joint3
+            {-3.0718, 1.0}, // Joint4
+            {-2.7925, 1.0}, // Joint5
+            {0.349,   1.0}, // Joint6
+            {-2.967,  1.0}, // Joint7
+            {0.0,     0.0}, // Gripper x
+            {0.0,     0.0}  // Gripper y
         }},
         .upper_joint_limit = {{
-            {2.0,     1'000, 0.0, 100'000.0}, // Base x
-            {2.0,     1'000, 0.0, 100'000.0}, // Base y
-            {6.28,    1'000, 0.0, 100'000.0}, // Base yaw
-            {2.8,     1'000, 10.0, 100'000.0}, // Joint1
-            {1.745,   1'000, 50.0, 100'000.0}, // Joint2
-            {2.8,     1'000, 10.0, 100'000.0}, // Joint3
-            {0.0,     1'000, 10.0, 100'000.0}, // Joint4
-            {2.7925,  1'000, 10.0, 100'000.0}, // Joint5
-            {4.53785, 1'000, 10.0, 100'000.0}, // Joint6
-            {2.967,   1'000, 10.0, 100'000.0}, // Joint7
-            {0.5,     1'000, 10.0, 100'000.0}, // Gripper x
-            {0.5,     1'000, 10.0, 100'000.0}  // Gripper y
+            {2.0,     0.0}, // Base x
+            {2.0,     0.0}, // Base y
+            {6.28,    0.0}, // Base yaw
+            {2.8,     1.0}, // Joint1
+            {1.745,   1.0}, // Joint2
+            {2.8,     1.0}, // Joint3
+            {0.0,     1.0}, // Joint4
+            {2.7925,  1.0}, // Joint5
+            {4.53785, 1.0}, // Joint6
+            {2.967,   1.0}, // Joint7
+            {0.5,     0.0}, // Gripper x
+            {0.5,     0.0}  // Gripper y
         }},
-        .minimise_velocity = {{
-            {0.0, 0.0, 0.0, 10000.0}, // Base x
-            {0.0, 0.0, 0.0, 10000.0}, // Base y
-            {0.0, 0.0, 0.0, 100.0},  // Base yaw
-            {0.0, 0.0, 0.0, 10.0},    // Joint1
-            {0.0, 0.0, 0.0, 10.0},    // Joint2
-            {0.0, 0.0, 0.0, 10.0},    // Joint3
-            {0.0, 0.0, 0.0, 10.0},    // Joint4
-            {0.0, 0.0, 0.0, 10.0},    // Joint5
-            {0.0, 0.0, 0.0, 10.0},    // Joint6
-            {0.0, 0.0, 0.0, 10.0},    // Joint7
-            {0.0, 0.0, 0.0, 1000.0}, // Gripper x
-            {0.0, 0.0, 0.0, 1000.0}  // Gripper y
+        .self_collision_limit = {0.0, 1.0},
+        .self_collision_radii = {0.75, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1},
+        .workspace_limit_above = {0.0, 1.0},
+        .workspace_limit_infront = {0.0, 1.0},
+        .workspace_limit_reach = {1.0, 1.0},
+        .workspace_cost_yaw = { .quadratic_cost = 250 },
+        .energy_limit_below = {0.0, 10.0},
+        .energy_limit_above = {20.0, 10.0},
+        .velocity_cost = {{
+            {0.0, 0.0, 1000.0}, // Base x
+            {0.0, 0.0, 1000.0}, // Base y
+            {0.0, 0.0, 100.0}, // Base yaw
+            {0.0, 0.0, 10.0}, // Joint1
+            {0.0, 0.0, 10.0}, // Joint2
+            {0.0, 0.0, 10.0}, // Joint3
+            {0.0, 0.0, 10.0}, // Joint4
+            {0.0, 0.0, 10.0}, // Joint5
+            {0.0, 0.0, 10.0}, // Joint6
+            {0.0, 0.0, 10.0}, // Joint7
+            {0.0, 0.0, 0.0}, // Gripper x5
+            {0.0, 0.0, 0.0}  // Gripper y
         }},
-        .self_collision_limit = {{
-            {0.75, 1000.0, 0.0, 100'000}, // Base link
-            {0.1,  1000.0, 0.0, 100'000}, // Arm link 1
-            {0.1,  1000.0, 0.0, 100'000}, // Arm link 2
-            {0.1,  1000.0, 0.0, 100'000}, // Arm link 3
-            {0.1,  1000.0, 0.0, 100'000}, // Arm link 4
-            {0.1,  1000.0, 0.0, 100'000}, // Arm link 5
-            {0.1,  1000.0, 0.0, 100'000}, // Arm link 6
-            {0.1,  1000.0, 0.0, 100'000}  // Arm link 7
-        }},
-        .workspace = {
-            .limit = 0.0,
+        .trajectory_target_scale = 1e-2,
+        .trajectory_target_maximum = 1.0,
+        .trajectory_position_cost = {
             .constant_cost = 100,
-            // .linear_cost = 500,
-            .quadratic_cost = 100'000
-        },
-        .workspace_yaw = {
-            .quadratic_cost = 5'000
-        },
-        .workspace_maximum_reach = 0.8,
-        .trajectory_position = {
-            .limit = 0.01, // Within 1c m of target.
-            .constant_cost = 100, // Prevents constant error around target.
             .quadratic_cost = 500.0
         },
-        .trajectory_velocity_minimum = 0.2,
-        .trajectory_velocity_maximum = 5.0,
-        .trajectory_velocity_dropoff = 1.0,
-        .trajectory_velocity = { // Only enabled if position limit breached.
+        .trajectory_position_threshold = 0.05,
+        .trajectory_velocity_cost = {
             .constant_cost = 0,
             .quadratic_cost = 500.0
         },
-        .minimum_manipulability = {
-            .limit = 1.0,
-            .quadratic_cost = 1000
-        }
+        .trajectory_velocity_minimum = 0.05,
+        .trajectory_velocity_maximum = 1.0,
+        .trajectory_velocity_dropoff = 0.7,
+        .manipulability_cost = { .quadratic_cost = 10 },
+        .manipulability_minimum = 0.0
     };
 
     /**
@@ -231,36 +237,28 @@ public:
         return m_joint_cost;
     }
 
-    inline double get_joint_velocity_cost() const {
-        return m_minimise_velocity_cost;
-    }
-
     inline double get_self_collision_cost() const {
         return m_self_collision_cost;
-    }
-
-    inline double get_trajectory_cost() const {
-        return m_trajectory_cost;
     }
 
     inline double get_workspace_cost() const {
         return m_workspace_cost;
     }
 
-    inline double get_joint_power_cost() const {
-        return m_joint_power_cost;
+    inline double get_energy_tank_cost() const {
+        return m_energy_cost;
     }
 
-    inline double get_energy_tank_cost() const {
-        return m_energy_tank_cost;
+    inline double get_joint_velocity_cost() const {
+        return m_velocity_cost;
+    }
+
+    inline double get_trajectory_cost() const {
+        return m_trajectory_cost;
     }
 
     inline double get_manipulability_cost() const {
         return m_manipulability_cost;
-    }
-
-    inline double get_variable_damping_cost() const {
-        return m_variable_damping_cost;
     }
 
     /**
@@ -313,8 +311,6 @@ private:
      */
     double joint_limit_cost(const State &state);
 
-    double minimise_velocity_cost(const State &state);
-
     /**
      * @brief Penalise configurations that.
      * 
@@ -331,16 +327,6 @@ private:
     double self_collision_cost(Dynamics *dynamics);
 
     /**
-     * @brief Reward trajectories that tend towards the expected trajectory
-     * given the end effector force.
-     * 
-     * @param dynamcs The current dynamics state.
-     * @param time The time of the dynamics.
-     * @returns A cost rewarding trajectories towards.
-     */
-    double trajectory_cost(const Dynamics *dynamics, double time);
-
-    /**
      * @brief Penalises end effector positions that are too close or too far
      * from the robot base.
      * 
@@ -355,21 +341,25 @@ private:
     double workspace_cost(Dynamics *dynamics);
 
     /**
-     * @brief Penalises dynamics states that exceed the power limit.
-     * 
-     * @param dynamics The current dynamics state.
-     * @returns A cost penalising dynamics that go over the maximum power draw.
-     */
-    double power_cost(Dynamics *dynamics);
-
-    /**
      * @brief Penalises trajectories that deplete the energy tank and maximum
      * tank energy.
      * 
      * @param dynamics Pointer to the dynamics object.
      * @returns The cost. 
      */
-    double energy_tank_cost(Dynamics *dynamics);
+    double energy_cost(Dynamics *dynamics);
+
+    double velocity_cost(const State &state);
+
+    /**
+     * @brief Reward trajectories that tend towards the expected trajectory
+     * given the end effector force.
+     * 
+     * @param dynamcs The current dynamics state.
+     * @param time The time of the dynamics.
+     * @returns A cost rewarding trajectories towards.
+     */
+    double trajectory_cost(const Dynamics *dynamics, double time);
 
     /**
      * @brief Rewards higher manipulability joint configurations.
@@ -386,8 +376,6 @@ private:
      */
     double manipulability_cost(Dynamics *dynamics);
 
-    double variable_damping_cost(const State &state);
-
     /// The configuration of the objective function.
     Configuration m_configuration;
 
@@ -398,21 +386,17 @@ private:
 
     double m_joint_cost;
 
-    double m_minimise_velocity_cost;
-
     double m_self_collision_cost;
-
-    double m_trajectory_cost;
 
     double m_workspace_cost;
 
-    double m_joint_power_cost;
+    double m_energy_cost;
 
-    double m_energy_tank_cost;
+    double m_velocity_cost;
+
+    double m_trajectory_cost;
 
     double m_manipulability_cost;
-
-    double m_variable_damping_cost;
 
     double m_cost;
 };

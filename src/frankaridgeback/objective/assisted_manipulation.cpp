@@ -25,14 +25,12 @@ void AssistedManipulation::reset(double time)
 {
     m_initial_time = time;
     m_joint_cost = 0.0;
-    m_minimise_velocity_cost = 0.0;
     m_self_collision_cost = 0.0;
-    m_trajectory_cost = 0.0;
     m_workspace_cost = 0.0;
-    m_joint_power_cost = 0.0;
-    m_energy_tank_cost = 0.0;
+    m_energy_cost = 0.0;
+    m_velocity_cost = 0.0;
+    m_trajectory_cost = 0.0;
     m_manipulability_cost = 0.0;
-    m_variable_damping_cost = 0.0;
     m_cost = 0.0;
 }
 
@@ -59,13 +57,13 @@ double AssistedManipulation::get_cost(
         cost += workspace_cost(dynamics);
 
     if (m_configuration.enable_energy_limit)
-        cost += energy_tank_cost(dynamics);
+        cost += energy_cost(dynamics);
+
+    if (m_configuration.enable_velocity_cost)
+        cost += velocity_cost(state);
 
     if (m_configuration.enable_trajectory_cost)
         cost += trajectory_cost(dynamics, time);
-
-    if (m_configuration.enable_velocity_cost)
-        cost += minimise_velocity_cost(state);
 
     if (m_configuration.enable_manipulability_cost)
         cost += manipulability_cost(dynamics);
@@ -80,37 +78,18 @@ double AssistedManipulation::joint_limit_cost(const State &state)
     for (size_t i = 0; i < DoF::JOINTS; i++) {
         const auto &lower = m_configuration.lower_joint_limit[i];
         const auto &upper = m_configuration.upper_joint_limit[i];
-
         double position = state.position()(i);
-
-        if (position < lower.limit) {
-            cost += lower(std::fabs(lower.limit - position));
-        }
-        else if (position > upper.limit) {
-            cost += upper(std::fabs(position - upper.limit));
-        }
+        double c = lower(position) + upper(position);
+        cost += c;
     }
 
     m_joint_cost += cost;
     return cost;
 }
 
-double AssistedManipulation::minimise_velocity_cost(const State &state)
-{
-    double cost = 0.0;
-
-    for (size_t i = 0; i < DoF::JOINTS; i++) {
-        const auto &objective = m_configuration.minimise_velocity[i];
-        cost += objective.quadratic_cost * std::pow(std::fabs(state.velocity()(i)), 2);
-    }
-
-    m_minimise_velocity_cost += cost;
-    return cost;
-}
-
 double AssistedManipulation::self_collision_cost(Dynamics *dynamics)
 {
-    static std::vector<std::tuple<Link, std::vector<Link>>> CHECK_COLLSION = {{
+    const static std::vector<std::tuple<Link, std::vector<Link>>> CHECK_COLLSION = {{
         {Link::PIVOT, {
             Link::PANDA_LINK3,
             Link::PANDA_LINK4,
@@ -148,28 +127,29 @@ double AssistedManipulation::self_collision_cost(Dynamics *dynamics)
     const auto &self_collision = m_configuration.self_collision_limit;
     double cost = 0.0;
 
-    for (const auto &[first, against] : CHECK_COLLSION) {
-        auto &first_constraint = m_configuration.self_collision_limit[(std::size_t)first - 3];
+    for (std::size_t i = 0; i < CHECK_COLLSION.size(); i++) {
+        const auto &[first_link, against] = CHECK_COLLSION[i];
 
-        for (auto second : against) {
-            auto &second_constraint = m_configuration.self_collision_limit[(std::size_t)second - 3];
+        for (std::size_t j = 0; j < against.size(); j++) {
+            Link second_link = against[j];
 
             // Distance between sphere origins.
             double distance = (
-                dynamics->get_link_position(second) -
-                dynamics->get_link_position(first)
+                dynamics->get_link_position(first_link) -
+                dynamics->get_link_position(second_link)
             ).norm();
 
             // Sum of sphere radii.
-            double radii = first_constraint.limit + second_constraint.limit;
+            double radii = (
+                m_configuration.self_collision_radii[(std::size_t)first_link - 3] +
+                m_configuration.self_collision_radii[(std::size_t)second_link - 3]
+            );
 
             // Collision vector. Positive when colliding.
-            double collision = radii - distance;
+            double collision = distance - radii;
 
-            if (collision > 0) {
-                cost += first_constraint.quadratic_cost * std::pow(collision, 2);
-                cost += second_constraint.quadratic_cost * std::pow(collision, 2);
-            }
+            // Barrier function cost.
+            cost += m_configuration.self_collision_limit(collision);
         }
     }
 
@@ -177,104 +157,8 @@ double AssistedManipulation::self_collision_cost(Dynamics *dynamics)
     return cost;
 }
 
-double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double time)
-{
-    if (!dynamics->get_forecast())
-        return 0.0;
-
-    const auto &state = dynamics->get_end_effector_state();
-    const auto forecast = dynamics->get_forecast()->get();
-
-    Vector3d force = forecast->get_end_effector_wrench(time).head<3>();
-    Vector3d initial_position = forecast->get_end_effector_trajectory()[0].position;
-    Vector3d target = initial_position + (force / 100).cwiseMin(0.5).cwiseMax(-0.5);
-    Vector3d target_vector = target - state.position;
-    double distance = target_vector.norm();
-
-    // const auto &forecast_state = forecast->get_end_effector_state(time);
-    // double distance = (state.position - forecast_state.position).norm();
-
-    double cost = 0.0;
-    if (distance > m_configuration.trajectory_position.limit) {
-        cost += m_configuration.trajectory_position(distance);
-
-        // Project linear velocity onto the target vector.
-        double projection = (
-            state.linear_velocity.dot(target_vector) /
-            target_vector.dot(target_vector)
-        );
-
-        // Projected component onto the target vector.
-        projection = std::copysign(1.0, projection) * (target_vector * projection).norm();
-
-        // Calculate ideal velocity field.
-        double velocity_target = std::clamp(
-            std::exp(m_configuration.trajectory_velocity_dropoff * distance),
-            m_configuration.trajectory_velocity_minimum,
-            m_configuration.trajectory_velocity_maximum
-        );
-
-        double velocity_error = std::fabs(velocity_target - projection);
-
-        // Make relative to the velocity limit.
-        cost += m_configuration.trajectory_velocity(velocity_error);
-    }
-
-    m_trajectory_cost += cost;
-    return cost;
-}
-
-double AssistedManipulation::energy_tank_cost(Dynamics *dynamics)
-{
-    const auto &maximum = m_configuration.maximum_energy;
-    double energy = dynamics->get_tank_energy();
-
-    double cost = 0.0;
-    if (energy < 0.1) {
-        cost += (
-            maximum.constant_cost +
-            maximum.quadratic_cost * std::pow(energy - maximum.limit, 2)
-        );
-    }
-    else if (energy > maximum.limit) {
-        cost += cost += (
-            maximum.constant_cost +
-            maximum.quadratic_cost * std::pow(energy - maximum.limit, 2)
-        );
-    }
-
-    m_energy_tank_cost += cost;
-    return cost;
-}
-
-double AssistedManipulation::manipulability_cost(Dynamics *dynamics)
-{
-    const auto &minimum = m_configuration.minimum_manipulability;
-    const auto &jacobian = dynamics->get_end_effector_state().jacobian.rightCols(
-        DoF::JOINTS - DoF::BASE
-    ).topLeftCorner(3, DoF::ARM);
-
-    m_space_jacobian = jacobian * jacobian.transpose();
-
-    // Value proportional to the volume of the manipulability ellipsoid.
-    double ellipsoid_volume = std::sqrt(m_space_jacobian.determinant());
-
-    if (std::isnan(ellipsoid_volume))
-        ellipsoid_volume = 1e-5;
-    else if (ellipsoid_volume < 1e-5)
-        ellipsoid_volume = 1e-5;
-    else if (ellipsoid_volume > 1e5)
-        ellipsoid_volume = 1e5;
-
-    double cost = minimum.quadratic_cost * std::pow(1 / ellipsoid_volume, 2);
-
-    m_manipulability_cost += cost;
-    return cost;
-}
-
 double AssistedManipulation::workspace_cost(Dynamics *dynamics)
 {
-    const auto &objective = m_configuration.workspace;
     double cost = 0.0;
 
     // Position of the end effector.
@@ -290,7 +174,7 @@ double AssistedManipulation::workspace_cost(Dynamics *dynamics)
     // Position of the plane in front of the robot.
     Vector3d robot = (
         dynamics->get_frame_position(Frame::ARM_MOUNT_JOINT) +
-        rotate_forward * Vector3d(0.3, 0, 0.15) // offset from base link
+        rotate_forward * Vector3d(0.1, 0, 0.15) // offset from base link
     );
 
     // Vector from plane origin to end effector.
@@ -302,31 +186,131 @@ double AssistedManipulation::workspace_cost(Dynamics *dynamics)
     );
 
     // Keep end effector in front of the robot.
-    if (projection < 0) {
-        cost += objective(projection);
-    }
+    cost += m_configuration.workspace_limit_infront(projection);
 
     // Limit reach.
     double reach = to_end_effector.norm();
-    if (reach > m_configuration.workspace_maximum_reach) {
-        cost += objective(std::fabs(reach - m_configuration.workspace_maximum_reach));
-    }
+    cost += m_configuration.workspace_limit_reach(reach);
 
     // Calculate yaw between body and end effector.
     Vector2d v1 = to_end_effector.head<2>();
     Vector2d v2 = forward.head<2>();
     double yaw = std::acos(v1.dot(v2) / v1.norm() / v2.norm());
     if (!std::isnan(yaw)) {
-        cost += m_configuration.workspace_yaw(std::fabs(yaw));
+        cost += m_configuration.workspace_cost_yaw(std::fabs(yaw));
     }
 
     // Keep the end effector above the robot.
     double height = end_effector[2] - robot[2];
-    if (height < 0) {
-        cost += objective(height);
-    }
+    cost += m_configuration.workspace_limit_above(height);
 
     m_workspace_cost += cost;
+    return cost;
+}
+
+double AssistedManipulation::energy_cost(Dynamics *dynamics)
+{
+    double energy = dynamics->get_tank_energy();
+
+    double cost = (
+        m_configuration.energy_limit_below(energy) +
+        m_configuration.energy_limit_above(energy)
+    );
+
+    m_energy_cost += cost;
+    return cost;
+}
+
+double AssistedManipulation::velocity_cost(const State &state)
+{
+    double cost = 0.0;
+
+    for (size_t i = 0; i < DoF::JOINTS; i++) {
+        const auto &objective = m_configuration.velocity_cost[i];
+        cost += objective.quadratic_cost * std::pow(std::fabs(state.velocity()(i)), 2);
+    }
+
+    m_velocity_cost += cost;
+    return cost;
+}
+
+double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double time)
+{
+    if (!dynamics->get_forecast())
+        return 0.0;
+
+    const auto &state = dynamics->get_end_effector_state();
+    const auto forecast = dynamics->get_forecast()->get();
+
+    Vector3d force = forecast->get_end_effector_wrench(time).head<3>();
+    Vector3d target_vector = (
+        m_configuration.trajectory_target_scale * force
+    ).cwiseMin(
+        m_configuration.trajectory_target_maximum
+    ).cwiseMax(
+        -m_configuration.trajectory_target_maximum
+    );
+
+    // target_vector = (
+    //     forecast->get_end_effector_trajectory()[0].position + target_vector - state.position
+    // );
+
+    double distance = target_vector.norm();
+
+    double cost = 0.0;
+    if (distance > m_configuration.trajectory_position_threshold) {
+        cost += m_configuration.trajectory_position_cost(distance);
+
+        // Project linear velocity onto the target vector.
+        double projection = (
+            state.linear_velocity.dot(target_vector) /
+            target_vector.dot(target_vector)
+        );
+
+        // Projected component onto the target vector.
+        projection = std::copysign(1.0, projection) * (target_vector * projection).norm();
+
+        // Calculate ideal velocity field.
+        double velocity_target = std::clamp(
+            std::exp(m_configuration.trajectory_velocity_dropoff * distance) - 1,
+            m_configuration.trajectory_velocity_minimum,
+            m_configuration.trajectory_velocity_maximum
+        );
+
+        double velocity_error = std::fabs(velocity_target - projection);
+
+        // Make relative to the velocity limit.
+        cost += m_configuration.trajectory_velocity_cost(velocity_error);
+    }
+
+    m_trajectory_cost += cost;
+    return cost;
+}
+
+double AssistedManipulation::manipulability_cost(Dynamics *dynamics)
+{
+    double cost = 0.0;
+
+    const auto &jacobian = dynamics->get_end_effector_state().jacobian.rightCols(
+        DoF::JOINTS - DoF::BASE
+    ).topLeftCorner(3, DoF::ARM);
+
+    m_space_jacobian = jacobian * jacobian.transpose();
+
+    // Value proportional to the volume of the manipulability ellipsoid.
+    double volume = std::sqrt(m_space_jacobian.determinant());
+
+    if (std::isnan(volume))
+        volume = 1e-5;
+    else
+        volume = std::clamp(volume, 1e-5, 1e5);
+
+    if (volume < m_configuration.manipulability_minimum) {
+        double error = m_configuration.manipulability_minimum - volume;
+        cost = m_configuration.manipulability_cost(error);
+    }
+
+    m_manipulability_cost += cost;
     return cost;
 }
 

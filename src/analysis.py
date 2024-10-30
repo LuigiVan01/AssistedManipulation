@@ -61,6 +61,7 @@ class ObjectiveResults:
 @dataclasses.dataclass
 class PlotData:
     filename: str
+    name: str
     force_pid: PidResults
     torque_pid: PidResults
     mppi: MppiResults
@@ -108,6 +109,18 @@ def read_results(result_type: ResultsType, folder: str) -> PidResults | MppiResu
             pass
 
     return results
+
+def read_data(path: pathlib.Path):
+    return PlotData(
+        filename = path,
+        name = ' '.join(f'{p.capitalize()}' for p in path.stem.split('_')[1:]),
+        mppi = read_results(ResultsType.MPPI, path / 'mppi'),
+        dynamics = read_results(ResultsType.DYNAMICS, path / 'dynamics'),
+        force_pid = read_results(ResultsType.PID, path / 'pid' / 'force'),
+        torque_pid = read_results(ResultsType.PID, path / 'pid' / 'torque'),
+        forecast = read_results(ResultsType.FORECAST, path / 'forecast'),
+        objective = read_results(ResultsType.OBJECTIVE, path / 'objective')
+    )
 
 def plot_optimal_cost(axis: plt.Axes, optimal_cost: pandas.DataFrame | None):
     axis.set_title('Optimal Cost')
@@ -170,7 +183,7 @@ def plot_useful(data: PlotData):
     plot_optimal_cost(plt.subplot2grid((2, 1), (0, 0)), data.mppi.optimal_cost)
     plot_force_control(plt.subplot2grid((2, 1), (1, 0)), data.force_pid.control)
     plot_tank_energy(plt.subplot2grid((4, 1), (1, 0)), data.dynamics.tank_energy)
-    # plot_reference_error(plt.subplot2grid((4, 1), (2, 0)), data.force_pid.error)
+    plot_reference_error(plt.subplot2grid((4, 1), (2, 0)), data.force_pid.error)
 
     figure.tight_layout()
     return figure
@@ -326,27 +339,58 @@ def plot_error(data: PlotData):
 
     return figure
 
-if __name__ == '__main__':
-    if not sys.argv[1:]:
-        raise RuntimeError('No result directory provided.')
-
-    path = pathlib.Path(sys.argv[1])
+def analyse_single(path: pathlib.Path):
     print(f'analysing results of {path}')
 
-    data = PlotData(
-        filename = path,
-        mppi = read_results(ResultsType.MPPI, path / 'mppi'),
-        dynamics = read_results(ResultsType.DYNAMICS, path / 'dynamics'),
-        force_pid = read_results(ResultsType.PID, path / 'pid' / 'force'),
-        torque_pid = read_results(ResultsType.PID, path / 'pid' / 'torque'),
-        forecast = read_results(ResultsType.FORECAST, path / 'forecast'),
-        objective = read_results(ResultsType.OBJECTIVE, path / 'objective')
-    )
+    data = read_data(path)
 
-    fig = plot_error(data).savefig(path / 'error.png', dpi = 300)
-
+    plot_error(data).savefig(path / 'error.png', dpi = 300)
     plot_useful(data).savefig(path / 'overview.png', dpi = 300)
     plot_control(data).savefig(path / 'control.png', dpi = 300)
 
     if data.objective.assisted_manipulation is not None:
         plot_assisted_manipulation_objective(data).savefig(path / 'objective.png', dpi = 300)
+
+def plot_force_multi(data: list[PlotData]):
+
+    if all(d.force_pid is None or d.force_pid.control is None for d in data):
+        return
+
+    figure = plt.figure(figsize = (6, 3), layout='tight')
+    axes = figure.gca()
+
+    for d in data:
+        df = d.force_pid.control
+        to_norm = df.columns[df.columns != 'time']
+        error = np.sqrt(np.square(df[to_norm]).sum(axis = 1))
+        time = df['time']
+
+        axes.plot(time, error, label = d.name)
+
+    axes.set_xlim(xmin = 0.0, xmax = 30)
+    axes.set_ylim(ymin = 0.0)
+    axes.set_xlabel('Time [$s$]')
+    axes.set_ylabel('Force [$N$]')
+    axes.legend()
+    return figure
+
+def analyse_multiple(*paths: pathlib.Path):
+    data = [read_data(path) for path in paths]
+
+    plot_force_multi(data).savefig('effort.png', dpi = 300)
+
+if __name__ == '__main__':
+    args = sys.argv[1:]
+
+    if not args:
+        raise RuntimeError('No result directory provided.')
+
+    args = [pathlib.Path(arg) for arg in args]
+    for path in args:
+        if not path.exists():
+            raise RuntimeError(f'path {path} does not exist')
+
+    if len(args) == 1:
+        analyse_single(args[0])
+    else:
+        analyse_multiple(*args)

@@ -166,57 +166,57 @@ std::unique_ptr<FrankaRidgebackDynamicsForecast> FrankaRidgebackDynamicsForecast
     if (configuration.log_end_effector_position) {
         logger->m_position_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_position.csv",
-            .header = CSV::make_header("time", "x", "y", "z")
+            .header = CSV::make_header("update_time", "time", "x", "y", "z")
         });
     }
 
     if (configuration.log_end_effector_orientation) {
         logger->m_orientation_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_orientation.csv",
-            .header = CSV::make_header("time", "x", "y", "z", "w")
+            .header = CSV::make_header("update_time", "time", "x", "y", "z", "w")
         });
     }
 
     if (configuration.log_end_effector_velocity) {
         logger->m_linear_velocity_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_linear_velocity.csv",
-            .header = CSV::make_header("time", "vx", "vy", "vz")
+            .header = CSV::make_header("update_time", "time", "vx", "vy", "vz")
         });
         logger->m_angular_velocity_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_angular_velocity.csv",
-            .header = CSV::make_header("time", "wx", "wy", "wz")
+            .header = CSV::make_header("update_time", "time", "wx", "wy", "wz")
         });
     }
 
     if (configuration.log_end_effector_acceleration) {
         logger->m_linear_acceleration_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_linear_acceleration.csv",
-            .header = CSV::make_header("time", "ax", "ay", "az")
+            .header = CSV::make_header("update_time", "time", "ax", "ay", "az")
         });
         logger->m_angular_acceleration_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "end_effector_angular_acceleration.csv",
-            .header = CSV::make_header("time", "alpha_x", "alpha_y", "alpha_z")
+            .header = CSV::make_header("update_time", "time", "alpha_x", "alpha_y", "alpha_z")
         });
     }
 
     if (configuration.log_power) {
         logger->m_power_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "power.csv",
-            .header = CSV::make_header("time", "power")
+            .header = CSV::make_header("update_time", "time", "power")
         });
     }
 
     if (configuration.log_tank_energy) {
         logger->m_energy_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "tank_energy.csv",
-            .header = CSV::make_header("time", "energy")
+            .header = CSV::make_header("update_time", "time", "energy")
         });
     }
 
     if (configuration.log_wrench) {
         logger->m_wrench_logger = CSV::create(CSV::Configuration{
             .path = configuration.folder / "wrench.csv",
-            .header = CSV::make_header("time", "fx", "fy", "fz", "tau_x", "tau_y", "tau_z")
+            .header = CSV::make_header("update_time", "time", "fx", "fy", "fz", "tau_x", "tau_y", "tau_z")
         });
     }
 

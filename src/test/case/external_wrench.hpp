@@ -60,7 +60,7 @@ public:
 
     static inline Configuration DEFAULT_CONFIGURATION = {
         .folder = "external_wrench",
-        .duration = 30,
+        .duration = 15,
         .base = BaseTest::DEFAULT_CONFIGURATION,
         .trajectory = {
             // .position = std::nullopt,

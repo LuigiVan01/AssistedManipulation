@@ -30,10 +30,6 @@ double TrackPoint::get_cost(
         cost += reach_cost(dynamics);
     }
 
-    if (m_configuration.enable_power_limit) {
-        cost += power_cost(dynamics);
-    }
-
     return cost;
 }
 
@@ -84,58 +80,97 @@ double TrackPoint::joint_limit_cost(const State &state)
 
 double TrackPoint::self_collision_cost(Dynamics *dynamics)
 {
+    const static std::vector<std::tuple<Link, std::vector<Link>>> CHECK_COLLSION = {{
+        {Link::PIVOT, {
+            Link::PANDA_LINK3,
+            Link::PANDA_LINK4,
+            Link::PANDA_LINK5,
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK1, {
+            Link::PANDA_LINK3,
+            Link::PANDA_LINK4,
+            Link::PANDA_LINK5,
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK2, {
+            Link::PANDA_LINK4,
+            Link::PANDA_LINK5,
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK3, {
+            Link::PANDA_LINK5,
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK4, {
+            Link::PANDA_LINK6,
+            Link::PANDA_LINK7,
+        }},
+        {Link::PANDA_LINK5, {
+            Link::PANDA_LINK7,
+        }}
+    }};
+
+    const auto &self_collision = m_configuration.self_collision_limit;
     double cost = 0.0;
 
-    // Self collision is implemented using imaginary spheres centered on each
-    // joint. The joints are considered colliding if the spheres are
-    // intersecting. The radii of the spheres can be adjusted to change the
-    // sensitivity to self collision.
-    const auto &self_collision = m_configuration.self_collision;
+    for (std::size_t i = 0; i < CHECK_COLLSION.size(); i++) {
+        const auto &[first_link, against] = CHECK_COLLSION[i];
 
-    // for (const auto &[first, second] : SELF_COLLISION_LINKS) {
-    //     auto offset = dynamics->get_frame_offset(first, second);
-    //     if (offset.norm() < self_collision.limit) {
-    //         cost += self_collision.quadratic_cost * std::pow(
-    //             self_collision.limit - offset.norm(), 2
-    //         );
-    //     }
-    // }
+        for (std::size_t j = 0; j < against.size(); j++) {
+            Link second_link = against[j];
+
+            // Distance between sphere origins.
+            double distance = (
+                dynamics->get_link_position(first_link) -
+                dynamics->get_link_position(second_link)
+            ).norm();
+
+            // Sum of sphere radii.
+            double radii = (
+                m_configuration.self_collision_radii[(std::size_t)first_link - 3] +
+                m_configuration.self_collision_radii[(std::size_t)second_link - 3]
+            );
+
+            // Collision vector. Positive when colliding.
+            double collision = radii - distance;
+
+            // Barrier function cost.
+            cost += m_configuration.self_collision_limit(collision);
+        }
+    }
 
     return cost;
 }
 
-double TrackPoint::power_cost(Dynamics *dynamics)
-{
-    const auto &power = m_configuration.maximum_power;
-    return power.constant_cost * std::max(0.0, dynamics->get_joint_power() - power.limit);
-}
-
 double TrackPoint::reach_cost(Dynamics *dynamics)
 {
-    double cost = 0.0;
-    const auto &min = m_configuration.minimum_reach;
-    const auto &max = m_configuration.maximum_reach;
+    // Position of the end effector.
+    Vector3d end_effector = dynamics->get_end_effector_state().position;
 
-    double offset = 0.0;
-    // dynamics->get_frame_offset(
-    //     Frame::BASE_LINK_JOINT,
-    //     Frame::PANDA_GRASP_JOINT
-    // ).norm();
+    // Rotation from world frame to infront of the robot.
+    AngleAxisd rotate_forward = AngleAxisd(dynamics->get_state()[2], Vector3d::UnitZ());
 
-    if (offset < min.limit) {
-        cost += (
-            min.constant_cost +
-            min.quadratic_cost * std::pow(offset - min.limit, 2)
-        );
-    }
-    else if (offset > max.limit) {
-        cost += (
-            max.constant_cost +
-            max.quadratic_cost * std::pow(offset - max.limit, 2)
-        );
-    }
+    // Unit vector in the forward direction of the robot, normal to the
+    // infront / behind plane.
+    Vector3d forward = rotate_forward * Vector3d::UnitX();
 
-    return 0.0;
+    // Position of the plane in front of the robot.
+    Vector3d robot = (
+        dynamics->get_frame_position(Frame::ARM_MOUNT_JOINT) +
+        rotate_forward * Vector3d(0.3, 0, 0.15) // offset from base link
+    );
+
+    // Vector from plane origin to end effector.
+    Vector3d to_end_effector = end_effector - robot;
+
+    // Limit reach.
+    double reach = to_end_effector.norm();
+    return m_configuration.maximum_reach_limit(reach);
 }
 
 } // namespace FrankaRidgeback

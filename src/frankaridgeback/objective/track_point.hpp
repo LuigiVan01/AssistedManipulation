@@ -33,30 +33,26 @@ public:
         bool enable_reach_limits;
 
         /// Lower joint limits if enabled.
-        std::array<QuadraticCost, DoF::JOINTS> lower_joint_limit;
+        std::array<LeftInverseBarrierFunction, DoF::JOINTS> lower_joint_limit;
 
         /// Upper joint limits if enabled.
-        std::array<QuadraticCost, DoF::JOINTS> upper_joint_limit;
-
-        /// Maximum power usage if enabled. 
-        QuadraticCost maximum_power;
+        std::array<RightInverseBarrierFunction, DoF::JOINTS> upper_joint_limit;
 
         /// Self collision cost.
-        QuadraticCost self_collision;
+        LeftInverseBarrierFunction self_collision_limit;
 
-        /// Minimum reach if enabled.
-        QuadraticCost minimum_reach;
+        std::array<double, 8> self_collision_radii;
 
         /// Maximum reach if enabled.
-        QuadraticCost maximum_reach;
+        RightInverseBarrierFunction maximum_reach_limit;
 
         // JSON conversion for track point objective configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
             point, enable_joint_limits, enable_self_collision_avoidance,
             enable_power_limit, enable_reach_limits, lower_joint_limit,
-            upper_joint_limit, maximum_power, self_collision, minimum_reach,
-            maximum_reach
+            upper_joint_limit, self_collision_limit, self_collision_radii,
+            maximum_reach_limit
         )
     };
 
@@ -85,53 +81,36 @@ public:
         .enable_power_limit = false,
         .enable_reach_limits = false,
         .lower_joint_limit = {{
-            {-2.0,    1'000, 100'00}, // Base rotation
-            {-2.0,    1'000, 100'00}, // Base x
-            {-6.28,   1'000, 100'00}, // Base y
-            {-2.8973, 1'000, 100'00}, // Joint1
-            {-1.7628, 1'000, 100'00}, // Joint2
-            {-2.8973, 1'000, 100'00}, // Joint3
-            {-3.0718, 1'000, 100'00}, // Joint4
-            {-2.8973, 1'000, 100'00}, // Joint5
-            {-0.0175, 1'000, 100'00}, // Joint6
-            {-2.8973, 1'000, 100'00}, // Joint7
-            {0.5,     1'000, 100'00}, // Gripper x
-            {0.5,     1'000, 100'00}  // Gripper y
+            {-2.0,    1.0}, // Base x
+            {-2.0,    0.0}, // Base y
+            {-6.28,   0.0}, // Base yaw
+            {-2.8,    10.0}, // Joint1
+            {-1.745,  50.0}, // Joint2
+            {-2.8,    10.0}, // Joint3
+            {-3.0718, 10.0}, // Joint4
+            {-2.7925, 10.0}, // Joint5
+            {0.349,   10.0}, // Joint6
+            {-2.967,  10.0}, // Joint7
+            {0.0,     10.0}, // Gripper x
+            {0.0,     10.0}  // Gripper y
         }},
         .upper_joint_limit = {{
-            {2.0,    1'000, 100'00}, // Base rotation
-            {2.0,    1'000, 100'00}, // Base x
-            {6.28,   1'000, 100'00}, // Base y
-            {2.8973, 1'000, 100'00}, // Joint1
-            {1.7628, 1'000, 100'00}, // Joint2
-            {2.8973, 1'000, 100'00}, // Joint3
-            {3.0718, 1'000, 100'00}, // Joint4
-            {2.8973, 1'000, 100'00}, // Joint5
-            {0.0175, 1'000, 100'00}, // Joint6
-            {2.8973, 1'000, 100'00}, // Joint7
-            {0.5,    1'000, 100'00}, // Gripper x
-            {0.5,    1'000, 100'00}  // Gripper y
+            {2.0,     0.0}, // Base x
+            {2.0,     0.0}, // Base y
+            {6.28,    0.0}, // Base yaw
+            {2.8,     10.0}, // Joint1
+            {1.745,   50.0}, // Joint2
+            {2.8,     10.0}, // Joint3
+            {0.0,     10.0}, // Joint4
+            {2.7925,  10.0}, // Joint5
+            {4.53785, 10.0}, // Joint6
+            {2.967,   10.0}, // Joint7
+            {0.5,     10.0}, // Gripper x
+            {0.5,     10.0}  // Gripper y
         }},
-        .maximum_power = {
-            .limit = 100.0,
-            .constant_cost = 100,
-            .quadratic_cost = 10000
-        },
-        .self_collision = {
-            .limit = 0.35,
-            .constant_cost = 0.0,
-            .quadratic_cost = 1000
-        },
-        .minimum_reach = {
-            .limit = 1.0,
-            .constant_cost = 100,
-            .quadratic_cost = 10000
-        },
-        .maximum_reach = {
-            .limit = 100.0,
-            .constant_cost = 0,
-            .quadratic_cost = 0
-        }
+        .self_collision_limit = {0.0, 1.0},
+        .self_collision_radii = {0.75, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1},
+        .maximum_reach_limit = {0.8, 1.0}
     };
 
     /**

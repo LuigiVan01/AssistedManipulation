@@ -13,7 +13,7 @@ State make_state(Preset preset)
         }
         case Preset::HUDDLED: {
             state.position()          //  1      2    3        4    5  6
-                << 0.2, 0.2, M_PI/4, 0.0, M_PI/5, 0.0, -M_PI/2, 0.0, 4, M_PI/4, 0.025, 0.025;
+                << 0.2, 0.2, M_PI/4, 0.0, M_PI/5, 0.0, -M_PI/2, 0.0, 2, M_PI/4, 0.025, 0.025;
             return state;
         }
         case Preset::BEHIND: {

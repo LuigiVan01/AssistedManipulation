@@ -9,9 +9,6 @@
  */
 struct QuadraticCost {
 
-    /// The limit.
-    double limit = 0.0;
-
     /// Constant cost incurred when limit is breached.
     double constant_cost = 0.0;
 
@@ -35,7 +32,7 @@ struct QuadraticCost {
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(
         QuadraticCost,
-        limit, linear_cost, constant_cost, quadratic_cost
+        linear_cost, constant_cost, quadratic_cost
     )
 };
 
@@ -60,7 +57,7 @@ struct RightInverseBarrierFunction {
     inline double operator()(double value) const
     {
         if (value >= upper_bound)
-            return NAN;
+            return maximum_cost + scale * std::exp(value - upper_bound);
         return std::min(scale / (upper_bound - value), maximum_cost);
     }
 
@@ -91,7 +88,7 @@ struct LeftInverseBarrierFunction {
     inline double operator()(double value) const
     {
         if (value <= lower_bound)
-            return NAN;
+            return maximum_cost + scale * std::exp(lower_bound - value);
         return std::min(scale / (value - lower_bound), maximum_cost);
     }
 

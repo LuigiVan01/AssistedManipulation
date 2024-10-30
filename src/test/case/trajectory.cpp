@@ -1,7 +1,7 @@
 #include "test/case/trajectory.hpp"
 
 const TrajectoryTest::Configuration TrajectoryTest::DEFAULT_CONFIGURATION {
-    .duration = 300.0,
+    .duration = 15.0,
     .position = PositionTrajectory::Configuration {
         .type = PositionTrajectory::Configuration::Type::LISSAJOUS,
         .point = PointTrajectory::DEFAULT_CONFIGURATION,

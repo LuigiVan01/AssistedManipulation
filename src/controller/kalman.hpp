@@ -109,7 +109,7 @@ public:
      * 
      * @param observation The observed state.
      */
-    void update(Eigen::Ref<VectorXd> observation);
+    void update(VectorXd &observation);
 
     /**
      * @brief Predict the subsequent state.

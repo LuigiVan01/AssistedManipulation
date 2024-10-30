@@ -67,8 +67,11 @@ public:
         /// The most recent observation.
         VectorXd observation;
 
+        /// The valid horison.
+        double horison;
+
         /// JSON conversion for average forecast configuration.
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, observation);
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(Configuration, observation, horison);
     };
 
     /**
@@ -81,7 +84,7 @@ public:
         const Configuration &configuration
     ) {
         return std::unique_ptr<LOCFForecast>(
-            new LOCFForecast(configuration.observation)
+            new LOCFForecast(configuration)
         );
     }
 
@@ -93,6 +96,7 @@ public:
      */
     inline void update(VectorXd measurement, double time) override {
         std::unique_lock lock(m_mutex);
+        m_valid_until = time + m_horison;
         m_observation = measurement;
     }
 
@@ -108,19 +112,27 @@ public:
      * @param time The time of the observation, unused.
      * @returns The last observation.
      */
-    inline VectorXd forecast(double /* time */) override {
+    inline VectorXd forecast(double time) override {
         std::shared_lock lock(m_mutex);
+        if (time > m_valid_until)
+            return VectorXd::Zero(m_observation.rows(), m_observation.cols());
         return m_observation;
     }
 
 private:
 
-    LOCFForecast(VectorXd observation)
-        : m_observation(observation)
+    LOCFForecast(const Configuration &configuration)
+        : m_horison(configuration.horison)
+        , m_valid_until(0.0)
+        , m_observation(configuration.observation)
     {}
 
     /// Mutex protecting concurrent access to the last observation.
     std::shared_mutex m_mutex;
+
+    double m_horison;
+
+    double m_valid_until;
 
     /// The last observation.
     VectorXd m_observation;
@@ -207,6 +219,8 @@ private:
     /// Window over which to average.
     double m_window;
 
+    double m_last;
+
     /// The window of forces to average over. The most recent observation is
     /// always  kept regardless of its age.
     std::vector<std::pair<double, VectorXd>> m_buffer;
@@ -239,13 +253,15 @@ public:
         /// The order of the euclidean model.
         unsigned int order;
 
+        VectorXd variance;
+
         /// The initial state of the system. E.g. {x, y, z}
         VectorXd initial_state;
 
         /// JSON conversion for kalman forecast configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            observed_states, time_step, horison, order, initial_state
+            observed_states, time_step, horison, order, variance, initial_state
         );
     };
 
@@ -282,7 +298,7 @@ public:
     );
 
     static MatrixXd create_euler_state_transition_covariance_matrix(
-        double time_step,
+        const VectorXd &variance,
         unsigned int observed_states,
         unsigned int order
     );
