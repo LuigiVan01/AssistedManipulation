@@ -242,7 +242,9 @@ double AssistedManipulation::trajectory_cost(const Dynamics *dynamics, double ti
     const auto &state = dynamics->get_end_effector_state();
     const auto forecast = dynamics->get_forecast()->get();
 
+    // Vector3d force = forecast->get_wrench_trajectory()[0].head<3>();
     Vector3d force = forecast->get_end_effector_wrench(time).head<3>();
+
     Vector3d target_vector = (
         m_configuration.trajectory_target_scale * force
     ).cwiseMin(
@@ -295,20 +297,22 @@ double AssistedManipulation::manipulability_cost(Dynamics *dynamics)
         DoF::JOINTS - DoF::BASE
     ).topLeftCorner(3, DoF::ARM);
 
-    m_space_jacobian = jacobian * jacobian.transpose();
+    m_manipulability_matrix = jacobian * jacobian.transpose();
+
+    // auto eigenvalues = m_manipulability_matrix.eigenvalues().real().eval();
+    // double min = eigenvalues.minCoeff();
+    // double max = eigenvalues.maxCoeff();
+    // auto mu_2 = max / min;
+    // cost = m_configuration.manipulability_cost(mu_2 - 1);
 
     // Value proportional to the volume of the manipulability ellipsoid.
-    double volume = std::sqrt(m_space_jacobian.determinant());
-
+    double volume = std::sqrt(m_manipulability_matrix.determinant());
     if (std::isnan(volume))
         volume = 1e-5;
     else
         volume = std::clamp(volume, 1e-5, 1e5);
 
-    if (volume < m_configuration.manipulability_minimum) {
-        double error = m_configuration.manipulability_minimum - volume;
-        cost = m_configuration.manipulability_cost(error);
-    }
+    cost = m_configuration.manipulability_cost(1 / volume);
 
     m_manipulability_cost += cost;
     return cost;

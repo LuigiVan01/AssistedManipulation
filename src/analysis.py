@@ -8,6 +8,7 @@ import numpy as np
 
 plt.rcParams.update({
     "text.usetex": True,
+    "text.latex.preamble": [r'\usepackage{amsmath}'],
     "font.family": "Helvetica"
 })
 
@@ -111,9 +112,11 @@ def read_results(result_type: ResultsType, folder: str) -> PidResults | MppiResu
     return results
 
 def read_data(path: pathlib.Path):
+    name = ' '.join(path.stem.split('_')[1:])
+    name = name[0].capitalize() + name[1:]
     return PlotData(
         filename = path,
-        name = ' '.join(f'{p.capitalize()}' for p in path.stem.split('_')[1:]),
+        name = name,
         mppi = read_results(ResultsType.MPPI, path / 'mppi'),
         dynamics = read_results(ResultsType.DYNAMICS, path / 'dynamics'),
         force_pid = read_results(ResultsType.PID, path / 'pid' / 'force'),
@@ -178,20 +181,19 @@ def plot_end_effector_trajectory(
         pass
 
 def plot_useful(data: PlotData):
-    figure = plt.figure(figsize = (10, 3))
+    figure = plt.figure(figsize = (10, 10), layout = 'constrained')
 
-    plot_optimal_cost(plt.subplot2grid((2, 1), (0, 0)), data.mppi.optimal_cost)
-    plot_force_control(plt.subplot2grid((2, 1), (1, 0)), data.force_pid.control)
-    plot_tank_energy(plt.subplot2grid((4, 1), (1, 0)), data.dynamics.tank_energy)
-    plot_reference_error(plt.subplot2grid((4, 1), (2, 0)), data.force_pid.error)
+    plot_optimal_cost(plt.subplot2grid((4, 1), (0, 0)), data.mppi.optimal_cost)
+    plot_force_control(plt.subplot2grid((4, 1), (1, 0)), data.force_pid.control)
+    plot_tank_energy(plt.subplot2grid((4, 1), (2, 0)), data.dynamics.tank_energy)
+    plot_reference_error(plt.subplot2grid((4, 1), (3, 0)), data.force_pid.error)
 
-    figure.tight_layout()
+    # figure.tight_layout()
     return figure
 
 def plot_timeseries(
         df: PlotData | None,
         units: dict[str, str],
-        title: str,
         /, *,
         dependent = 'time',
         y_scale = 'min_max'
@@ -269,7 +271,6 @@ def plot_timeseries(
 
     all_axes[-1].set_xlabel(f'{dependent.capitalize()} [$s$]')
 
-    plt.suptitle(title)
     return figure
 
 def plot_control(data: PlotData):
@@ -289,28 +290,23 @@ def plot_control(data: PlotData):
             'gripper_x': 'm',
             'gripper_y': 'm',
         },
-        'Controls',
         y_scale = 'around_zero'
     )
 
 def plot_assisted_manipulation_objective(data: PlotData):
     objectives = (
         'joint_limit',
-        'minimise_velocity',
         'self_collision',
-        'trajectory',
         'workspace',
-        'joint_power',
-        'external_power',
         'energy_tank',
+        'minimise_velocity',
+        'trajectory',
         'manipulability',
-        'variable_damping',
         'total'
     )
     return plot_timeseries(
         data.objective.assisted_manipulation if data.objective is not None else None,
         {key: '\#' for key in objectives},
-        'Objective Function Cost Composition Over Time',
         y_scale = 'from_zero'
     )
 
@@ -356,41 +352,172 @@ def plot_force_multi(data: list[PlotData]):
     if all(d.force_pid is None or d.force_pid.control is None for d in data):
         return
 
-    figure = plt.figure(figsize = (6, 3), layout='tight')
+    figure = plt.figure(figsize = (7, 4), layout='tight')
     axes = figure.gca()
+
+    # names = (
+    #     r'$c_\mathrm{manipulability} = 500$',
+    #     r'$c_\mathrm{manipulability} = 1000$',
+    #     r'$c_\mathrm{manipulability} = 1500$',
+    #     r'$c_\mathrm{manipulability} = 2000$',
+    #     r'$c_\mathrm{manipulability} = 2500$',
+    # )
 
     for d in data:
         df = d.force_pid.control
         to_norm = df.columns[df.columns != 'time']
         error = np.sqrt(np.square(df[to_norm]).sum(axis = 1))
         time = df['time']
-
         axes.plot(time, error, label = d.name)
 
-    axes.set_xlim(xmin = 0.0, xmax = 30)
-    axes.set_ylim(ymin = 0.0)
+    axes.grid()
+    axes.set_xticks(np.arange(0, 15, 1.0))
+    # axes.set_yticks(np.arange(0, 160, 10))
+    axes.set_xlim(xmin = 0.0, xmax = 15)
+    axes.set_ylim(ymin = 0.05)
     axes.set_xlabel('Time [$s$]')
     axes.set_ylabel('Force [$N$]')
     axes.legend()
+    # for i in range(30):
+    #     axes.axvline(0.5 * i, color = 'black', linewidth = 0.1)
     return figure
 
-def analyse_multiple(*paths: pathlib.Path):
-    data = [read_data(path) for path in paths]
+def plot_reference_error_multi(data: list[PlotData]):
 
-    plot_force_multi(data).savefig('effort.png', dpi = 300)
+    if all(d.force_pid is None or d.force_pid.error is None for d in data):
+        return
+
+    figure = plt.figure(figsize = (7, 4), layout='tight')
+    axes = figure.gca()
+
+    for d in data:
+        df = d.force_pid.error
+        to_norm = df.columns[df.columns != 'time']
+        error = np.sqrt(np.square(df[to_norm]).sum(axis = 1))
+        time = df['time']
+        axes.plot(time, error, label = d.name)
+
+    axes.grid()
+    axes.set_xticks(np.arange(0, 15, 1.0))
+    # axes.set_yticks(np.arange(0, 160, 10))
+    axes.set_xlim(xmin = 0.0, xmax = 15)
+    axes.set_ylim(ymin = 0.0)
+    axes.set_xlabel('Time [$s$]')
+    axes.set_ylabel('User Trajectory Error [$m$]')
+    axes.legend()
+    # for i in range(30):
+    #     axes.axvline(0.5 * i, color = 'black', linewidth = 0.1)
+    return figure
+
+def plot_velocity_multi(data: list[PlotData]):
+
+    if all(d.dynamics is None or d.dynamics.end_effector_angular_velocity is None for d in data):
+        return
+
+    figure = plt.figure(figsize = (7, 4), layout='tight')
+    axes = figure.gca()
+
+    for d in data:
+        df = d.dynamics.end_effector_angular_velocity
+        to_norm = df.columns[df.columns != 'time']
+        error = np.sqrt(np.square(df[to_norm]).sum(axis = 1))
+        time = df['time']
+        axes.plot(time, error, label = d.name)
+
+    axes.grid()
+    axes.set_xticks(np.arange(0, 15, 1.0))
+    # axes.set_yticks(np.arange(0, 160, 10))
+    axes.set_xlim(xmin = 0.0, xmax = 15)
+    axes.set_ylim(ymin = 0.0)
+    axes.set_xlabel('Time [$s$]')
+    axes.set_ylabel('End-Effector Velocity [$m/s$]')
+    axes.legend()
+    # for i in range(30):
+    #     axes.axvline(0.5 * i, color = 'black', linewidth = 0.1)
+    return figure
+
+def barchart():
+
+    # names = ('Unassisted', 'Average', 'LOCF', 'Kalman 1', 'Kalman 2')
+    # data = {
+    #     'Pose': (0.001088024655113938, 0.0009079267291307213, 0.0006694987803991998, 0.0008538404377074903, 0.0008506949491946322),
+    #     'Circle': (0.09064071362734615, 0.0431296615009239, 0.04404907289861029, 0.044768773110300385, 0.04524059656960858),
+    #     'Figure Eight': (0.20720194775837483, 0.07970206752669437, 0.07022175970041583, 0.06036570606721701, 0.06520889663731642),
+    #     'Rectangle': (0.1348200430917584, 0.0544936457417769, 0.0544421654218168, 0.05403947848822745, 0.057392673314378334),
+    # }
+    # ylabel = 'RMSE [$m$]'
+    # title = 'Trajectory Error [$m$] of User Effort by Trajectory and Wrench Forecast'
+
+    names = ('Pose', 'Circle', 'Figure Eight', 'Rectangle')
+    data = {
+        'Unassisted': (0.00,   24.81, 46.32, 34.17),
+        'Average':    (0.22,  11.94, 21.94, 15.50),
+        'LOCF':       (0.09,  12.29, 19.18, 15.90),
+        'Kalman 1':   (0.04,  12.59, 16.52, 15.75),
+        'Kalman 2':   (0.07,  12.73, 17.90, 16.70),
+    }
+    ylabel = 'Mean User Force [$N$]'
+    title = 'Mean User Effort by Trajectory and Wrench Forecast'
+
+    x = np.arange(len(names))
+    width = 0.25  # the width of the bars
+
+    figure, ax = plt.subplots(layout = 'constrained')
+    for i, (attribute, value) in enumerate(data.items()):
+        rects = ax.bar(x + width * i, value, width, label = attribute)
+        ax.bar_label(rects, padding = 3)
+
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.set_xticks(x + width, names)
+    ax.legend(loc = 'upper left')
+    plt.show()
+
+def analyse_multiple(path: pathlib.Path):
+
+    # Read all experimental data.
+    data = [read_data(p) for p in path.iterdir() if p.is_dir()]
+
+    plot_velocity_multi(data).savefig(path / f'{path.stem}_velocity.png', dpi = 300)
+    plot_force_multi(data).savefig(path / f'{path.stem}_effort.png', dpi = 300)
+    plot_reference_error_multi(data).savefig(path / f'{path.stem}_reference_error.png', dpi = 300)
+
+    with open(path / 'pid_force_summary.txt', 'w') as file:
+        file.write(f'name, mean, std, min, max\n')
+        for d in data:
+            df = d.force_pid.control
+            force = df[df['time'] > 0.01]
+            force = force[force.columns[force.columns != 'time']]
+            force = np.sqrt(np.square(force).sum(axis = 1))
+
+            file.write(f'"{d.name}", {force.mean()}, {force.std()}, {force.min()}, {force.max()}\n')
+
+    with open(path / 'pid_reference_summary.txt', 'w') as file:
+        file.write(f'name, rmse, mean, std, min, max\n')
+        for d in data:
+            df = d.force_pid.error
+            error = df[df['time'] > 0.01]
+            error = error[error.columns[error.columns != 'time']]
+            error = np.sqrt(np.square(error).sum(axis = 1))
+            rmse = np.sqrt(np.square(error).mean())
+
+            file.write(f'"{d.name}", {rmse}, {error.mean()}, {error.std()}, {error.min()}, {error.max()}\n')
 
 if __name__ == '__main__':
     args = sys.argv[1:]
 
     if not args:
-        raise RuntimeError('No result directory provided.')
+        raise RuntimeError('usage: <"single" | "multi"> <path>')
 
-    args = [pathlib.Path(arg) for arg in args]
-    for path in args:
-        if not path.exists():
-            raise RuntimeError(f'path {path} does not exist')
+    if len(args) < 2:
+        raise RuntimeError('usage: <"single" | "multi"> <path>')
 
-    if len(args) == 1:
-        analyse_single(args[0])
+    todo = args[0]
+    path = pathlib.Path(args[1])
+
+    if todo == 'single':
+        analyse_single(path)
+    elif todo == 'multi':
+        analyse_multiple(path)
     else:
-        analyse_multiple(*args)
+        raise RuntimeError(f'unknown operation {todo}')

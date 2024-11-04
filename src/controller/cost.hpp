@@ -57,7 +57,7 @@ struct RightInverseBarrierFunction {
     inline double operator()(double value) const
     {
         if (value >= upper_bound)
-            return maximum_cost + scale * std::exp(value - upper_bound);
+            return maximum_cost + scale * std::pow(value - upper_bound, 2);
         return std::min(scale / (upper_bound - value), maximum_cost);
     }
 
@@ -88,7 +88,7 @@ struct LeftInverseBarrierFunction {
     inline double operator()(double value) const
     {
         if (value <= lower_bound)
-            return maximum_cost + scale * std::exp(lower_bound - value);
+            return maximum_cost + scale * std::pow(lower_bound - value, 2);
         return std::min(scale / (value - lower_bound), maximum_cost);
     }
 

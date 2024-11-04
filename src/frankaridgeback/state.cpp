@@ -5,6 +5,7 @@ namespace FrankaRidgeback {
 State make_state(Preset preset)
 {
     State state = State::Zero();
+    state.available_energy().setConstant(100);
 
     switch (preset)
     {

@@ -157,8 +157,8 @@ Vector3d CircularTrajectory::get_position(double time)
 std::unique_ptr<RectangularTrajectory> RectangularTrajectory::create(
     const Configuration &configuration
 ) {
-    if (configuration.frequency < 0) {
-        std::cerr << "cannot have non-positive` frequency" << std::endl;
+    if (configuration.velocity < 0) {
+        std::cerr << "cannot have non-positive velocity" << std::endl;
         return nullptr;
     }
 
@@ -170,7 +170,7 @@ std::unique_ptr<RectangularTrajectory> RectangularTrajectory::create(
 RectangularTrajectory::RectangularTrajectory(const Configuration &configuration)
     : m_configuration(configuration)
     , m_circumference(2 * configuration.width + 2 * configuration.height)
-    , m_velocity(m_circumference / configuration.frequency / 2 / M_PI)
+    , m_velocity(m_configuration.velocity)
 {
     m_transform.setIdentity();
 

@@ -91,8 +91,6 @@ public:
         /// Manipulability limits if enabled.
         QuadraticCost manipulability_cost;
 
-        double manipulability_minimum;
-
         // JSON conversion for assisted manipulation objective configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
@@ -121,8 +119,7 @@ public:
             trajectory_velocity_minimum,
             trajectory_velocity_maximum,
             trajectory_velocity_dropoff,
-            manipulability_cost,
-            manipulability_minimum
+            manipulability_cost
         )
     };
 
@@ -145,13 +142,13 @@ public:
             {-2.0,    0.0}, // Base x
             {-2.0,    0.0}, // Base y
             {-6.28,   0.0}, // Base yaw
-            {-2.8,    1.0}, // Joint1
-            {-1.745,  1.0}, // Joint2
-            {-2.8,    1.0}, // Joint3
-            {-3.0718, 1.0}, // Joint4
-            {-2.7925, 1.0}, // Joint5
-            {0.349,   1.0}, // Joint6
-            {-2.967,  1.0}, // Joint7
+            {-2.8,    10.0}, // Joint1
+            {-1.745,  10.0}, // Joint2
+            {-2.8,    10.0}, // Joint3
+            {-3.0718, 10.0}, // Joint4
+            {-2.7925, 10.0}, // Joint5
+            {0.349,   10.0}, // Joint6
+            {-2.967,  10.0}, // Joint7
             {0.0,     0.0}, // Gripper x
             {0.0,     0.0}  // Gripper y
         }},
@@ -159,13 +156,13 @@ public:
             {2.0,     0.0}, // Base x
             {2.0,     0.0}, // Base y
             {6.28,    0.0}, // Base yaw
-            {2.8,     1.0}, // Joint1
-            {1.745,   1.0}, // Joint2
-            {2.8,     1.0}, // Joint3
-            {0.0,     1.0}, // Joint4
-            {2.7925,  1.0}, // Joint5
-            {4.53785, 1.0}, // Joint6
-            {2.967,   1.0}, // Joint7
+            {2.8,     10.0}, // Joint1
+            {1.745,   10.0}, // Joint2
+            {2.8,     10.0}, // Joint3
+            {0.0,     10.0}, // Joint4
+            {2.7925,  10.0}, // Joint5
+            {4.53785, 10.0}, // Joint6
+            {2.967,   10.0}, // Joint7
             {0.5,     0.0}, // Gripper x
             {0.5,     0.0}  // Gripper y
         }},
@@ -174,21 +171,21 @@ public:
         .workspace_limit_above = {0.0, 1.0},
         .workspace_limit_infront = {0.0, 1.0},
         .workspace_limit_reach = {1.0, 1.0},
-        .workspace_cost_yaw = { .quadratic_cost = 250 },
+        .workspace_cost_yaw = { .quadratic_cost = 400 },
         .energy_limit_below = {0.0, 10.0},
         .energy_limit_above = {20.0, 10.0},
         .velocity_cost = {{
             {0.0, 0.0, 1000.0}, // Base x
             {0.0, 0.0, 1000.0}, // Base y
             {0.0, 0.0, 100.0}, // Base yaw
-            {0.0, 0.0, 10.0}, // Joint1
-            {0.0, 0.0, 10.0}, // Joint2
-            {0.0, 0.0, 10.0}, // Joint3
-            {0.0, 0.0, 10.0}, // Joint4
-            {0.0, 0.0, 10.0}, // Joint5
-            {0.0, 0.0, 10.0}, // Joint6
-            {0.0, 0.0, 10.0}, // Joint7
-            {0.0, 0.0, 0.0}, // Gripper x5
+            {0.0, 0.0, 0.5}, // Joint1
+            {0.0, 0.0, 1.0}, // Joint2
+            {0.0, 0.0, 2.0}, // Joint3
+            {0.0, 0.0, 3.0}, // Joint4
+            {0.0, 0.0, 4.0}, // Joint5
+            {0.0, 0.0, 5.0}, // Joint6
+            {0.0, 0.0, 6.0}, // Joint7
+            {0.0, 0.0, 0.0}, // Gripper x
             {0.0, 0.0, 0.0}  // Gripper y
         }},
         .trajectory_target_scale = 1e-2,
@@ -197,16 +194,15 @@ public:
             .constant_cost = 100,
             .quadratic_cost = 500.0
         },
-        .trajectory_position_threshold = 0.05,
+        .trajectory_position_threshold = 0.00,
         .trajectory_velocity_cost = {
             .constant_cost = 0,
             .quadratic_cost = 500.0
         },
-        .trajectory_velocity_minimum = 0.05,
-        .trajectory_velocity_maximum = 1.0,
-        .trajectory_velocity_dropoff = 0.7,
-        .manipulability_cost = { .quadratic_cost = 10 },
-        .manipulability_minimum = 0.0
+        .trajectory_velocity_minimum = 0.1,
+        .trajectory_velocity_maximum = 5.0,
+        .trajectory_velocity_dropoff = 2,
+        .manipulability_cost = { .quadratic_cost = 10 }
     };
 
     /**
@@ -380,7 +376,7 @@ private:
     Configuration m_configuration;
 
     /// Spatial jacobian.
-    Eigen::Matrix<double, 3, 3> m_space_jacobian;
+    Eigen::Matrix<double, 3, 3> m_manipulability_matrix;
 
     double m_initial_time;
 

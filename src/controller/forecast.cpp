@@ -314,7 +314,6 @@ void KalmanForecast::update(VectorXd measurement, double time)
     // horison.
     for (unsigned int i = 0; i < m_steps; i++) {
         m_predictor->predict(false);
-        std::cout << m_predictor->get_estimation().head(m_observed_states).transpose().head(3) << std::endl;
         m_prediction.col(i + 1) = m_predictor->get_estimation().head(m_observed_states);
     }
 }

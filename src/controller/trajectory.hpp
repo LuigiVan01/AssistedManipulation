@@ -231,13 +231,13 @@ public:
         /// Height of the rectangle along the y axis of the plane.
         double height;
 
-        /// The frequency of the trajectory, in rad/s.
-        double frequency;
+        /// The linear velocity of the trajectory, in m/s.
+        double velocity;
 
         /// JSON conversion for rectangular trajectory configuration.
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(
             Configuration,
-            origin, axis, angle, width, height, frequency
+            origin, axis, angle, width, height, velocity
         );
     };
 
@@ -249,9 +249,9 @@ public:
         .origin = Vector3d(1.0, 1.0, 1.0),
         .axis = Vector3d(0.0, 0.0, 1.0).normalized(),
         .angle = 0.0,
-        .width = 0.5,
-        .height = 0.5,
-        .frequency = 1.0
+        .width = 1.0,
+        .height = 0.0,
+        .velocity = 0.5
     };
 
     /**

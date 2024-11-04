@@ -67,7 +67,7 @@ public:
                     .keep_best_rollouts = 20,
                     .time_step = 0.01,
                     .horison = 0.3,
-                    .gradient_step = 1.0,
+                    .gradient_step = 2.0,
                     .cost_scale = 10.0,
                     .cost_discount_factor = 1.0,
                     .covariance = FrankaRidgeback::Control{
@@ -114,7 +114,7 @@ public:
                     .time_step = 0.01,
                     .horison = 0.3,
                     .end_effector_wrench_forecast = {
-                        .type = Forecast::Configuration::Type::KALMAN,
+                        .type = Forecast::Configuration::Type::AVERAGE,
                         .locf = LOCFForecast::Configuration {
                             .observation = Vector6d::Zero(),
                             .horison = 0.3
@@ -127,7 +127,7 @@ public:
                             .observed_states = 6,
                             .time_step = 0.01,
                             .horison = 0.3,
-                            .order = 2,
+                            .order = 1,
                             .variance = Vector6d::Ones() * 0.2,
                             .initial_state = Vector6d::Zero()
                         }
