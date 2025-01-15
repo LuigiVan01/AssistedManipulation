@@ -168,9 +168,11 @@ ExternalWrenchTest::ExternalWrenchTest(
 bool ExternalWrenchTest::run()
 {
     // Optional forecast
+    // Create the wrench vector
     Vector6d wrench = Vector6d::Zero();
 
     for (;;) {
+        // Get the time from the simulator
         double time = m_base->get_simulator()->get_time();
 
         if (time >= m_configuration.duration)
@@ -184,18 +186,27 @@ bool ExternalWrenchTest::run()
         // Reset the wrench.
         wrench.setZero();
 
+        // Get the end effector state
         const auto &state = m_base->get_frankaridgeback()->get_dynamics().get_end_effector_state();
 
-        // Update the force component of the wrench.
+        // If the positional trajectory exists
         if (m_position) {
+
+            // get the desired position at current time from the trajectory
             Vector3d position = m_position->get_position(time);
+
+            //Update the PID controller with the new reference position
             m_force_pid->set_reference(position);
+
+            // Compute the output force of the PID based on the current poisiton and the reference just computed
             m_force_pid->update(state.position, time);
             m_force_pid_logger->log(*m_force_pid);
 
-            // Update the visual sphere to show the tracked point.
+            // Update the visual sphere to show the target point.
+            //! The visible sphere in raisim is the target position
             m_tracking_sphere->setPosition(position);
 
+            // Sets the first three components of the wrench to the control force from the PID
             wrench.head<3>() = m_force_pid->get_control();
         }
 
