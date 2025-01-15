@@ -141,7 +141,9 @@ public:
         using namespace std::chrono_literals;
         using namespace std::chrono;
 
+        //! Searching in the map "s_tests" the key "name"
         auto it = s_tests.find(name);
+
         if (it == s_tests.end()) {
             std::cerr << "test \"" << name << "\" does not exist" << std::endl;
             return false;
@@ -162,6 +164,8 @@ public:
             .duration = test_duration
         };
 
+        //! it calls the TestCreator function (second element in the map) with the options "meta"
+        //! The function creates and return a test instance like BaseTest or ExternalWrenchTest 
         auto test = it->second(meta);
         if (!test) {
             std::cerr << "failed to create test \"" << name << "\""
@@ -186,7 +190,9 @@ public:
 
         // Time the duration of the test.
         auto start = steady_clock::now();
-        bool success = test->run();
+        //! The run() method of the test object (e.g. BaseTest, ExternalWrenchTest) is called
+        bool success = test->run(); 
+
         auto stop = steady_clock::now();
 
         // Join the dot display thread.
@@ -203,7 +209,7 @@ public:
         auto sec = duration_cast<seconds>(duration - min);
         auto ms = duration_cast<milliseconds>(duration - min - sec);
 
-        std::cout << " (" << min << " " << sec << " " << ms << ")" << std::endl;
+        std::cout << " (" << min.count() << " " << sec.count() << " " << ms.count() << ")" << std::endl;
 
         return success;
     }
