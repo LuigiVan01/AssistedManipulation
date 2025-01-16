@@ -165,11 +165,12 @@ void Actor::act(Simulator *simulator)
 {
     using namespace FrankaRidgeback;
 
-    // Update the controller every couple of time steps, depending on the
-    // controller update rate.
+    // The controller is updating at a lower frequency than the simulation rate
+    // The m_trajectory_countdown goes to zero when it is time to forecast and upodate the controller
     if (--m_trajectory_countdown <= 0) {
-        m_trajectory_countdown = m_trajectory_countdown_max;
+        m_trajectory_countdown = m_trajectory_countdown_max; // Reset counter
 
+        // Forecast the wrench
         if (m_forecast) {
             m_forecast->forecast(
                 m_dynamics->get_dynamics()->get_state(),
@@ -177,6 +178,9 @@ void Actor::act(Simulator *simulator)
             );
         }
 
+        // Update the controller m_configuration.controller_substeps times 
+        //! I don t know why it would make sense to update the controller more times in a row. 
+        //! In the default configuration m_configuration.controller_substeps = 1
         for (unsigned int i = 0; i < m_configuration.controller_substeps; i++) {
             m_controller->update(
                 m_dynamics->get_dynamics()->get_state(),
