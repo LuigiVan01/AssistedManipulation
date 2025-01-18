@@ -6,6 +6,9 @@
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/algorithm/frames.hpp>
 
+#include <pinocchio/multibody/geometry.hpp> 
+#include <pinocchio/multibody/fcl.hpp> 
+
 #include "controller/energy.hpp"
 #include "controller/json.hpp"
 #include "controller/forecast.hpp"

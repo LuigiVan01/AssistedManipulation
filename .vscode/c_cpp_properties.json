@@ -8,14 +8,19 @@
             "defines": [],
             "includePath": [
                 "${workspaceFolder}/src/**",
-                "${workspaceFolder}/lib/raisimlib/raisim/linux/include/**"
+                "${workspaceFolder}/lib/raisimlib/raisim/linux/include/**",
+                "/usr/include/eigen3",
+                "/opt/openrobots/include",
+                "/usr/include/nlohmann"
             ]
         },
         {
             "name": "Win32",
             "intelliSenseMode": "msvc-x64",
             "cppStandard": "c++20",
-            "defines": ["WIN32"],
+            "defines": [
+                "WIN32"
+            ],
             "includePath": [
                 "${workspaceFolder}/src/**",
                 "${workspaceFolder}/lib/raisimlib/raisim/win32/include",

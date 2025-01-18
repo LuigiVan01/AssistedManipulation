@@ -11,9 +11,6 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WORKSPACE/raisim/linux/lib
 export PYTHONPATH=$PYTHONPATH:$WORKSPACE/raisim/linux/lib
 
 mkdir -p build
+mkdir -p install  
 
-cmake \
-    -DCMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH \
-    -DCMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH=y \
-    -B build \
-    -S src
+cmake -DCMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH -DCMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH=y -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/install -B build -S src

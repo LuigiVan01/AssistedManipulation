@@ -26,13 +26,17 @@
 	"mounts": [
 		"source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
 		"source=/dev/dri,target=/dev/dri,type=bind,consistency=cached",
-		"source=/mnt/wslg,target=/mnt/wslg,type=bind,consistency=cached"
+		// For WSL environment
+		//"source=/mnt/wslg,target=/mnt/wslg,type=bind,consistency=cached"
 	],
 	"containerEnv": {
-		"DISPLAY": "${env:DISPLAY}",
-		"WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
-		"XDG_RUNTIME_DIR": "${localEnv:$XDG_RUNTIME_DIR}",
-		"PULSE_SERVER": "${localEnv:PULSE_SERVER}"
+		"DISPLAY": ":0"
+
+		// For WSL
+		// "DISPLAY": "${env:DISPLAY}",
+		// "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
+		// "XDG_RUNTIME_DIR": "${localEnv:$XDG_RUNTIME_DIR}",
+		// "PULSE_SERVER": "${localEnv:PULSE_SERVER}"
 	},
 	"postStartCommand": "echo 127.0.0.1 `hostname` >> /etc/hosts",
 	"appPort": 8080,

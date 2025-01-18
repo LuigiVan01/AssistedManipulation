@@ -26,8 +26,19 @@
             "program": "${workspaceFolder}/install/bin/test",
             "args": ["--test", "${input:test}", "--out", "${workspaceFolder}/results"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/install/bin",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "${workspaceFolder}/lib/raisimlib/raisim/linux/lib:${env:LD_LIBRARY_PATH}"
+                },
+                {
+                    "name": "RAISIM_ACTIVATION",
+                    "value": "${workspaceFolder}/activation.raisim"
+                }
+            ],
             "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",  
             "preLaunchTask": "Prepare for Debug",
             "postDebugTask": "Stop Visualiser",
             "setupCommands": [

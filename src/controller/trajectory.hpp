@@ -380,14 +380,15 @@ public:
      */
     inline Vector3d get_position(double time) override;
 
-private:
+protected:
 
     /**
      * @brief Initialise a new lissajous trajectory.
      * @param configuration The lissajous trajectory configuration.
      */
     inline LissajousTrajectory(const Configuration &configuration);
-
+    
+private:
     /// The configuration of the lissajous trajectory.
     Configuration m_configuration;
 };

@@ -25,8 +25,8 @@ RUN apt install -qqy \
     git \
     x11-apps \
     libeigen3-dev \
-    nlohmann-json3-dev \
-    ros-iron-pinocchio
+    nlohmann-json3-dev 
+    #ros-iron-pinocchio
 
 RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/assistedmanipulation/lib/raisim/linux/lib' >> ~/.bashrc && \
     echo 'PYTHONPATH=$PYTHONPATH:/root/assistedmanipulation/lib/raisim/linux/lib' >> ~/.bashrc && \
@@ -34,17 +34,20 @@ RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/assistedmanipulation/lib
 
 CMD ["/bin/bash"]
 
+# Instal GDB compiler
+RUN apt-get update && apt-get install -y gdb
+
 # Install pinnochio.
-# RUN mkdir -p /etc/apt/keyrings && \
-#     curl http://robotpkg.openrobots.org/packages/debian/robotpkg.asc | tee /etc/apt/keyrings/robotpkg.asc && \
-#     echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/robotpkg.asc] http://robotpkg.openrobots.org/packages/debian/pub jammy robotpkg" | tee /etc/apt/sources.list.d/robotpkg.list && \
-#     apt update && \
-#     apt install -qqy robotpkg-py3*-pinocchio && \
-#     echo 'export PATH=/opt/openrobots/bin:$PATH' >> ~/.bashrc && \
-#     echo 'export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH' >> ~/.bashrc && \
-#     echo 'export LD_LIBRARY_PATH=/opt/openrobots/lib:$LD_LIBRARY_PATH' >> ~/.bashrc && \
-#     echo 'export PYTHONPATH=/opt/openrobots/lib/python3.10/site-packages:$PYTHONPATH # Adapt your desired python version here' >> ~/.bashrc && \
-#     echo 'export CMAKE_PREFIX_PATH=/opt/openrobots:$CMAKE_PREFIX_PATH' >> ~/.bashrc
+RUN mkdir -p /etc/apt/keyrings && \
+    curl http://robotpkg.openrobots.org/packages/debian/robotpkg.asc | tee /etc/apt/keyrings/robotpkg.asc && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/robotpkg.asc] http://robotpkg.openrobots.org/packages/debian/pub jammy robotpkg" | tee /etc/apt/sources.list.d/robotpkg.list && \
+    apt update && \
+    apt install -qqy robotpkg-py3*-pinocchio && \
+    echo 'export PATH=/opt/openrobots/bin:$PATH' >> ~/.bashrc && \
+    echo 'export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH' >> ~/.bashrc && \
+    echo 'export LD_LIBRARY_PATH=/opt/openrobots/lib:$LD_LIBRARY_PATH' >> ~/.bashrc && \
+    echo 'export PYTHONPATH=/opt/openrobots/lib/python3.10/site-packages:$PYTHONPATH # Adapt your desired python version here' >> ~/.bashrc && \
+    echo 'export CMAKE_PREFIX_PATH=/opt/openrobots:$CMAKE_PREFIX_PATH' >> ~/.bashrc
 
 # Build osqp from source.
 # RUN git clone -b v1.0.0.beta1 --recursive https://github.com/osqp/osqp.git osqp && \

@@ -3,6 +3,7 @@
 #include <variant>
 #include <shared_mutex>
 #include <deque>
+#include <mutex>
 
 #include "controller/json.hpp"
 #include "controller/kalman.hpp"
