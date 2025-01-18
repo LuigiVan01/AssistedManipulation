@@ -211,7 +211,9 @@ private:
     );
 
     /**
-     * @brief Perform an action in the world.
+     * @brief Calls forecast and update controller, 
+     * makes the actor act performing an action in the world 
+     * based on the controller output
      * @param handle The handle to the simulator to get data from.
      */
     void act(Simulator *simulator) override;
