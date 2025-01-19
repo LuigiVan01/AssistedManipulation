@@ -1,6 +1,10 @@
 #include "test/case/base.hpp"
 #include "logging/file.hpp"
 
+namespace {
+    bool force_registration = BaseTest::register_test();
+}
+
 std::unique_ptr<BaseTest> BaseTest::create(Options &options)
 {
     Configuration configuration = DEFAULT_CONFIGURATION;

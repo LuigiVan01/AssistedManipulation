@@ -103,6 +103,11 @@ int main(int argc, char **argv)
 {
     char *program = argv[0];
 
+
+    BaseTest::register_test();
+    ExternalWrenchTest::register_test();
+    CircleTest::register_test();
+
     // Prints usage diagnostics for command line errors.
     auto usage = [argc, argv](std::string reason) /* [[noreturn]] */ {
         std::cerr << "usage: "<< argv[0] << " --test <string> --out <path> [--config <json>]" << std::endl;

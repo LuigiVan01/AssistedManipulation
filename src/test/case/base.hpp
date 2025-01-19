@@ -16,6 +16,11 @@ class BaseTest : public RegisteredTest<BaseTest>
 {
 public:
 
+    static inline bool verify_inclusion = []() {
+        std::cout << "BaseTest header included" << std::endl;
+        return true;
+    }();
+
     static inline constexpr const char *TEST_NAME = "base";
 
     struct Configuration {

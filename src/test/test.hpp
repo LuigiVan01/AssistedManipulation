@@ -233,7 +233,7 @@ private:
 template<typename Derived>
 class RegisteredTest : public Test
 {
-private:
+public:
 
     /**
      * @brief Registers the test. Private, cannot be called from subclasses.
@@ -242,19 +242,26 @@ private:
     {
         using namespace std::string_literals;
 
+        std::cout << "Attempting to register test: " << Derived::TEST_NAME << std::endl;
+
         if (TestSuite::s_tests.contains(Derived::TEST_NAME)) {
-            throw std::runtime_error(
-                "test with name "s + Derived::TEST_NAME + " already exists"
-            );
+            std::cout << "Test " << Derived::TEST_NAME << " already registered" << std::endl;
+            return true;
         }
+
+        std::cout << "Registering test creator for: " << Derived::TEST_NAME << std::endl;
  
         TestSuite::s_tests[Derived::TEST_NAME] = [](Test::Options meta){
             return Derived::create(meta);
         };
 
+        // Debug print after successful registration
+        std::cout << "Successfully registered test: " << Derived::TEST_NAME << std::endl;
+        std::cout << "Current number of registered tests: " << TestSuite::s_tests.size() << std::endl;
+
         return true;
     }
-
+private:
     /// Register the test during static initialisation.
     static inline bool registered = register_test();
 };
