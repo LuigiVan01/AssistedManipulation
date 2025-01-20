@@ -16,9 +16,9 @@
             "label": "Configure Debug",
             "detail": "Generate build files for the project.",
             "type": "shell",
-            "windows": { "command": "call scripts/windows/configure.bat Debug" },
+            "windows": { "command": "call scripts/windows/configure.bat" },
             "linux": { "command": "./scripts/linux/configure.bash"},
-            "args": [ "${workspaceFolder}/src" ],
+            "args": [ "Debug", "${workspaceFolder}/src" ],
             "options": { "cwd": "${workspaceFolder}" },
             "presentation": {
                 "echo": true,
@@ -34,9 +34,9 @@
             "label": "Configure Release",
             "detail": "Generate build files for the project.",
             "type": "shell",
-            "windows": { "command": "call scripts/windows/configure.bat Release" },
-            "linux": { "command": ""},
-            "args": [ "${workspaceFolder}/src" ],
+            "windows": { "command": "call scripts/windows/configure.bat" },
+            "linux": { "command": "./scripts/linux/configure.bash"},
+            "args": [ "Release", "${workspaceFolder}/src" ],
             "options": { "cwd": "${workspaceFolder}" },
             "presentation": {
                 "echo": true,
@@ -104,7 +104,7 @@
             "label": "Start Visualiser",
             "detail": "Start the raisim server and visualiser. Must be run outside of the development container.",
             "type": "shell",
-            "linux": { "command": "${workspaceFolder}/lib/raisimlib/raisimUnity/linux/raisimUnity.x86_64 &"},
+            "linux": { "command": "cd ${workspaceFolder}/lib/raisimlib/raisimUnity/linux && ./raisimUnity.x86_64 &"},
             "windows": { "command": "start ${workspaceFolder}/lib/raisimlib/raisimUnity/win32/RaiSimUnity"},
             "problemMatcher": []
         },
