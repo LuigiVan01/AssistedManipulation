@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.10)
 # set(CMAKE_FIND_DEBUG_MODE 1)
 project(assistedmanipulation)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_CXX_STANDARD 20) #Tells the compiler to use C++20 features and syntax
+set(CMAKE_CXX_STANDARD_REQUIRED ON) #If the compiler doesn't support C++20, the build will fail
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall") #Enables all standard warning messages during compilation
 
 # Display search paths for libraries.
 
@@ -19,8 +19,15 @@ find_package(nlohmann_json REQUIRED)
 
 include_directories(${EIGEN3_INCLUDE_DIR} ${yaml_cpp_INCLUDE_DIRS} ${PINOCCHIO_INCLUDE_DIRS})
 
+
+# Print initial compiler flags
+message(STATUS "Initial CXX flags: ${CMAKE_CXX_FLAGS}")
+
+
+# Specify the executable and all the source files that should be compiled and linked top it
+# Order doesn't matter
 add_executable(
-    test
+    test #Executable name
     test/main.cpp
 
     controller/filter.cpp
@@ -61,9 +68,39 @@ add_executable(
 target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (UNIX)
+    message(STATUS "Configuring for Unix/Linux with GCC")
+
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
         message("gcc version <= 10, currently using version ${CMAKE_CXX_COMPILER_VERSION}")
     endif()
+
+
+    # Create a list of MSVC compatibility flags
+    set(MSVC_COMPAT_FLAGS
+       -fms-extensions            # Enable Microsoft extensions
+       -fms-compatibility        # Enable Microsoft compatibility
+       -fms-compatibility-version=19.29  # Match VS 2019 behavior
+       -fno-threadsafe-statics   # MSVC-like static initialization
+       -fno-implicit-templates   # MSVC-like template handling
+       -fno-implicit-inline-templates  # More MSVC-like template behavior
+   )
+
+   # Add the flags to the compile options
+   add_compile_options(${MSVC_COMPAT_FLAGS})
+   
+   # Print the flags to verify they're set
+   message(STATUS "Added MSVC compatibility flags: ${MSVC_COMPAT_FLAGS}")
+
+
+    # Add threading flags
+    add_compile_definitions(
+        _REENTRANT 
+        FORCE_SEQUENTIAL_INIT
+    )
+    message(STATUS "Added threading definitions")
+
+
+
 
     target_link_libraries(
         test PUBLIC 
@@ -75,6 +112,7 @@ if (UNIX)
         pthread
     )
 elseif (WIN32)
+    message(STATUS "Configuring for Windows with MSVC")
     target_compile_options(test PUBLIC /W3) # /Wall WX
 
     target_link_libraries(
