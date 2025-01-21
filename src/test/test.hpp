@@ -233,7 +233,7 @@ private:
 template<typename Derived>
 class RegisteredTest : public Test
 {
-private:
+protected:
 
     /**
      * @brief Registers the test. Private, cannot be called from subclasses.
@@ -241,6 +241,7 @@ private:
     static bool register_test()
     {
         using namespace std::string_literals;
+        std::cout << "Attempting to register test: " << Derived::TEST_NAME << std::endl;
 
         if (TestSuite::s_tests.contains(Derived::TEST_NAME)) {
             throw std::runtime_error(

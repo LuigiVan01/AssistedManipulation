@@ -33,6 +33,8 @@ public:
         .circle = CircularTrajectory::DEFAULT_CONFIGURATION
     };
 
+
+
     inline static std::unique_ptr<ExternalWrenchTest> create(
         Options &options
     ) {
@@ -55,6 +57,12 @@ public:
 
         return ExternalWrenchTest::create(options);
     }
+
+     // Add a static initializer to verify this file is being included
+    static inline bool verify_inclusion = []() {
+        std::cout << "Circle header included" << std::endl;
+        return register_test();
+    }();
 
 private:
 
