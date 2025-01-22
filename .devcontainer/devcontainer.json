@@ -18,7 +18,9 @@
 	"runArgs": [
 		"--net=host",
 		"--pid=host",
-		"--ipc=host"
+		"--ipc=host",
+		"--privileged",
+    	"--gpus", "all"
         // "--device /dev/dri/renderD128", // Windows GPU support
         // "--device /dev/dri/card0",
         // "--device=/dev/dxg",
@@ -30,8 +32,10 @@
 		//"source=/mnt/wslg,target=/mnt/wslg,type=bind,consistency=cached"
 	],
 	"containerEnv": {
-		"DISPLAY": ":0"
-
+		"DISPLAY": "${localEnv:DISPLAY}",
+    	"XDG_RUNTIME_DIR": "/tmp/runtime-root",
+    	"LIBGL_ALWAYS_INDIRECT": "0",
+    	"VULKAN_SDK": "/usr/local"
 		// For WSL
 		// "DISPLAY": "${env:DISPLAY}",
 		// "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
