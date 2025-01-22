@@ -10,6 +10,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall") #Enables all standard warning me
 # Display search paths for libraries.
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/opt/openrobots")
 
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)

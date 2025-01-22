@@ -10,8 +10,8 @@ CMAKE_PREFIX_PATH+=";$WORKSPACE/lib/raisimlib/raisim/linux"
 export CMAKE_PREFIX_PATH
 
 # Add raisim linker directories to path.
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WORKSPACE/raisim/linux/lib
-export PYTHONPATH=$PYTHONPATH:$WORKSPACE/raisim/linux/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WORKSPACE/lib/raisimlib/raisim/linux/lib
+export PYTHONPATH=$PYTHONPATH:$WORKSPACE/lib/raisimlib/raisim/linux/lib
 
 mkdir -p build
 mkdir -p install  

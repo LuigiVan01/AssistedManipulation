@@ -9,4 +9,5 @@ sudo apt install libeigen3-dev
 
 cd lib
 git clone https://github.com/raisimTech/raisimlib
-# git clone https://github.com/ethz-asl/sampling_based_control
+git clone https://github.com/ethz-asl/sampling_based_control
+cd ..
