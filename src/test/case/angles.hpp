@@ -9,6 +9,11 @@ public:
 
     static inline constexpr const char *TEST_NAME = "angles";
 
+    static inline bool registration = []() {
+        std::cout << "Angles test header included" << std::endl;
+        return register_test();
+    }();
+
     inline static std::unique_ptr<AngleTest> create(Options &options)
     {
         return std::unique_ptr<AngleTest>(new AngleTest());

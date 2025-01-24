@@ -12,6 +12,11 @@ public:
 
     static inline constexpr const char *TEST_NAME = "reach";
 
+    static inline bool registration = []() {
+        std::cout << "Reach test header included" << std::endl;
+        return register_test();
+    }();
+
     struct Configuration {
 
         /// The configuration of the base simulation.

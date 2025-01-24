@@ -18,6 +18,12 @@ public:
 
     static inline constexpr const char *TEST_NAME = "base";
 
+    
+    static inline bool registration = []() {
+        std::cout << "Base test header included" << std::endl;
+        return register_test();
+    }();
+
     struct Configuration {
 
         /// The output folder for the test.

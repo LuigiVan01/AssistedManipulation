@@ -12,6 +12,11 @@ public:
 
     static inline constexpr const char *TEST_NAME = "lissajous";
 
+    static inline bool registration = []() {
+        std::cout << "Lissajous test header included" << std::endl;
+        return register_test();
+    }();
+
     struct Configuration {
 
         /// Configuration of the test.

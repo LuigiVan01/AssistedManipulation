@@ -12,13 +12,13 @@ class ExternalWrenchTest : public RegisteredTest<ExternalWrenchTest>
 {
 public:
 
-    // Add a static initializer to verify this file is being included
-    static inline bool verify_inclusion = []() {
-        std::cout << "ExternalWrenchTest header included" << std::endl;
-        return true;
-    }();
-
     static inline constexpr const char *TEST_NAME = "external_wrench";
+
+    
+    static inline bool registration = []() {
+        std::cout << "External Wrench test header included" << std::endl;
+        return register_test();
+    }();
 
     struct Configuration {
 

@@ -12,6 +12,11 @@ public:
 
     static inline constexpr const char *TEST_NAME = "pose";
 
+    static inline bool registration = []() {
+        std::cout << "Pose test header included" << std::endl;
+        return register_test();
+    }();
+
     struct Configuration {
 
         /// Configuration of the base external wrench test.

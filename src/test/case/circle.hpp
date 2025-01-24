@@ -58,8 +58,8 @@ public:
         return ExternalWrenchTest::create(options);
     }
 
-     // Add a static initializer to verify this file is being included
-    static inline bool verify_inclusion = []() {
+
+    static inline bool registration = []() {
         std::cout << "Circle header included" << std::endl;
         return register_test();
     }();
