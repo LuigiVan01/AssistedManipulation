@@ -8,7 +8,7 @@ import numpy as np
 
 plt.rcParams.update({
     "text.usetex": True,
-    "text.latex.preamble": [r'\usepackage{amsmath}'],
+    "text.latex.preamble": r'\usepackage{amsmath}',
     "font.family": "Helvetica"
 })
 
