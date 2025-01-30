@@ -130,7 +130,7 @@ void RaisimDynamics::set_state(const VectorXd &state, double time)
 
 void RaisimDynamics::add_end_effector_simulated_wrench(Vector6d wrench)
 {
-    m_end_effector_simulated_wrench += wrench;
+    m_end_effector_simulated_wrench += wrench;//! Why is wrench accumulating ?
     auto body = m_robot->getFrameByIdx(m_end_effector_frame_index).parentId;
 
     // Set the external force on the end effector. Note that the end effector is

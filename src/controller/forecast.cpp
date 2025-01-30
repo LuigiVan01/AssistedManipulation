@@ -186,7 +186,7 @@ KalmanForecast::KalmanForecast(
     std::unique_ptr<KalmanFilter> &&filter,
     std::unique_ptr<KalmanFilter> &&predictor,
     VectorXd initial_state
-  ) : m_observed_states(filter->get_observed_state_size())
+  ) : m_observed_states_size(filter->get_observed_state_size())
     , m_estaimted_states(filter->get_estimated_state_size())
     , m_order(configuration.order)
     , m_horison(configuration.horison)
@@ -197,7 +197,7 @@ KalmanForecast::KalmanForecast(
     , m_measurement(filter->get_estimated_state_size(), 1) // rows, cols
     , m_filter(std::move(filter))
     , m_predictor(std::move(predictor))
-    , m_prediction(m_observed_states, steps + 1)
+    , m_prediction(m_observed_states_size, steps + 1)
 {
     m_measurement.setZero();
 }
@@ -290,31 +290,41 @@ void KalmanForecast::update(VectorXd measurement, double time)
     std::unique_lock lock(m_mutex);
 
     double dt = time - m_last_update;
+
+    // Wrench derivative computation
     Vector6d delta = (measurement - m_measurement.segment(0, 6)) / dt;
 
     // Calculate measurement derivatives.
     for (unsigned int i = 1; i <= m_order; i++) {
+        // Compute the double wrench derivvative incase of m_order>1
         Vector6d next_delta = (delta - m_measurement.segment(6 * i, 6)) / dt;
+
+        // Set the wrench derivative computation
         m_measurement.segment(6 * i, 6) = delta;
+        
         delta = next_delta;
     }
 
     m_measurement.segment(0, 6) = measurement;
 
     m_last_update = time;
+    // Compute the kalman optimal gain, estimate the current state and next one. 
+    // Update the covariance matrix
     m_filter->update(m_measurement);
 
+    // Just set the estimated state and next state
     m_predictor->set_estimation(m_filter->get_estimation());
+    // Just set the uodate covariance matrix
     m_predictor->set_covariance(m_filter->get_covariance());
 
     // The current estimation.
-    m_prediction.col(0) = m_predictor->get_estimation().head(m_observed_states);
+    m_prediction.col(0) = m_predictor->get_estimation().head(m_observed_states_size);
 
     // Generate the predicted measurement at each future time step over the
     // horison.
     for (unsigned int i = 0; i < m_steps; i++) {
-        m_predictor->predict(false);
-        m_prediction.col(i + 1) = m_predictor->get_estimation().head(m_observed_states);
+        m_predictor->predict(false);//! Reason about the covariance error update
+        m_prediction.col(i + 1) = m_predictor->get_estimation().head(m_observed_states_size);
     }
 }
 

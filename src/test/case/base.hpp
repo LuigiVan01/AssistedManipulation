@@ -97,7 +97,7 @@ public:
                         .window = 10,
                         .order = 1
                     },
-                    .threads = 12
+                    .threads = 36
                 },
                 .dynamics = {
                     .type = FrankaRidgeback::SimulatorDynamics::Configuration::Type::RAISIM,
@@ -120,7 +120,7 @@ public:
                     .time_step = 0.01,
                     .horison = 0.3,
                     .end_effector_wrench_forecast = {
-                        .type = Forecast::Configuration::Type::AVERAGE,
+                        .type = Forecast::Configuration::Type::KALMAN,
                         .locf = LOCFForecast::Configuration {
                             .observation = Vector6d::Zero(),
                             .horison = 0.3

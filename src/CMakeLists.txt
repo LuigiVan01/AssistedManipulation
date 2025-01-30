@@ -18,7 +18,7 @@ find_package(pinocchio REQUIRED)
 find_package(raisim CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-include_directories(${EIGEN3_INCLUDE_DIR} ${yaml_cpp_INCLUDE_DIRS} ${PINOCCHIO_INCLUDE_DIRS})
+include_directories(${EIGEN3_INCLUDE_DIR} ${PINOCCHIO_INCLUDE_DIRS})
 
 
 # Print initial compiler flags

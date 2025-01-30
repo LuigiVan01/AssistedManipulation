@@ -351,7 +351,7 @@ private:
     unsigned int m_order;
 
     /// The number of observed states in the forecaster.
-    unsigned int m_observed_states;
+    unsigned int m_observed_states_size;
 
     /// The number of states including derivatives.
     unsigned int m_estaimted_states;

@@ -156,6 +156,8 @@ void Actor::add_end_effector_wrench(Vector6d wrench, double time)
     m_dynamics->get_dynamics()->add_end_effector_simulated_wrench(wrench);
 
     if (m_forecast && m_forecast_countdown <= 0) {
+        //! The forecast of the wrench given a wrench measurement is performed only here
+        //! This is because the wrench is applied to the end effector in this method 
         m_forecast->observe_wrench(wrench, time);
         m_forecast_countdown = m_forecast_countdown_max;
     }
