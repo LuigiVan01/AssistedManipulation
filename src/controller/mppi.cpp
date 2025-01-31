@@ -197,22 +197,23 @@ void Trajectory::sample(double time)
     if (m_shift_by > 0) {
         m_last_shift_time = time;
 
-        // The number of columns to shift back.
+        // The number of steps to shift back.
         m_shifted = m_step_count - m_shift_by;
 
-        // Shift the the optimal control to align with the current time.
+        // Shift the the optimal control to align with the current time discarding the old samples
         m_optimal_control_shifted.leftCols(m_shifted) = m_optimal_control.rightCols(m_shifted).eval();
+        // Replicate "m_shift_by" times the last control of the optimal rollout to fill the gap
         m_optimal_control_shifted.rightCols(m_shift_by) = m_optimal_control.rightCols(1).replicate(1, m_shift_by);
 
         // Reset to random noise if all trajectories are out of date.
-        if (m_shift_by >= m_step_count) {
-            for (std::int64_t index = s_static_rollouts; index < m_rollout_count; ++index) {
-                Rollout &rollout = m_rollouts[index];
-                for (int i = 0; i < m_step_count; i++)
-                    rollout.noise.col(i) = m_gaussian();
-            }
-            return;
-        }
+        // if (m_shift_by >= m_step_count) {
+        //     for (std::int64_t index = s_static_rollouts; index < m_rollout_count; ++index) {
+        //         Rollout &rollout = m_rollouts[index];
+        //         for (int i = 0; i < m_step_count; i++)
+        //             rollout.noise.col(i) = m_gaussian();
+        //     }
+        //     return;
+        // }
     }
 
     // Regenerate indexes of rollouts to sort by cost as 2, 2 + 1, 2 + 2, ...
@@ -239,7 +240,7 @@ void Trajectory::sample(double time)
 
     // Shift kept rollouts to align with the current time.
     if (m_shift_by > 0) {
-        for (std::int64_t index : keep) {
+        for (std::uint8_t index : keep) {
             Rollout &rollout = m_rollouts[index];
 
             // Shift the rollout noise to align with current time.
@@ -251,7 +252,7 @@ void Trajectory::sample(double time)
         }
     }
 
-    for (std::int64_t index : resample) {
+    for (std::uint8_t index : resample) {
         Rollout &rollout = m_rollouts[index];
 
         // Add noise to the last control for the rest of the rollout.
@@ -264,14 +265,15 @@ void Trajectory::sample(double time)
     // get_rollout(0).setZero();
 
     // Sample negative the previous optimal noise.
+    //! Why?
     m_rollouts[1].noise = -m_optimal_control;
 }
 
 void Trajectory::rollout()
 {
-    // Get the rounded down number rollouts per thread, and the remaining
-    // rollouts to distribute between the threads. The rollouts to distribute
-    // will always be less than the number of threads.
+    // "each_thread" is the rounded down number of rollouts per thread. 
+    // "distribute" are the remaining rollouts to distribute between the threads. 
+    // The rollouts to distribute will always be less than the number of threads.
     auto [each_thread, distribute] = std::div(m_rollout_count, m_thread_count);
 
     int start = 0;

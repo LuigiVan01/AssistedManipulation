@@ -168,7 +168,7 @@ void Actor::act(Simulator *simulator)
     using namespace FrankaRidgeback;
 
     // The controller is updating at a lower frequency than the simulation rate
-    // The m_trajectory_countdown goes to zero when it is time to forecast and upodate the controller
+    // The m_trajectory_countdown goes to zero when it is time to forecast and update the controller
     if (--m_trajectory_countdown <= 0) {
         m_trajectory_countdown = m_trajectory_countdown_max; // Reset counter
 

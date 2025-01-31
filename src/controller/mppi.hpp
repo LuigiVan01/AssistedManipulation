@@ -552,7 +552,7 @@ private:
     const int m_rollout_count;
 
     /// The number of threads.
-    const int m_thread_count;
+    const unsigned int m_thread_count;
 
     /// The number of degrees of freedom for the system state.
     const int m_state_dof;
