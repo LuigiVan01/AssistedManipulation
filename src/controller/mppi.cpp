@@ -225,7 +225,7 @@ void Trajectory::sample(double time)
     std::stable_sort(
         m_ordered_rollouts.begin(),
         m_ordered_rollouts.end(),
-        [this](std::int64_t left, std::int64_t right) {
+        [this](std::uint8_t left, std::uint8_t right) {
             return m_rollouts[left].cost < m_rollouts[right].cost;
         }
     );
@@ -246,7 +246,7 @@ void Trajectory::sample(double time)
             // Shift the rollout noise to align with current time.
             rollout.noise.leftCols(m_shifted) = rollout.noise.rightCols(m_shifted).eval();
 
-            // Add noise to the rest of the rollout.
+            // Generate noise for the rest of the rollout.
             for (int i = m_shifted; i < m_step_count; i++)
                 rollout.noise.col(i) = m_gaussian();
         }
@@ -255,7 +255,7 @@ void Trajectory::sample(double time)
     for (std::uint8_t index : resample) {
         Rollout &rollout = m_rollouts[index];
 
-        // Add noise to the last control for the rest of the rollout.
+        // Generate noise for all the rollout.
         for (int i = 0; i < m_step_count; i++) {
             rollout.noise.col(i) = m_gaussian();
         }
@@ -265,7 +265,7 @@ void Trajectory::sample(double time)
     // get_rollout(0).setZero();
 
     // Sample negative the previous optimal noise.
-    //! Why?
+    //! Why? This is probably wrong
     m_rollouts[1].noise = -m_optimal_control;
 }
 
@@ -296,14 +296,14 @@ void Trajectory::rollout()
                 rollout(&m_rollouts[i], m_dynamics[thread].get(), m_cost[thread].get());
             }
         };
-
+        // Submit the lamda function to be executed by thread pool
         m_futures[thread] = m_thread_pool.enqueue(lambda);
         start = stop;
     }
 
     // Barrier waiting for all threads to complete.
     for (auto &future : m_futures)
-        future.get();
+        future.get(); // Retrieve the result, blocking if it's not ready
 }
 
 void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
@@ -320,7 +320,8 @@ void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
             m_optimal_control_shifted.col(step) +
             rollout->noise.col(step)
         );
-
+        
+        // Compute the cost of the current step
         double step_cost = (
             std::pow(m_cost_discount_factor, step) *
             cost->get_cost(state, control, dynamics, m_rollout_time + step * m_time_step)
@@ -342,14 +343,16 @@ void Trajectory::rollout(Rollout *rollout, Dynamics *dynamics, Cost *cost)
 
 void Trajectory::optimise()
 {
+    // Filters out failed rollouts (those with NaN costs)
     auto rollouts = std::views::filter(
         m_rollouts,
         [](const Rollout &rollout){ return !std::isnan(rollout.cost); }
     );
-
+    
     double maximum = std::numeric_limits<double>::max();
     double minimum = std::numeric_limits<double>::min();
 
+    // Find minimum and maximum costs among valid rollouts
     auto [it1, it2] = std::minmax_element(
         rollouts.begin(),
         rollouts.end(),
@@ -358,6 +361,7 @@ void Trajectory::optimise()
         }
     );
 
+    // Store the minimum and maximum costs betweeen the rollouts.
     minimum = it1->cost;
     maximum = it2->cost;
 
@@ -374,7 +378,7 @@ void Trajectory::optimise()
     double total = 0.0;
 
     // Transform the weights to likelihoods.
-    for (std::int64_t i = 0; i < m_rollout_count; ++i) {
+    for (std::uint8_t i = 0; i < m_rollout_count; ++i) {
         double cost = m_rollouts[i].cost;
 
         // NaNs indicate a failed rollout and do not contribute anything. 
@@ -383,6 +387,7 @@ void Trajectory::optimise()
             continue;
         }
 
+        // Map cost to weight (likelihood).
         double likelihood = std::exp(
             -m_cost_scale * (cost - minimum) / difference
         );
@@ -391,17 +396,24 @@ void Trajectory::optimise()
         m_weights[i] = likelihood;
     }
 
+    //std::cout<<m_weights<<std::endl;
     // Normalise the likelihoods.
+    // Normalizes the weights so they sum to 1
+    // This creates a probability distribution over the rollouts
     std::transform(
         m_weights.begin(),
         m_weights.end(),
         m_weights.begin(),
         [total](double likelihood){ return likelihood / total; }
     );
+    //std::cout << "Post processed weights:" << std::endl << m_weights<< std::endl;
 
-    // The optimal trajectory is a linear combination of the noise samples.
+
+
+    // The (estimated) gradient is given by the weighted sum of the
+    // of the noise samples.
     m_gradient = m_rollouts[0].noise * m_weights[0];
-    for (std::int64_t i = 1; i < m_rollout_count; ++i) {
+    for (std::uint8_t i = 1; i < m_rollout_count; ++i) {
         m_gradient += m_rollouts[i].noise * m_weights[i];
     }
 

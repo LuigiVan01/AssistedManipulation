@@ -636,10 +636,10 @@ private:
     std::mutex m_optimal_control_mutex;
 
     /// The number of best rollouts to keep for warm starting the next update.
-    const std::int64_t m_keep_best_rollouts;
+    const std::uint8_t m_keep_best_rollouts;
 
     /// Buffer to store rollout indexes before sorting them by cost.
-    std::vector<std::int64_t> m_ordered_rollouts;
+    std::vector<std::uint8_t> m_ordered_rollouts;
 
     /// The smoothing filter used on the optimal control noise, if enabled.
     std::optional<SavitzkyGolayFilter> m_smoothing_filter;
