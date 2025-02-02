@@ -308,13 +308,14 @@ void KalmanForecast::update(VectorXd measurement, double time)
     m_measurement.segment(0, 6) = measurement;
 
     m_last_update = time;
+
     // Compute the kalman optimal gain, estimate the current state and next one. 
     // Update the covariance matrix
     m_filter->update(m_measurement);
 
     // Just set the estimated state and next state
     m_predictor->set_estimation(m_filter->get_estimation());
-    // Just set the uodate covariance matrix
+    // Just set the update covariance matrix
     m_predictor->set_covariance(m_filter->get_covariance());
 
     // The current estimation.
