@@ -103,7 +103,7 @@ DynamicsForecast::DynamicsForecast(
 
 void DynamicsForecast::forecast(State state, double time)
 {
-    auto control = Control::Zero();
+    //auto control = Control::Zero();
     m_dynamics->set_state(state, time);
 
     // std::cout << "state: " << state.position().transpose() << std::endl;
@@ -112,22 +112,22 @@ void DynamicsForecast::forecast(State state, double time)
     for (unsigned int step = 0; step < m_steps; ++step) {
         double t = time + step * m_configuration.time_step;
 
-        m_joint_position[step] = m_dynamics->get_joint_position();
-        m_end_effector[step] = m_dynamics->get_end_effector_state();
+        // m_joint_position[step] = m_dynamics->get_joint_position();
+        // m_end_effector[step] = m_dynamics->get_end_effector_state();
 
-        m_joint_power[step] = m_dynamics->get_joint_power();
-        m_external_power[step] = m_dynamics->get_external_power();
-        m_energy[step] = m_dynamics->get_tank_energy();
+        // m_joint_power[step] = m_dynamics->get_joint_power();
+        // m_external_power[step] = m_dynamics->get_external_power();
+        // m_energy[step] = m_dynamics->get_tank_energy();
 
         Vector6d wrench = m_end_effector_wrench_forecast->forecast(t);
-        m_end_effector_wrench[step] = wrench;
+        //m_end_effector_wrench[step] = wrench;
         // std::cout << "    " << wrench.head<3>().transpose() << std::endl;
 
         // Simulate the forecast wrench trajectory.
         m_dynamics->add_end_effector_simulated_wrench(wrench);
 
         // Step the dynamics simulation.
-        m_dynamics->step(control, m_configuration.time_step);
+        //m_dynamics->step(control, m_configuration.time_step);
     }
 
     // std::cout << "forecast:" << std::endl;

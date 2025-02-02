@@ -173,12 +173,12 @@ void Actor::act(Simulator *simulator)
         m_trajectory_countdown = m_trajectory_countdown_max; // Reset counter
 
         // Forecast the wrench
-        if (m_forecast) {
-            m_forecast->forecast(
-                m_dynamics->get_dynamics()->get_state(),
-                simulator->get_time()
-            );
-        }
+        // if (m_forecast) {
+        //     m_forecast->forecast(
+        //         m_dynamics->get_dynamics()->get_state(),
+        //         simulator->get_time()
+        //     );
+        // }
 
         // Update the controller m_configuration.controller_substeps times 
         //! I don t know why it would make sense to update the controller more times in a row. 
