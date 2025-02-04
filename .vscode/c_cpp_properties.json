@@ -9,6 +9,7 @@
             "includePath": [
                 "${workspaceFolder}/src/**",
                 "${workspaceFolder}/lib/raisimlib/raisim/linux/include/**",
+                "${workspaceFolder}/lib/osqp/include/**",
                 "/usr/include/eigen3",
                 "/opt/openrobots/include",
                 "/usr/include/nlohmann"

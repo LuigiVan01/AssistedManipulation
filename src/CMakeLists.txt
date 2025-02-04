@@ -12,9 +12,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall") #Enables all standard warning me
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/opt/openrobots")
 
+# Find the required OSQP packages
+include_directories(${OSQP_FOLDER}/include)
+link_directories(${OSQP_FOLDER}/lib)
+
+# Find the required Eigen3, Pinocchio, Raisim, and nlohmann_json packages
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
-# find_package(osqp REQUIRED)
 find_package(raisim CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
@@ -100,18 +104,16 @@ if (UNIX)
     )
     message(STATUS "Added threading definitions")
 
-
-
-
     target_link_libraries(
         test PUBLIC 
         Eigen3::Eigen
         raisim::raisim
         pinocchio::pinocchio
-        # osqp::osqp
+        ${OSQP_FOLDER}/lib/libosqp.a #Link to static library
         nlohmann_json::nlohmann_json
         pthread
     )
+    
 elseif (WIN32)
     message(STATUS "Configuring for Windows with MSVC")
     target_compile_options(test PUBLIC /W3) # /Wall WX
@@ -120,7 +122,7 @@ elseif (WIN32)
         test PUBLIC 
         raisim::raisim
         pinocchio::pinocchio
-        # osqp::osqp
+        ${OSQP_FOLDER}/lib/libosqp.a #Link to static library
         nlohmann_json::nlohmann_json
         Ws2_32
     )

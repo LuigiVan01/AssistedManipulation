@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "osqp.h"
+
 
 class QP_Filter
 {
@@ -13,7 +15,7 @@ public:
         double time
     )
     {
-        
+        OSQPWorkspace *work;
 
     }
 };

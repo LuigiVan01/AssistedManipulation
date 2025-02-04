@@ -17,4 +17,11 @@ mkdir -p build
 mkdir -p install  
 
 # Generate the build files 
-cmake -DCMAKE_BUILD_TYPE=$1 -DCMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH -DCMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH=y -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/install -B build -S src
+cmake \
+  -DCMAKE_BUILD_TYPE=$1 \
+  -DCMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH \
+  -DCMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH=y \
+  -DOSQP_FOLDER=${WORKSPACE}/lib/osqp \
+  -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/install \
+  -B build \
+  -S src
