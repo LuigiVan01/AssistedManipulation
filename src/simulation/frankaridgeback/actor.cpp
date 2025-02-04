@@ -121,12 +121,20 @@ std::shared_ptr<Actor> Actor::create(
         return nullptr;
     }
 
+    std::unique_ptr<FilterQP> filterqp = std::make_unique<FilterQP>();
+
+    if (!filterqp) {
+        std::cerr << "failed to create filterqp" << std::endl;
+        return nullptr;
+    }
+
     return std::shared_ptr<Actor>(
         new Actor(
             std::move(configuration),
             std::move(dynamics),
             std::move(controller),
             std::move(forecast),
+            std::move(filterqp),
             controller_countdown_max,
             forecast_countdown_max
         )
@@ -138,12 +146,14 @@ Actor::Actor(
     std::unique_ptr<ActorDynamics> &&dynamics,
     std::unique_ptr<mppi::Trajectory> &&controller,
     std::unique_ptr<DynamicsForecast> &&forecast,
+    std::unique_ptr<FilterQP> &&filterqp,
     std::int64_t controller_countdown_max,
     std::int64_t forecast_countdown_max
 ) : m_configuration(std::move(configuration))
   , m_dynamics(std::move(dynamics))
   , m_forecast(std::move(forecast))
   , m_controller(std::move(controller))
+  , m_qpfilter(std::move(filterqp))
   , m_trajectory_countdown(0) // Update on first step.
   , m_trajectory_countdown_max(controller_countdown_max)
   , m_forecast_countdown(0)

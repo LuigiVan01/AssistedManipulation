@@ -8,7 +8,7 @@
 #include "controller/mppi.hpp"
 #include "controller/energy.hpp"
 #include "controller/forecast.hpp"
-#include "controller/qpfilter.hpp"
+#include "controller/filterqp.hpp"
 #include "frankaridgeback/control.hpp"
 #include "frankaridgeback/state.hpp"
 #include "frankaridgeback/objective/track_point.hpp"
@@ -207,6 +207,7 @@ private:
         std::unique_ptr<ActorDynamics> &&dynamics,
         std::unique_ptr<mppi::Trajectory> &&controller,
         std::unique_ptr<DynamicsForecast> &&forecast,
+        std::unique_ptr<FilterQP> &&filterqp,
         std::int64_t controller_countdown_max,
         std::int64_t forecast_countdown_max
     );
@@ -238,7 +239,7 @@ private:
     std::unique_ptr<mppi::Trajectory> m_controller;
 
     /// High frequency Safety Filter
-    std::unique_ptr<QP_Filter> m_qpfilter;
+    std::unique_ptr<FilterQP> m_qpfilter;
 
     /// Countdown to next trajectory update.
     std::int64_t m_trajectory_countdown;

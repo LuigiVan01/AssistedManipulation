@@ -4,7 +4,7 @@
 #include <iostream>
 
 #include <Eigen/Eigen>
-#include <osqp/osqp.h>
+#include "osqp.h"
 
 class QuadraticProgram
 {
@@ -12,8 +12,8 @@ public:
 
     struct Objective {
 
-        /// Minimise 1/2 * x * quadratic * x
-        std::vector<double> quadratic;
+        /// Minimise 1/2 * x * hessian * x
+        std::vector<double> hessian;
 
         /// Minimise linear * x
         double linear;
@@ -42,7 +42,7 @@ public:
         std::vector<Constraint> constraints;
     };
 
-    using OSQPSolverPointer = std::unique_ptr<OSQPSolver, decltype(&osqp_cleanup)>;
+    // using OSQPSolverPointer = std::unique_ptr<OSQPSolver, decltype(&osqp_cleanup)>;
 
     /**
      * @brief Creates a quadratic program.
@@ -50,7 +50,9 @@ public:
      * @param configuration 
      * @return std::unique_ptr<QuadraticProgram> 
      */
-    std::unique_ptr<QuadraticProgram> create(Configuration &&configuration);
+    std::unique_ptr<QuadraticProgram> create(
+        int optimisation_variables,
+        int constraints);
 
 private:
 
@@ -88,55 +90,55 @@ private:
      * }
      * @endcode
      */
-    struct SparseMatrix {
+    // struct SparseMatrix {
 
-        /**
-         * @brief Creates an osqp sparse matrix from an eigen matrix.
-         * @param matrix The matrix to construct an OSQP sparse matrix from.
-         */
-        SparseMatrix(Eigen::Ref<Eigen::MatrixXd> matrix);
+    //     /**
+    //      * @brief Creates an osqp sparse matrix from an eigen matrix.
+    //      * @param matrix The matrix to construct an OSQP sparse matrix from.
+    //      */
+    //     SparseMatrix(Eigen::Ref<Eigen::MatrixXd> matrix);
 
-        /**
-         * @brief Get the OSQP sparse matrix.
-         */
-        const OSQPCscMatrix *get() {
-            return &matrix;
-        }
+    //     /**
+    //      * @brief Get the OSQP sparse matrix.
+    //      */
+    //     const OSQPCscMatrix *get() {
+    //         return &matrix;
+    //     }
 
-    private:
+//     private:
 
-        /// OSQP matrix data.
-        OSQPCscMatrix matrix;
+//         /// OSQP matrix data.
+//         OSQPCscMatrix matrix;
 
-        /// Indexes into `rows` and `data` for each column.
-        std::vector<OSQPInt> columns; 
+//         /// Indexes into `rows` and `data` for each column.
+//         std::vector<OSQPInt> columns; 
 
-        /// Indexes into each column that have nonzero data.
-        std::vector<OSQPInt> rows;
+//         /// Indexes into each column that have nonzero data.
+//         std::vector<OSQPInt> rows;
 
-        /// The non-zero elements of the matrix. Since this is a positive
-        /// semi-definite matrix and therefore symmetric, only the upper
-        /// triangle is defined.
-        std::vector<OSQPFloat> data;
-    };
+//         /// The non-zero elements of the matrix. Since this is a positive
+//         /// semi-definite matrix and therefore symmetric, only the upper
+//         /// triangle is defined.
+//         std::vector<OSQPFloat> data;
+//     };
 
-    // inline QuadraticProgram()
-    //     : m_solver(nullptr, nullptr)
-    //     , m_quadratic_cost(nullptr)
-    //     , m_scale(nullptr)
-    // {}
+//     // inline QuadraticProgram()
+//     //     : m_solver(nullptr, nullptr)
+//     //     , m_quadratic_cost(nullptr)
+//     //     , m_scale(nullptr)
+//     // {}
 
-    OSQPSolverPointer m_solver;
+//     OSQPSolverPointer m_solver;
 
-    std::unique_ptr<SparseMatrix> m_quadratic_cost;
+//     std::unique_ptr<SparseMatrix> m_quadratic_cost;
 
-    std::vector<OSQPFloat> m_linear_cost;
+//     std::vector<OSQPFloat> m_linear_cost;
 
-    /// One column per variable, one row per constraint, scales state for each
-    /// constraint.
-    std::unique_ptr<SparseMatrix> m_scale;
+//     /// One column per variable, one row per constraint, scales state for each
+//     /// constraint.
+//     std::unique_ptr<SparseMatrix> m_scale;
 
-    std::vector<OSQPFloat> m_lower;
+//     std::vector<OSQPFloat> m_lower;
 
-    std::vector<OSQPFloat> m_upper;
+//     std::vector<OSQPFloat> m_upper;
 };

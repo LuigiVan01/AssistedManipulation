@@ -42,7 +42,8 @@ add_executable(
     controller/mppi.cpp
     controller/pid.cpp
     controller/trajectory.cpp
-    # controller/qp.cpp
+    controller/qp.cpp
+    controller/filterqp.cpp
 
     # test/case/base/reach.cpp
     
