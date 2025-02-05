@@ -10,37 +10,35 @@ class QuadraticProgram
 {
 public:
 
-    struct Objective {
+    
 
-        /// Minimise 1/2 * x * hessian * x
-        std::vector<double> hessian;
+    /// Minimise 1/2 * x * hessian * x
+    Eigen::MatrixXd hessian;
 
-        /// Minimise linear * x
-        double linear;
-    };
+    /// Minimise linear * x
+    Eigen::VectorXd linear;
+    
 
-    struct Constraint {
+  
+    // lower <= constraint_matrix * x <= upper.
+    Eigen::MatrixXd constraint_matrix;
 
-        /// Scale before constraints. lower <= scale * x <= upper.
-        std::vector<double> scale;
+    /// Lower bound constraints. Ensure lower <= Ax.
+    Eigen::VectorXd lower;
 
-        /// Lower bound constraints. Ensure lower <= Ax.
-        double lower;
+    /// Upper boundary constraints. Ensure upper >= Ax.
+    Eigen::VectorXd upper;
 
-        /// Upper boundary constraints. Ensure upper >= Ax.
-        double upper;
-    };
+    // struct Configuration {
 
-    struct Configuration {
+    /// The number of variables to optimise for.
+    //     std::int64_t variables;
 
-        /// The number of variables to optimise for.
-        std::int64_t variables;
+    //     std::vector<Objective> objectives;
 
-        std::vector<Objective> objectives;
-
-        /// Constraints applied to the variables.
-        std::vector<Constraint> constraints;
-    };
+    /// Constraints applied to the variables.
+    //     std::vector<Constraint> constraints;
+    // };
 
     // using OSQPSolverPointer = std::unique_ptr<OSQPSolver, decltype(&osqp_cleanup)>;
 
@@ -54,7 +52,9 @@ public:
         int optimisation_variables,
         int constraints);
 
+
 private:
+
 
     /**
      * @brief The sparse matrix structure expected by OSQP
@@ -74,15 +74,15 @@ private:
      * for (int col = 0; col < columns.size() - 1; col++) {
      *     std::cout << "column " << col << " has non-zero elements:" << std::endl;
      *     
-     *     // The position at which the column is stored.
+     *     /// The position at which the column is stored.
      *     int column_index = columns[col];
      * 
      *     int number_of_rows = columns[col + 1] - column_index;
      * 
-     *     // The buffer containing the row indexes.
+     *     /// The buffer containing the row indexes.
      *     int *row = &rows[column_index];
      * 
-     *     // The buffer containing the row non-zero elements.
+     *     ///The buffer containing the row non-zero elements.
      *     double *values = &data[column_index];
      * 
      *     for (int i = 0; i < number_of_rows; i++)
@@ -122,11 +122,11 @@ private:
 //         std::vector<OSQPFloat> data;
 //     };
 
-//     // inline QuadraticProgram()
-//     //     : m_solver(nullptr, nullptr)
-//     //     , m_quadratic_cost(nullptr)
-//     //     , m_scale(nullptr)
-//     // {}
+    // inline QuadraticProgram()
+    //     : m_solver(nullptr, nullptr)
+    //     , m_quadratic_cost(nullptr)
+    //     , m_scale(nullptr)
+    // {}
 
 //     OSQPSolverPointer m_solver;
 

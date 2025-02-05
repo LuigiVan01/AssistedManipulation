@@ -31,12 +31,24 @@ std::unique_ptr<QuadraticProgram> QuadraticProgram::create(
     int optimisation_variables,
     int constraints
 ) {
-    // Allocate the quadratic program.
-    auto qp = std::unique_ptr<QuadraticProgram>(new QuadraticProgram());
+
+    auto qp = std::make_unique<QuadraticProgram>();
+
 
     // Construct the quadratic and scalar costs.
-    auto hessian = Eigen::MatrixXd::Zero(optimisation_variables, optimisation_variables);
-    auto scale = Eigen::MatrixXd::Zero(constraints, constraints);
+    qp->hessian = Eigen::MatrixXd::Zero(
+        optimisation_variables, 
+        optimisation_variables
+    );
+    
+    qp->linear = Eigen::VectorXd::Zero(optimisation_variables);
+
+    qp->constraint_matrix = Eigen::MatrixXd::Zero(constraints, constraints);
+
+    // Allocate the quadratic program.
+    
+
+    
 
     // for (int i = 0; i < configuration.objectives.size(); i++) {
     //     Objective &objective = configuration.objectives[i];
