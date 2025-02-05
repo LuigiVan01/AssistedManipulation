@@ -110,7 +110,7 @@ if (UNIX)
         Eigen3::Eigen
         raisim::raisim
         pinocchio::pinocchio
-        ${OSQP_FOLDER}/lib/libosqp.a #Link to static library
+        ${OSQP_FOLDER}/lib/libosqp.so 
         nlohmann_json::nlohmann_json
         pthread
     )
@@ -123,7 +123,7 @@ elseif (WIN32)
         test PUBLIC 
         raisim::raisim
         pinocchio::pinocchio
-        ${OSQP_FOLDER}/lib/libosqp.a #Link to static library
+        ${OSQP_FOLDER}/lib/libosqp.so
         nlohmann_json::nlohmann_json
         Ws2_32
     )

@@ -33,6 +33,10 @@
                     "value": "${workspaceFolder}/lib/raisimlib/raisim/linux/lib:/opt/openrobots/lib:${env:LD_LIBRARY_PATH}"
                 },
                 {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "${workspaceFolder}/lib/osqp/lib:${env:LD_LIBRARY_PATH}"
+                }
+                {
                     "name": "RAISIM_ACTIVATION",
                     "value": "${workspaceFolder}/activation.raisim"
                 }

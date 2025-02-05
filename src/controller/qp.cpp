@@ -1,31 +1,64 @@
 #include "controller/qp.hpp"
 
-// QuadraticProgram::SparseMatrix::SparseMatrix(Eigen::Ref<Eigen::MatrixXd> m)
-//     : columns()
-//     , rows()
-//     , data()
-// {
-//     for (auto col : m.colwise()) {
-//         columns.push_back(rows.size());
-//         for (int i = 0; i < col.size(); i++) {
-//             if (col[i] != 0.0) {
-//                 rows.push_back(i);
-//                 data.push_back(col[i]);
-//             }
-//         }
-//     }
-//     columns.push_back(data.size());
+SparseMatrix::SparseMatrix(const Eigen::Ref<Eigen::MatrixXd> m)
+    : columns()
+    , rows()
+    , data()
+{
+    for (auto col : m.colwise()) {
+        columns.push_back(rows.size());
+        for (int i = 0; i < col.size(); i++) {
+            if (col[i] != 0.0) {
+                rows.push_back(i);
+                data.push_back(col[i]);
+            }
+        }
+    }
+    columns.push_back(data.size());
 
-//     csc_set_data(
-//         &matrix,
-//         m.rows(),
-//         m.cols(),
-//         data.size(),
-//         data.data(),
-//         rows.data(),
-//         columns.data()
-//     );
-// }
+    csc_set_data(
+        hessian_csc,
+        m.rows(),
+        m.cols(),
+        data.size(),
+        data.data(),
+        rows.data(),
+        columns.data()
+    );
+
+    settings=(OSQPSettings *)malloc(sizeof(OSQPSettings));
+    if (settings) 
+        osqp_set_default_settings(settings);
+}
+
+void SparseMatrix::call_solver(OSQPInt n, OSQPInt m)
+{
+
+    // Create an empty constraint matrix A (n x n)
+    OSQPCscMatrix* A =(OSQPCscMatrix*) malloc(sizeof(OSQPCscMatrix));
+    OSQPFloat* A_x = (OSQPFloat*)malloc(0 * sizeof(OSQPFloat));  // No non-zero elements
+    OSQPInt* A_i = (OSQPInt*)malloc(0 * sizeof(OSQPInt));
+    OSQPInt* A_p = (OSQPInt*)malloc((n + 1) * sizeof(OSQPInt));
+    for(int i = 0; i <= n; i++) A_p[i] = 0;
+    csc_set_data(A, n, n, 0, A_x, A_i, A_p);
+
+    // Create bounds vectors with infinite values
+    OSQPFloat* l = (OSQPFloat*)malloc(n * sizeof(OSQPFloat));
+    OSQPFloat* u = (OSQPFloat*)malloc(n * sizeof(OSQPFloat));
+    for(int i = 0; i < n; i++) {
+        l[i] = -OSQP_INFTY;  // Lower bound is negative infinity
+        u[i] = OSQP_INFTY;   // Upper bound is positive infinity
+    }
+    exitflag=osqp_setup(&solver, hessian_csc, linear_terms, A, l, u, n, n, settings);
+    if (!exitflag) {
+        exitflag = osqp_solve(solver);
+        solution=solver->solution;
+    }
+    else {
+        std::cerr << "failed to initialise osqp solver" << std::endl;
+    }
+    osqp_cleanup(solver);
+}
 
 std::unique_ptr<QuadraticProgram> QuadraticProgram::create(
     int optimisation_variables,
@@ -41,7 +74,7 @@ std::unique_ptr<QuadraticProgram> QuadraticProgram::create(
         optimisation_variables
     );
     
-    qp->linear = Eigen::VectorXd::Zero(optimisation_variables);
+    //qp->linear = Eigen::VectorXd::Zero(optimisation_variables);
 
     qp->constraint_matrix = Eigen::MatrixXd::Zero(constraints, constraints);
 

@@ -6,57 +6,8 @@
 #include <Eigen/Eigen>
 #include "osqp.h"
 
-class QuadraticProgram
-{
-public:
 
-    
-
-    /// Minimise 1/2 * x * hessian * x
-    Eigen::MatrixXd hessian;
-
-    /// Minimise linear * x
-    Eigen::VectorXd linear;
-    
-
-  
-    // lower <= constraint_matrix * x <= upper.
-    Eigen::MatrixXd constraint_matrix;
-
-    /// Lower bound constraints. Ensure lower <= Ax.
-    Eigen::VectorXd lower;
-
-    /// Upper boundary constraints. Ensure upper >= Ax.
-    Eigen::VectorXd upper;
-
-    // struct Configuration {
-
-    /// The number of variables to optimise for.
-    //     std::int64_t variables;
-
-    //     std::vector<Objective> objectives;
-
-    /// Constraints applied to the variables.
-    //     std::vector<Constraint> constraints;
-    // };
-
-    // using OSQPSolverPointer = std::unique_ptr<OSQPSolver, decltype(&osqp_cleanup)>;
-
-    /**
-     * @brief Creates a quadratic program.
-     * 
-     * @param configuration 
-     * @return std::unique_ptr<QuadraticProgram> 
-     */
-    std::unique_ptr<QuadraticProgram> create(
-        int optimisation_variables,
-        int constraints);
-
-
-private:
-
-
-    /**
+   /**
      * @brief The sparse matrix structure expected by OSQP
      * 
      * Each column is defined as an array of non-zero row indexes and their
@@ -90,37 +41,43 @@ private:
      * }
      * @endcode
      */
-    // struct SparseMatrix {
+class SparseMatrix {
 
-    //     /**
-    //      * @brief Creates an osqp sparse matrix from an eigen matrix.
-    //      * @param matrix The matrix to construct an OSQP sparse matrix from.
-    //      */
-    //     SparseMatrix(Eigen::Ref<Eigen::MatrixXd> matrix);
+    public:
+        /**
+         * @brief Creates an osqp sparse matrix from an eigen matrix.
+         * @param matrix The matrix to construct an OSQP sparse matrix from.
+         */
+        SparseMatrix(const Eigen::Ref<Eigen::MatrixXd> m);
 
-    //     /**
-    //      * @brief Get the OSQP sparse matrix.
-    //      */
-    //     const OSQPCscMatrix *get() {
-    //         return &matrix;
-    //     }
+        void call_solver(OSQPInt n, OSQPInt m);
 
-//     private:
 
-//         /// OSQP matrix data.
-//         OSQPCscMatrix matrix;
+        /// OSQP matrix data.
+        OSQPCscMatrix* hessian_csc=(OSQPCscMatrix *)malloc(sizeof(OSQPCscMatrix));;
 
-//         /// Indexes into `rows` and `data` for each column.
-//         std::vector<OSQPInt> columns; 
+        OSQPFloat* linear_terms;
+        /// Indexes into `rows` and `data` for each column.
+        std::vector<OSQPInt> columns; 
 
-//         /// Indexes into each column that have nonzero data.
-//         std::vector<OSQPInt> rows;
+        /// Indexes into each column that have nonzero data.
+        std::vector<OSQPInt> rows;
 
-//         /// The non-zero elements of the matrix. Since this is a positive
-//         /// semi-definite matrix and therefore symmetric, only the upper
-//         /// triangle is defined.
-//         std::vector<OSQPFloat> data;
-//     };
+        /// The non-zero elements of the matrix. Since this is a positive
+        /// semi-definite matrix and therefore symmetric, only the upper
+        /// triangle is defined.
+        std::vector<OSQPFloat> data;
+
+        OSQPSettings* settings;
+
+        OSQPSolver*   solver;
+
+        OSQPSolution* solution;
+
+        OSQPInt exitflag;
+
+
+    };
 
     // inline QuadraticProgram()
     //     : m_solver(nullptr, nullptr)
@@ -141,4 +98,61 @@ private:
 //     std::vector<OSQPFloat> m_lower;
 
 //     std::vector<OSQPFloat> m_upper;
+
+
+
+
+
+
+class QuadraticProgram{
+public:
+
+    QuadraticProgram() = default;
+
+    /// Minimise 1/2 * x * hessian * x
+    Eigen::MatrixXd hessian;
+
+    //TODO:change
+    /// Minimise linear * x
+    double* linear = (double*)malloc(20 * sizeof(double));;
+    
+
+  
+    // lower <= constraint_matrix * x <= upper.
+    Eigen::MatrixXd constraint_matrix;
+
+    /// Lower bound constraints. Ensure lower <= Ax.
+    Eigen::VectorXd lower;
+
+    /// Upper boundary constraints. Ensure upper >= Ax.
+    Eigen::VectorXd upper;
+
+    std::unique_ptr<SparseMatrix> m_hessian_csc;
+    std::unique_ptr<SparseMatrix> m_constraint_matrix_csc;
+
+    // struct Configuration {
+
+    /// The number of variables to optimise for.
+    //     std::int64_t variables;
+
+    //     std::vector<Objective> objectives;
+
+    /// Constraints applied to the variables.
+    //     std::vector<Constraint> constraints;
+    // };
+
+    // using OSQPSolverPointer = std::unique_ptr<OSQPSolver, decltype(&osqp_cleanup)>;
+
+    /**
+     * @brief Creates a quadratic program.
+     * 
+     * @param configuration 
+     * @return std::unique_ptr<QuadraticProgram> 
+     */
+    std::unique_ptr<QuadraticProgram> create(
+        int optimisation_variables,
+        int constraints);
+
+
 };
+ 

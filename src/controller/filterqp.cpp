@@ -53,7 +53,6 @@ FilterQP::FilterQP()
 void FilterQP::set_control_ref(Eigen::Ref<Eigen::VectorXd> control_ref)
 {
     m_control_ref = control_ref;
-
     
 }
 
@@ -67,9 +66,13 @@ void FilterQP::update_qp(
 
         // Linear vector filling
         for(int i = 0; i < m_joint_velocities; i++) {
-            m_qp->linear(i) = -m_joint_velocities_weight[i]*m_control_ref[i];
+            m_qp->linear[i] = -m_joint_velocities_weight[i]*m_control_ref[i];
         }
 
+        // Create a new SparseMatrix from the hessian
+        m_qp->m_hessian_csc =std::make_unique<SparseMatrix>(m_qp->hessian);
+        m_qp->m_hessian_csc->linear_terms =m_qp->linear;
+        m_qp->m_hessian_csc->call_solver(m_optimisation_variables,m_constraints);
     }
 
 void FilterQP::filter(       
