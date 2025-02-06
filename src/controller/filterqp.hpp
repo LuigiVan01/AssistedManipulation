@@ -7,7 +7,7 @@
 #include "controller/qp.hpp"
 
 
-class FilterQP: public QuadraticProgram
+class FilterQP
 {
 public:
 
@@ -23,9 +23,6 @@ public:
     );
 
     
- 
-
-    void create();
 
     void set_control_ref(Eigen::Ref<Eigen::VectorXd> control_ref);
 

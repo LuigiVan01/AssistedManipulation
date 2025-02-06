@@ -1,55 +1,140 @@
 #include "controller/qp.hpp"
 
-SparseMatrix::SparseMatrix(const Eigen::Ref<Eigen::MatrixXd> m)
-    : columns()
-    , rows()
-    , data()
+
+void OSQPFormulation::SparseMatrix(const Eigen::Ref<Eigen::MatrixXd> m)
 {
+
+    csc_columns.clear();
+    csc_rows.clear();
+    csc_data.clear();
+        
     for (auto col : m.colwise()) {
-        columns.push_back(rows.size());
+        csc_columns.push_back(csc_rows.size());
         for (int i = 0; i < col.size(); i++) {
             if (col[i] != 0.0) {
-                rows.push_back(i);
-                data.push_back(col[i]);
+                csc_rows.push_back(i);
+                csc_data.push_back(col[i]);
             }
         }
     }
-    columns.push_back(data.size());
+    csc_columns.push_back(csc_data.size());
+
+    // Print the CSC format arrays
+    std::cout << "CSC Format Arrays:" << std::endl;
+
+    // Print columns array (column pointers)
+    std::cout << "Columns (column pointers): [";
+    for (size_t i = 0; i < csc_columns.size(); ++i) {
+        std::cout << csc_columns[i];
+        if (i < csc_columns.size() - 1) std::cout << ", ";
+    }
+    std::cout << "]" << std::endl;
+
+    // Print rows array (row indices)
+    std::cout << "Rows (row indices): [";
+    for (size_t i = 0; i < csc_rows.size(); ++i) {
+        std::cout << csc_rows[i];
+        if (i < csc_rows.size() - 1) std::cout << ", ";
+    }
+    std::cout << "]" << std::endl;
+
+    // Print data array (values)
+    std::cout << "Data (values): [";
+    for (size_t i = 0; i < csc_data.size(); ++i) {
+        std::cout << csc_data[i];
+        if (i < csc_data.size() - 1) std::cout << ", ";
+    }
+    std::cout << "]" << std::endl;
+
+    // Print matrix dimensions and number of non-zero elements
+    std::cout << "Matrix dimensions: " << m.rows() << " x " << m.cols() << std::endl;
+    std::cout << "Number of non-zero elements: " << csc_data.size() << std::endl;
+    
+    // hessian_csc->m     = m.rows();
+    // hessian_csc->n     = m.cols();
+    // hessian_csc->nz   = -1;
+    // hessian_csc->nzmax = csc_data.size();
+    // hessian_csc->x     = csc_data.data();
+    // hessian_csc->i     = csc_rows.data();
+    // hessian_csc->p     = csc_columns.data();
+
+    // hessian_csc->p = csc_columns.data();
 
     csc_set_data(
         hessian_csc,
         m.rows(),
         m.cols(),
-        data.size(),
-        data.data(),
-        rows.data(),
-        columns.data()
+        csc_data.size(),
+        csc_data.data(),
+        csc_rows.data(),
+        csc_columns.data()
     );
+
+    printf("Hessian Matrix (CSC format) properties:\n");
+    printf("Number of rows (m): %d\n", hessian_csc->m);
+    printf("Number of columns (n): %d\n", hessian_csc->n);
+    printf("Maximum nonzeros (nzmax): %d\n", hessian_csc->nzmax);
+    printf("Actual nonzeros (nz): %d\n", hessian_csc->nz);
+
+    printf("\nColumn pointers (p):\n");
+    for (OSQPInt j = 0; j <= hessian_csc->n; j++) {
+        printf("p[%d] = %d\n", j, hessian_csc->p[j]);
+    }
+
+    printf("\nRow indices (i) and values (x):\n");
+    for (OSQPInt k = 0; k < hessian_csc->p[hessian_csc->n]; k++) {
+        printf("i[%d] = %d, x[%d] = %f\n", k, hessian_csc->i[k], k, hessian_csc->x[k]);
+    }
 
     settings=(OSQPSettings *)malloc(sizeof(OSQPSettings));
     if (settings) 
         osqp_set_default_settings(settings);
 }
 
-void SparseMatrix::call_solver(OSQPInt n, OSQPInt m)
+void OSQPFormulation::call_solver(OSQPInt opt_var, OSQPInt constr_row)
 {
 
     // Create an empty constraint matrix A (n x n)
     OSQPCscMatrix* A =(OSQPCscMatrix*) malloc(sizeof(OSQPCscMatrix));
-    OSQPFloat* A_x = (OSQPFloat*)malloc(0 * sizeof(OSQPFloat));  // No non-zero elements
-    OSQPInt* A_i = (OSQPInt*)malloc(0 * sizeof(OSQPInt));
-    OSQPInt* A_p = (OSQPInt*)malloc((n + 1) * sizeof(OSQPInt));
-    for(int i = 0; i <= n; i++) A_p[i] = 0;
-    csc_set_data(A, n, n, 0, A_x, A_i, A_p);
+    //OSQPFloat* A_x = (OSQPFloat*)malloc(0 * sizeof(OSQPFloat));  // No non-zero elements
+    //OSQPInt* A_i = (OSQPInt*)malloc(0 * sizeof(OSQPInt));
+    OSQPInt* A_p = (OSQPInt*)malloc((opt_var + 1) * sizeof(OSQPInt));
+    for(int i = 0; i <= opt_var; i++) A_p[i] = 0;
+    csc_set_data(A, 1, opt_var, 0, {}, {}, A_p);
 
     // Create bounds vectors with infinite values
-    OSQPFloat* l = (OSQPFloat*)malloc(n * sizeof(OSQPFloat));
-    OSQPFloat* u = (OSQPFloat*)malloc(n * sizeof(OSQPFloat));
-    for(int i = 0; i < n; i++) {
-        l[i] = -OSQP_INFTY;  // Lower bound is negative infinity
-        u[i] = OSQP_INFTY;   // Upper bound is positive infinity
+    //OSQPFloat* l = (OSQPFloat*)malloc(n * sizeof(OSQPFloat));
+    //OSQPFloat* u = (OSQPFloat*)malloc(n * sizeof(OSQPFloat));
+    for(int i = 0; i < opt_var; i++) {
+        //l[i] = -OSQP_INFTY;  // Lower bound is negative infinity
+        //u[i] = OSQP_INFTY;   // Upper bound is positive infinity
     }
-    exitflag=osqp_setup(&solver, hessian_csc, linear_terms, A, l, u, n, n, settings);
+
+    OSQPFloat* l = nullptr;
+    OSQPFloat* u = nullptr;
+
+
+
+    // Add debug prints to verify CSC format
+
+    printf("Hessian Matrix (CSC format) properties:\n");
+    printf("Number of rows (m): %d\n", hessian_csc->m);
+    printf("Number of columns (n): %d\n", hessian_csc->n);
+    printf("Maximum nonzeros (nzmax): %d\n", hessian_csc->nzmax);
+    printf("Actual nonzeros (nz): %d\n", hessian_csc->nz);
+
+    printf("\nColumn pointers (p):\n");
+    for (OSQPInt j = 0; j <= hessian_csc->n; j++) {
+        printf("p[%d] = %d\n", j, hessian_csc->p[j]);
+    }
+
+    printf("\nRow indices (i) and values (x):\n");
+    for (OSQPInt k = 0; k < hessian_csc->p[hessian_csc->n]; k++) {
+        printf("i[%d] = %d, x[%d] = %f\n", k, hessian_csc->i[k], k, hessian_csc->x[k]);
+    }
+
+
+    exitflag=osqp_setup(&solver, hessian_csc, linear_terms, A, l, u, 1, 25, settings);
     if (!exitflag) {
         exitflag = osqp_solve(solver);
         solution=solver->solution;
@@ -60,25 +145,38 @@ void SparseMatrix::call_solver(OSQPInt n, OSQPInt m)
     osqp_cleanup(solver);
 }
 
-std::unique_ptr<QuadraticProgram> QuadraticProgram::create(
-    int optimisation_variables,
-    int constraints
-) {
-
-    auto qp = std::make_unique<QuadraticProgram>();
-
-
-    // Construct the quadratic and scalar costs.
-    qp->hessian = Eigen::MatrixXd::Zero(
+QuadraticProgram::QuadraticProgram(int optimisation_variables, int constraints)
+    : hessian(Eigen::MatrixXd::Zero(
         optimisation_variables, 
-        optimisation_variables
-    );
+        optimisation_variables))
+    , linear(Eigen::VectorXd::Zero(optimisation_variables))
+    , constraint_matrix(Eigen::MatrixXd::Zero(constraints, constraints))
+    , lower(Eigen::VectorXd::Zero(constraints))
+    , upper(Eigen::VectorXd::Zero(constraints))
+    , formulation(std::make_unique<OSQPFormulation>())
+    {}
+
+
+
+// std::unique_ptr<QuadraticProgram> QuadraticProgram::create(
+//     int optimisation_variables,
+//     int constraints
+// ) {
+
+//     //auto qp = std::make_unique<QuadraticProgram>();
+
+
+//     // Construct the quadratic and scalar costs.
+//     qp->hessian = Eigen::MatrixXd::Zero(
+//         optimisation_variables, 
+//         optimisation_variables
+//     );
     
-    //qp->linear = Eigen::VectorXd::Zero(optimisation_variables);
+//     //qp->linear = Eigen::VectorXd::Zero(optimisation_variables);
 
-    qp->constraint_matrix = Eigen::MatrixXd::Zero(constraints, constraints);
+//     qp->constraint_matrix = Eigen::MatrixXd::Zero(constraints, constraints);
 
-    // Allocate the quadratic program.
+//     // Allocate the quadratic program.
     
 
     
@@ -133,8 +231,8 @@ std::unique_ptr<QuadraticProgram> QuadraticProgram::create(
 
     // qp->m_solver = OSQPSolverPointer(solver, osqp_cleanup);
 
-    return qp;
-}
+//     return qp;
+// }
 
 /**
  * @brief Solve the quadratic optimsation problem for the state x.

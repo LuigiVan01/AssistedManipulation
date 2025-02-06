@@ -124,7 +124,7 @@ std::shared_ptr<Actor> Actor::create(
     std::unique_ptr<FilterQP> filterqp = std::make_unique<FilterQP>();
 
     if (!filterqp) {
-        std::cerr << "failed to create filterqp" << std::endl;
+        std::cerr << "failed to create the QP filter" << std::endl;
         return nullptr;
     }
 

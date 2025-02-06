@@ -11,12 +11,9 @@ FilterQP::FilterQP()
                                  m_self_collision_slack_variables +
                                  m_arm_reach_slack_variables)
         , m_constraints(6)
-        , m_qp (QuadraticProgram::create(m_optimisation_variables, 
-                                                   m_constraints))
+        , m_qp (std::make_unique<QuadraticProgram>(m_optimisation_variables, m_constraints))
+        , m_control_ref(Eigen::VectorXd::Zero(10))
     {
-
-        
-
 
         /// Hesian matrix filling
         int current_pos = 0;
@@ -48,6 +45,11 @@ FilterQP::FilterQP()
             = m_arm_reach_slack_variables_weight[i];
         }
 
+        // Create a new SparseMatrix from the hessian
+        m_qp->formulation->SparseMatrix(m_qp->hessian);
+
+
+
     }
 
 void FilterQP::set_control_ref(Eigen::Ref<Eigen::VectorXd> control_ref)
@@ -68,11 +70,15 @@ void FilterQP::update_qp(
         for(int i = 0; i < m_joint_velocities; i++) {
             m_qp->linear[i] = -m_joint_velocities_weight[i]*m_control_ref[i];
         }
+        
 
-        // Create a new SparseMatrix from the hessian
-        m_qp->m_hessian_csc =std::make_unique<SparseMatrix>(m_qp->hessian);
-        m_qp->m_hessian_csc->linear_terms =m_qp->linear;
-        m_qp->m_hessian_csc->call_solver(m_optimisation_variables,m_constraints);
+        m_qp->formulation->linear_terms = (OSQPFloat*)malloc(sizeof(double)*m_qp->linear.size());
+        m_qp->formulation->linear_terms = m_qp->linear.data();
+
+        // Call the solver
+        m_qp->formulation->call_solver(m_optimisation_variables,m_constraints);
+
+        //TODO: Add the constraints matrix as SparseMatrix
     }
 
 void FilterQP::filter(       
